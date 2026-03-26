@@ -1,4 +1,4 @@
-// --- 2. Firebase Config ---
+// --- Firebase Config ---
 const firebaseConfig = {
     apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
     authDomain: "student-management-syste-6a036.firebaseapp.com",
@@ -11,7 +11,7 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// --- 3. ENABLE OFFLINE PERSISTENCE (Fast & Offline) ---
+// ENABLE OFFLINE PERSISTENCE
 if (!window.location.search.includes('student=')) {
     db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log(err));
 }
@@ -19,7 +19,7 @@ if (!window.location.search.includes('student=')) {
 const COLLECTION_NAME = 'music_classes';
 let DOC_ID = 'main_data';
 
-// --- 4. Optimized Database Functions ---
+// --- Optimized Database Functions ---
 async function openDB() { return true; }
 
 async function dbGet(key) {
@@ -49,7 +49,6 @@ async function dbClear() {
     catch (error) { console.error("Clear Error:", error); }
 }
 
-// --- 5. Data Migration (One time) ---
 async function syncOldDataToFirebase() {
     const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
     const doc = await docRef.get();
@@ -79,8 +78,6 @@ async function syncOldDataToFirebase() {
     }
 }
 
-// --- 6. App Logic & Initialization ---
-
 if ('serviceWorker' in navigator) { 
     window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
 }
@@ -91,16 +88,9 @@ function startClock() {
     setInterval(() => {
         const now = new Date();
         const options = { 
-            weekday: 'short',
-            day: 'numeric',  
-            month: 'short',  
-            year: 'numeric', 
-            hour: '2-digit', 
-            minute: '2-digit', 
-            second: '2-digit', 
-            hour12: true 
+            weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', 
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true 
         };
-
         document.getElementById('liveClock').textContent = now.toLocaleString('en-IN', options);
 
         if (now.toDateString() !== lastCheckedDate) {
@@ -115,7 +105,6 @@ const auth = firebase.auth();
 
 document.addEventListener('DOMContentLoaded', async () => {
     loadTheme();
-
     const urlParams = new URLSearchParams(window.location.search);
     const studentViewId = urlParams.get('student');
     const managerUid = urlParams.get('manager');
@@ -160,13 +149,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : rec.data;
                             let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : 'No note';
                             let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
-
                             let clr = status === 'present' ? '#16a34a' : '#dc2626';
-
                             const d = new Date(rec.date);
                             const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
                             const formattedDate = d.toLocaleDateString('en-IN');
-
                             let timeDisplay = time ? formatTime12H(time) : '';
                             let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
 
@@ -186,7 +172,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         
                         let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
                             let txnHtml = rec.data.transactionId ? `<br><span style="font-size:10px; color:#047857; font-weight:600; display:inline-block; margin-top:3px; background:#d1fae5; padding:2px 6px; border-radius:4px;">Txn: ${rec.data.transactionId}</span>` : '';
-                            
                             return `<div style="margin-bottom:10px; padding:12px; background:#f0fdf4; border-radius:10px; border-left:4px solid #22c55e; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
                                 <div>
                                     <strong style="color:#166534; font-size:14px;">${rec.month}</strong><br>
@@ -202,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         let dueMonthsList = [];
                         const portalNow = new Date();
                         const portalToday = portalNow.getDate();
-                        const portalDUE_DATE = 10; 
+                        const portalDUE_DATE = 10;
                         
                         let iterDate = new Date(s.joining_date);
                         if (!isNaN(iterDate.getTime())) {
@@ -283,12 +268,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                             materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
                         }
 
-                        // ৬. HTML Structure
+                        // ৬. HTML Structure (Injecting into body)
                         document.body.innerHTML = `
                             <style>
                                 .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
                                 .modal-content-portal { background:#fff; width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
                                 .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
                                 .scroller-box::-webkit-scrollbar { width: 4px; }
                                 .scroller-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
@@ -534,7 +518,9 @@ function handleSignUp() {
     signUpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
     auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {})
+        .then((userCredential) => {
+            // Handled by onAuthStateChanged
+        })
         .catch((error) => {
             console.error(error);
             errorMsg.textContent = "Error: " + error.message;
@@ -680,7 +666,6 @@ let dismissedBirthdays = JSON.parse(localStorage.getItem('dismissedBirthdays')) 
 async function saveInstituteLogo(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 200; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const logoBase64 = canvas.toDataURL('image/jpeg', 0.8); await dbSet('instituteLogo', logoBase64); await loadInstituteLogo(); Swal.fire('Success', 'Logo saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
 async function loadInstituteLogo() { instituteLogo = await dbGet('instituteLogo'); const img = document.getElementById('logoPreview'); const headerLogo = document.getElementById('headerLogo'); const btn = document.getElementById('removeLogoBtn'); if (instituteLogo) { img.src = instituteLogo; img.style.display = 'block'; btn.style.display = 'inline-block'; headerLogo.src = instituteLogo; headerLogo.style.display = 'block'; } else { img.style.display = 'none'; btn.style.display = 'none'; headerLogo.style.display = 'none'; } }
 async function removeLogo() { await dbDelete('instituteLogo'); instituteLogo = null; await loadInstituteLogo(); }
-
 async function saveAuthSignature(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 150; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const sigBase64 = canvas.toDataURL('image/png'); await dbSet('authorizedSignature', sigBase64); await loadAuthSignature(); Swal.fire('Success', 'Signature saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
 async function loadAuthSignature() { authorizedSignature = await dbGet('authorizedSignature'); const img = document.getElementById('authSigPreview'); const btn = document.getElementById('removeAuthSigBtn'); if (authorizedSignature) { img.src = authorizedSignature; img.style.display = 'block'; btn.style.display = 'inline-block'; } else { img.style.display = 'none'; btn.style.display = 'none'; } }
 async function removeAuthSignature() { await dbDelete('authorizedSignature'); authorizedSignature = null; await loadAuthSignature(); }
@@ -912,20 +897,7 @@ function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) {
     } 
 }
 
-function sendBirthdayWish(type, studentId) { 
-    const student = students.find(s => s.id === studentId); 
-    if(!student) return; 
-    const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; 
-    if(type === 'wa') { 
-        let cleanPhone = student.phone.replace(/[^0-9]/g, ''); 
-        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); 
-    } else if (type === 'sms') { 
-        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); 
-    } else if (type === 'mail') { 
-        window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); 
-    } 
-}
+function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
 
 function dismissBirthday(studentId) {
     const currentYear = new Date().getFullYear();
@@ -944,14 +916,19 @@ function dismissBirthday(studentId) {
             timer: 2000,
             timerProgressBar: true
         });
-        Toast.fire({ icon: 'success', title: 'Birthday dismissed' });
+        Toast.fire({
+            icon: 'success',
+            title: 'Birthday dismissed'
+        });
     }
 }
 
 let pendingAction = null, pinInput = "";
 function secureAction(callback, isInit = false) { pendingAction = callback; pinInput = ""; updatePinDots(); document.querySelector('.close-pin').style.display = isInit ? 'none' : 'block'; document.getElementById('securityOverlay').style.display = 'flex'; }
 function closePinScreen() { 
-    if (!students || students.length === 0) return; 
+    if (!students || students.length === 0) {
+        return; 
+    }
     document.getElementById('securityOverlay').style.display = 'none'; 
     pendingAction = null; 
     pinInput = ""; 
@@ -988,7 +965,10 @@ async function submitPin() {
             showConfirmButton: false,
             timer: 2000,            
             background: '#ffe4e6',  
-            color: '#dc2626'
+            color: '#dc2626',       
+            customClass: {
+                popup: 'high-z-index-popup' 
+            }
         });
     }
 }
@@ -998,7 +978,9 @@ async function changeAppPin() {
     
     if (newPin.length === 4 && !isNaN(newPin)) { 
         await dbSet('app_pin', newPin); 
+        
         localStorage.setItem('app_pin', newPin);
+        
         Swal.fire('Success', 'PIN changed successfully.', 'success'); 
         document.getElementById('newAppPin').value = ''; 
     } else { 
@@ -1763,7 +1745,6 @@ function showClassStudents(className) {
     classStudents.forEach(s => { tableBody.innerHTML += `<tr><td>${s.serial_no}</td><td>${getStudentHtml(s)}</td><td>${getContactButtons(s.id)}</td></tr>`; }); 
     document.getElementById('classStudentsModal').style.display = 'flex'; 
 }
-
 function showCategoryList(type) { 
     const list = students.filter(s => type === 'active' ? s.status?.isActive : !s.status?.isActive); 
     document.getElementById('classStudentsTitle').textContent = type === 'active' ? 'Active Students' : 'Inactive Students'; 
@@ -1792,12 +1773,14 @@ async function addReminder() {
 
     reminders.push({ id: Date.now(), text: text, day: day, date: dateVal }); 
     
+    // UI সাথে সাথে আপডেট হবে
     document.getElementById('reminderText').value = ''; 
     document.getElementById('reminderDate').value = ''; 
     renderReminders(); 
     
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder added!', showConfirmButton: false, timer: 1500 });
     
+    // ব্যাকগ্রাউন্ডে সেভ হবে (কোনো ল্যাগ করবে না)
     saveData().catch(e => console.log("Background sync pending")); 
 }
 
@@ -2145,6 +2128,7 @@ function exportStudentDetailsAsPDF(studentId) {
     doc.setFillColor(230);
     doc.rect(leftMargin, y, pageWidth - (leftMargin*2), 8, 'F');
     doc.setFontSize(10);
+    // Modified Date column text to Date & Time
     doc.text("Date & Time", leftMargin + 5, y + 5);
     doc.text("Status", leftMargin + 50, y + 5);
     doc.text("Topic / Note", leftMargin + 80, y + 5);
@@ -2556,8 +2540,7 @@ function switchStudentView(view) {
         inactiveDiv.style.display = 'block';
     }
 }
-
-let studentDisplayLimit = 20; 
+let studentDisplayLimit = 20;
 
 function loadStudentsList(showAll = false) { 
     const activeList = document.getElementById('activeStudentsList');
@@ -2873,7 +2856,7 @@ async function generateIDCard() {
     const { jsPDF } = window.jspdf; 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [86, 54] }); 
     
-    doc.setFillColor(24, 75, 115); 
+    doc.setFillColor(24, 75, 115);
     doc.rect(0, 0, 30, 54, 'F'); 
     
     if (student.photo) { 
@@ -3270,7 +3253,6 @@ function openFeeModal(studentId, month, isEdit = false) {
     dateInput.valueAsDate = new Date(); 
     modal.style.display = 'flex'; 
 }
-
 function openEditStudentModal(id) { 
     const student = students.find(s => s.id === parseInt(id)); 
     if(!student) return; 
@@ -3359,7 +3341,6 @@ function showStudentDetails(studentId) {
     document.getElementById('modalPhone').innerHTML = student.phone ? `${student.phone}` : 'N/A'; 
     document.getElementById('modalEmail').innerHTML = student.email ? `${student.email}` : 'N/A'; 
     document.getElementById('modalAddress').textContent = student.address || 'N/A'; 
-    
     const currentNotice = student.personal_notice || '';
     document.getElementById('currentNoticeDisplay').innerHTML = currentNotice ? `Current Notice: <span>${currentNotice}</span>` : 'No active notice.';
     document.getElementById('personalNoticeInput').value = currentNotice;
@@ -3420,7 +3401,7 @@ function showStudentDetails(studentId) {
     renderStudentDetailsHistory();
     document.getElementById('exportPdfBtn').onclick = () => exportStudentDetailsAsPDF(studentId); 
     renderStudentNotes(studentId);
-    renderStudyMaterials(studentId);
+    renderStudyMaterials(studentId); 
     document.getElementById('studentDetailsModal').style.display = 'flex'; 
 }
 
