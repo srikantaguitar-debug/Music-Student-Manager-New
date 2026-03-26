@@ -8,6 +8,7 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://www.gstatic.com">
+    
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -26,6 +27,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
     <script src="https://unpkg.com/html5-qrcode" defer></script>
     
@@ -64,7 +66,6 @@
                 <div class="wn-row"><span class="wn-label">Address:</span><span id="wnAddress" class="wn-val"></span></div>
                 <div class="wn-row"><span class="wn-label">Phone:</span><span id="wnPhone" class="wn-val"></span></div>
             </div>
-
             <div class="wn-photo-col">
                 <img id="wnStudentPhoto" src="">
             </div>
@@ -72,7 +73,7 @@
 
         <div class="wn-welcome-box">
             <h2 class="wn-welcome-title">প্রিয় শিক্ষার্থী,</h2>
-            <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন।</p>
+            <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন。</p>
         </div>
 
         <div class="wn-rules-box">
@@ -95,14 +96,11 @@
                 <div style="height: 130px; display: flex; align-items: flex-end; justify-content: flex-start;">
                     <img id="wnStudentSig" src="" style="display:none;">
                 </div>
-                <span id="wnStudentNameSig" style="font-weight: bold; border-top: 2px solid #333; padding-top: 5px; display: block; margin-top: 5px; font-size: 22px;">
-                </span>
-                
+                <span id="wnStudentNameSig" style="font-weight: bold; border-top: 2px solid #333; padding-top: 5px; display: block; margin-top: 5px; font-size: 22px;"></span>
                 <div style="font-size: 22px; font-weight: bold; color: #333; margin-top: 5px;">
                     Date: <span id="wnFooterDate"></span>
                 </div>
             </div>
-
             <div class="wn-sig-box">
                 <img id="wnSigImg" class="wn-sig-img" src="">
                 <span class="wn-owner">Srikanta Banerjee</span>
@@ -234,7 +232,63 @@
                     <button class="btn-primary" onclick="addReminder()" style="width:100%; margin-top: 10px;">Add Reminder</button>
                 </div>
             </div>
-            <div id="reminderListContainer"></div>
+            <div id="reminderListContainer" style="margin-bottom: 30px;"></div>
+
+            <hr style="margin: 25px 0; border-top: 2px dashed var(--border-color);">
+            <h3 style="border-left: 4px solid var(--info); padding-left:10px; color: var(--info);">📚 Material Library</h3>
+            
+            <div class="dashboard-card" style="border-color: var(--info);">
+                <h4 style="margin-top:0; margin-bottom:15px; font-size:14px; color:var(--text-muted);">Add Link to Library</h4>
+                <div class="form-grid">
+                    <div class="form-group"><input type="text" id="libMatTitle" placeholder="Title (e.g. C Major Scale)"></div>
+                    <div style="display:flex; gap:10px;">
+                        <div class="form-group" style="flex:1;">
+                            <select id="libMatCategory">
+                                <option value="Guitar">🎸 Guitar</option>
+                                <option value="Bass Guitar">🎸 Bass Guitar</option>
+                                <option value="Keyboard">🎹 Keyboard/Piano</option>
+                                <option value="Mandolin">🪕 Mandolin</option>
+                                <option value="Other">📁 Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <select id="libMatType">
+                                <option value="video">🎬 Video</option>
+                                <option value="pdf">📄 PDF</option>
+                                <option value="audio">🎵 Audio</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group"><input type="url" id="libMatLink" placeholder="Paste Link Here"></div>
+                </div>
+                <button class="btn-info" onclick="saveGlobalMaterial()" style="width:100%; margin-top:5px;">
+                    <i class="fas fa-save"></i> Save to Library
+                </button>
+            </div>
+
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <div class="search-bar" style="margin-bottom: 10px;">
+                    <input type="search" id="searchLibrary" onkeyup="filterLibrary()" placeholder="🔍 Search by Title...">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <select id="filterLibCategory" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+                        <option value="All">🎸 All Categories</option>
+                        <option value="Guitar">Guitar</option>
+                        <option value="Bass Guitar">Bass Guitar</option>
+                        <option value="Keyboard">Keyboard</option>
+                        <option value="Mandolin">Mandolin</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <select id="filterLibType" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+                        <option value="All">📂 All Types</option>
+                        <option value="video">🎬 Video</option>
+                        <option value="pdf">📄 PDF</option>
+                        <option value="audio">🎵 Audio</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div id="globalLibraryList" onscroll="handleLibraryScroll()" style="display:flex; flex-direction:column; gap:12px; max-height: 450px; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;"></div>
         </div>
 
         <div id="studentMgmt" class="tab-content">
@@ -528,7 +582,7 @@
                 <select id="detailsFilterYear" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
                 <select id="detailsFilterMonth" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
             </div>
-            
+
             <div style="margin-bottom:20px;">
                 <h4 style="margin:0 0 10px 0;">Status History</h4>
                 <ul id="modalStatusHistory" class="scrollable-list"></ul>
@@ -566,7 +620,7 @@
                     <ul id="modalNotesList" style="list-style: none; padding: 0; margin: 0;"></ul>
                 </div>
             </div>
-            
+
             <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
                 <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
                     <i class="fas fa-bullhorn" style="color: var(--warning);"></i> Personal Notice
@@ -578,7 +632,7 @@
                     <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
                 </div>
             </div>
-            
+
             <div style="background: var(--bg-input); padding: 15px; border-radius: 12px;">
                 <label>Generate Documents</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
@@ -651,6 +705,7 @@
             <input type="hidden" id="editStudentId">
             <input type="file" id="editStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
             <input type="file" id="editStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
+            
             <div style="text-align: center; margin-bottom: 15px;">
                 <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
                     <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
@@ -660,10 +715,12 @@
                     <i class="fas fa-trash"></i> Remove Photo
                 </button>
             </div>
+            
             <div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
                 <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
                 <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
             </div>
+
             <div class="form-grid">
                 <div class="form-group"><label>Name</label><input type="text" id="editStudentName"></div>
                 <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
@@ -683,6 +740,7 @@
                     <i class="fas fa-pen-nib"></i> Update Signature
                 </button>
             </div>
+
             <button class="btn-primary" onclick="saveStudentChanges()" style="width:100%; margin-top:15px;">Update</button>
         </div>
     </div>
