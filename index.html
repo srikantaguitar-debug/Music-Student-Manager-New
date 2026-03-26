@@ -27,7 +27,6 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
     <script src="https://unpkg.com/html5-qrcode" defer></script>
     
@@ -39,24 +38,20 @@
             <h2 style="color: var(--primary); margin-bottom: 20px;">Manager Login</h2>
             <input type="email" id="loginEmail" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
             <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
-            
             <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
                 <i class="fas fa-sign-in-alt"></i> Login
             </button>
-            
             <p id="loginError" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;"></p>
         </div>
     </div>
 
     <div id="welcomeNoteTemplate">
         <div class="wn-watermark"><img id="wnWatermarkImg" src="" style="width:100%;"></div>
-        
         <div class="wn-header">
             <img id="wnHeaderLogo" class="wn-logo" src="">
             <h1 class="wn-title">GUITAR, BASS GUITAR, PIANO, KEYBOARD, MANDOLIN CLASSES</h1>
             <p class="wn-phone">Ph- 7001471235</p>
         </div>
-        
         <div class="wn-details-box">
             <div class="wn-info-col">
                 <div class="wn-row"><span class="wn-label">Student Name:</span><span id="wnStudentName" class="wn-val"></span></div>
@@ -70,12 +65,10 @@
                 <img id="wnStudentPhoto" src="">
             </div>
         </div>
-
         <div class="wn-welcome-box">
             <h2 class="wn-welcome-title">প্রিয় শিক্ষার্থী,</h2>
-            <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন。</p>
+            <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন।</p>
         </div>
-
         <div class="wn-rules-box">
             <h3 class="wn-rules-title">📌 নিয়মাবলী (Rules for Student):</h3>
             <ul class="wn-rules-list">
@@ -85,12 +78,10 @@
                 <li>ক্লাসের দিন বা সময় (Day & Time) পরিবর্তন হলে কর্তৃপক্ষ দায়ী থাকবে না। <span style="color:#d32f2f;">*</span></li>
             </ul>
         </div>
-
         <div style="font-size: 18px; color: #444; margin-top: 30px; font-style: italic;">
             <p><span style="color:#d32f2f;">*</span> Conditions Apply.</p>
             <p>আমি উপরের নিয়মগুলো পড়লাম এবং মেনে চলতে সম্মত হলাম।</p>
         </div>
-
         <div class="wn-footer">
             <div class="wn-sig-box" style="text-align: left;">
                 <div style="height: 130px; display: flex; align-items: flex-end; justify-content: flex-start;">
@@ -416,7 +407,7 @@
 
             <table id="reportTable" style="display: none; margin-top: 10px;"><thead></thead><tbody></tbody></table>
         </div> 
-
+        
         <div id="analytics" class="tab-content">
              <div class="dashboard-card">
                 <h3>Yearly Analysis & Comparison</h3>
@@ -582,7 +573,7 @@
                 <select id="detailsFilterYear" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
                 <select id="detailsFilterMonth" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
             </div>
-
+            
             <div style="margin-bottom:20px;">
                 <h4 style="margin:0 0 10px 0;">Status History</h4>
                 <ul id="modalStatusHistory" class="scrollable-list"></ul>
@@ -632,14 +623,13 @@
                     <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
                 </div>
             </div>
-
+            
             <div style="background: var(--bg-input); padding: 15px; border-radius: 12px;">
                 <label>Generate Documents</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <input type="date" id="idCardIssueDate">
                     <input type="date" id="idCardEndDate">
                 </div>
-                
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-info" onclick="generateIDCard()" style="flex:1;">ID Card</button>
                     <button class="btn-primary" id="exportPdfBtn" style="flex:1;">Profile PDF</button>
@@ -705,7 +695,6 @@
             <input type="hidden" id="editStudentId">
             <input type="file" id="editStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
             <input type="file" id="editStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
-            
             <div style="text-align: center; margin-bottom: 15px;">
                 <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
                     <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
@@ -715,12 +704,10 @@
                     <i class="fas fa-trash"></i> Remove Photo
                 </button>
             </div>
-            
             <div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
                 <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
                 <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
             </div>
-
             <div class="form-grid">
                 <div class="form-group"><label>Name</label><input type="text" id="editStudentName"></div>
                 <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
@@ -767,6 +754,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
