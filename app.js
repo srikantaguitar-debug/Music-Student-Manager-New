@@ -80,6 +80,7 @@ async function syncOldDataToFirebase() {
 }
 
 // --- 6. App Logic & Initialization ---
+
 if ('serviceWorker' in navigator) { 
     window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
 }
@@ -463,6 +464,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         return; 
     }
+    
     auth.onAuthStateChanged(async (user) => {
         const loginOverlay = document.getElementById('loginOverlay');
         const userDisplay = document.getElementById('currentUserDisplay');
@@ -515,6 +517,7 @@ function handleLogin() {
             loginBtn.innerHTML = originalText;
         });
 }
+
 function handleSignUp() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
@@ -531,8 +534,7 @@ function handleSignUp() {
     signUpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
     auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-        })
+        .then((userCredential) => {})
         .catch((error) => {
             console.error(error);
             errorMsg.textContent = "Error: " + error.message;
@@ -631,17 +633,19 @@ async function initApp() {
             }
         }
 
-        const [aData, fData, rData, scData] = await Promise.all([
+        const [aData, fData, rData, scData, gmData] = await Promise.all([
             dbGet('attendance'),
             dbGet('fees'),
             dbGet('reminders'),
-            dbGet('studentSerialCounter')
+            dbGet('studentSerialCounter'),
+            dbGet('globalMaterials')
         ]);
 
         students = loadedStudents || []; 
         attendance = aData || {}; 
         fees = fData || {}; 
         reminders = rData || []; 
+        globalMaterials = gmData || [];
         studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
         
         loadAllData(); 
@@ -662,7 +666,7 @@ const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes";
 const MY_NAME = "Srikanta Banerjee"; 
 const DEFAULT_FEE = 500, DUE_DATE = 10; 
 
-let students = [], attendance = {}, fees = {}, reminders = [], studentSerialCounter = 1; 
+let students = [], attendance = {}, fees = {}, reminders = [], globalMaterials = [], studentSerialCounter = 1; 
 let financeChartInstance = null; 
 let instituteLogo = null; 
 let authorizedSignature = null;
@@ -676,6 +680,7 @@ let dismissedBirthdays = JSON.parse(localStorage.getItem('dismissedBirthdays')) 
 async function saveInstituteLogo(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 200; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const logoBase64 = canvas.toDataURL('image/jpeg', 0.8); await dbSet('instituteLogo', logoBase64); await loadInstituteLogo(); Swal.fire('Success', 'Logo saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
 async function loadInstituteLogo() { instituteLogo = await dbGet('instituteLogo'); const img = document.getElementById('logoPreview'); const headerLogo = document.getElementById('headerLogo'); const btn = document.getElementById('removeLogoBtn'); if (instituteLogo) { img.src = instituteLogo; img.style.display = 'block'; btn.style.display = 'inline-block'; headerLogo.src = instituteLogo; headerLogo.style.display = 'block'; } else { img.style.display = 'none'; btn.style.display = 'none'; headerLogo.style.display = 'none'; } }
 async function removeLogo() { await dbDelete('instituteLogo'); instituteLogo = null; await loadInstituteLogo(); }
+
 async function saveAuthSignature(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 150; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const sigBase64 = canvas.toDataURL('image/png'); await dbSet('authorizedSignature', sigBase64); await loadAuthSignature(); Swal.fire('Success', 'Signature saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
 async function loadAuthSignature() { authorizedSignature = await dbGet('authorizedSignature'); const img = document.getElementById('authSigPreview'); const btn = document.getElementById('removeAuthSigBtn'); if (authorizedSignature) { img.src = authorizedSignature; img.style.display = 'block'; btn.style.display = 'inline-block'; } else { img.style.display = 'none'; btn.style.display = 'none'; } }
 async function removeAuthSignature() { await dbDelete('authorizedSignature'); authorizedSignature = null; await loadAuthSignature(); }
@@ -906,7 +911,21 @@ function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) {
         window.open(`mailto:${student.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msgBody)}`, '_self'); 
     } 
 }
-function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
+
+function sendBirthdayWish(type, studentId) { 
+    const student = students.find(s => s.id === studentId); 
+    if(!student) return; 
+    const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; 
+    if(type === 'wa') { 
+        let cleanPhone = student.phone.replace(/[^0-9]/g, ''); 
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); 
+    } else if (type === 'sms') { 
+        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); 
+    } else if (type === 'mail') { 
+        window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); 
+    } 
+}
 
 function dismissBirthday(studentId) {
     const currentYear = new Date().getFullYear();
@@ -925,19 +944,14 @@ function dismissBirthday(studentId) {
             timer: 2000,
             timerProgressBar: true
         });
-        Toast.fire({
-            icon: 'success',
-            title: 'Birthday dismissed'
-        });
+        Toast.fire({ icon: 'success', title: 'Birthday dismissed' });
     }
 }
 
 let pendingAction = null, pinInput = "";
 function secureAction(callback, isInit = false) { pendingAction = callback; pinInput = ""; updatePinDots(); document.querySelector('.close-pin').style.display = isInit ? 'none' : 'block'; document.getElementById('securityOverlay').style.display = 'flex'; }
 function closePinScreen() { 
-    if (!students || students.length === 0) {
-        return; 
-    }
+    if (!students || students.length === 0) return; 
     document.getElementById('securityOverlay').style.display = 'none'; 
     pendingAction = null; 
     pinInput = ""; 
@@ -974,10 +988,7 @@ async function submitPin() {
             showConfirmButton: false,
             timer: 2000,            
             background: '#ffe4e6',  
-            color: '#dc2626',        
-            customClass: {
-                popup: 'high-z-index-popup' 
-            }
+            color: '#dc2626'
         });
     }
 }
@@ -987,9 +998,7 @@ async function changeAppPin() {
     
     if (newPin.length === 4 && !isNaN(newPin)) { 
         await dbSet('app_pin', newPin); 
-        
         localStorage.setItem('app_pin', newPin);
-        
         Swal.fire('Success', 'PIN changed successfully.', 'success'); 
         document.getElementById('newAppPin').value = ''; 
     } else { 
@@ -1283,12 +1292,13 @@ async function addStudent() {
 async function saveData() { 
     await dbSet('attendance', attendance); 
     await dbSet('fees', fees); 
-    await dbSet('reminders', reminders); 
+    await dbSet('reminders', reminders);
+    await dbSet('globalMaterials', globalMaterials); 
     await dbSet('studentSerialCounter', studentSerialCounter); 
 }
 
 function loadAllData() { renderDashboard(); loadStudentsList(); renderAttendance(); renderFees(); renderReminders(); }
-
+        
 async function exportData() { 
     const currentPin = localStorage.getItem('app_pin') || await dbGet('app_pin') || '1234';
 
@@ -1364,7 +1374,10 @@ function openTab(tabName) {
         renderAttendance();
     }
     if(tabName === 'fees') renderFees();
-    if(tabName === 'reminders') renderReminders();
+    if(tabName === 'reminders') {
+        renderReminders();
+        renderGlobalMaterials();
+    }
 }
 
 function migrateStudentData(student) { 
@@ -1779,13 +1792,13 @@ async function addReminder() {
 
     reminders.push({ id: Date.now(), text: text, day: day, date: dateVal }); 
     
-    await saveData(); 
-    
     document.getElementById('reminderText').value = ''; 
     document.getElementById('reminderDate').value = ''; 
     renderReminders(); 
     
-    Swal.fire('Added', 'Reminder added successfully.', 'success'); 
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder added!', showConfirmButton: false, timer: 1500 });
+    
+    saveData().catch(e => console.log("Background sync pending")); 
 }
 
 async function deleteReminder(id) { reminders = reminders.filter(r => r.id !== id); await saveData(); renderReminders(); }
@@ -2543,6 +2556,7 @@ function switchStudentView(view) {
         inactiveDiv.style.display = 'block';
     }
 }
+
 let studentDisplayLimit = 20; 
 
 function loadStudentsList(showAll = false) { 
@@ -3256,6 +3270,7 @@ function openFeeModal(studentId, month, isEdit = false) {
     dateInput.valueAsDate = new Date(); 
     modal.style.display = 'flex'; 
 }
+
 function openEditStudentModal(id) { 
     const student = students.find(s => s.id === parseInt(id)); 
     if(!student) return; 
@@ -3405,7 +3420,7 @@ function showStudentDetails(studentId) {
     renderStudentDetailsHistory();
     document.getElementById('exportPdfBtn').onclick = () => exportStudentDetailsAsPDF(studentId); 
     renderStudentNotes(studentId);
-    renderStudyMaterials(studentId); 
+    renderStudyMaterials(studentId);
     document.getElementById('studentDetailsModal').style.display = 'flex'; 
 }
 
@@ -4092,4 +4107,234 @@ async function deletePersonalNotice() {
         Swal.fire('Deleted', 'Notice removed', 'success');
         showStudentDetails(currentlyViewingStudentId);
     }
+}
+
+async function saveGlobalMaterial() {
+    const title = document.getElementById('libMatTitle').value.trim();
+    const category = document.getElementById('libMatCategory').value;
+    const type = document.getElementById('libMatType').value;
+    const link = document.getElementById('libMatLink').value.trim();
+
+    if (!title || !link) {
+        Swal.fire('Error', 'Title and Link are required!', 'error');
+        return;
+    }
+
+    const newMaterial = {
+        id: Date.now(),
+        title: title,
+        category: category,
+        type: type,
+        link: link,
+        date: new Date().toISOString().split('T')[0]
+    };
+
+    globalMaterials.push(newMaterial);
+    
+    document.getElementById('libMatTitle').value = '';
+    document.getElementById('libMatLink').value = '';
+    renderGlobalMaterials();
+    
+    const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
+    Toast.fire({ icon: 'success', title: 'Saved to Library' });
+
+    saveData().catch(e => console.log("Background sync pending"));
+}
+
+let currentFilteredMaterials = [];
+let currentLibDisplayCount = 0;
+const LIB_ITEMS_PER_PAGE = 10; 
+
+function renderGlobalMaterials() {
+    document.getElementById('searchLibrary').value = '';
+    document.getElementById('filterLibCategory').value = 'All';
+    document.getElementById('filterLibType').value = 'All';
+    filterLibrary();
+}
+
+function filterLibrary() {
+    const searchText = document.getElementById('searchLibrary').value.toLowerCase();
+    const filterCat = document.getElementById('filterLibCategory').value;
+    const filterType = document.getElementById('filterLibType').value;
+    
+    const container = document.getElementById('globalLibraryList');
+    container.innerHTML = '';
+    currentLibDisplayCount = 0; 
+
+    currentFilteredMaterials = globalMaterials.filter(mat => {
+        const matchText = mat.title.toLowerCase().includes(searchText) || 
+                          mat.category.toLowerCase().includes(searchText) ||
+                          mat.type.toLowerCase().includes(searchText);
+                          
+        const matchCat = filterCat === 'All' || mat.category === filterCat;
+        const matchType = filterType === 'All' || mat.type === filterType;
+        
+        return matchText && matchCat && matchType;
+    });
+
+    if (currentFilteredMaterials.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:13px; padding: 20px;">No materials found matching your search.</p>';
+        return;
+    }
+
+    currentFilteredMaterials.sort((a, b) => b.id - a.id);
+
+    loadMoreLibraryItems();
+}
+
+function loadMoreLibraryItems() {
+    const container = document.getElementById('globalLibraryList');
+    
+    const nextBatch = currentFilteredMaterials.slice(currentLibDisplayCount, currentLibDisplayCount + LIB_ITEMS_PER_PAGE);
+    
+    if (nextBatch.length === 0) return; 
+
+    nextBatch.forEach(mat => {
+        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : 
+                   mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : 
+                   '<i class="fas fa-music" style="color:#3b82f6;"></i>';
+                   
+        const div = document.createElement('div');
+        div.style.cssText = 'background: var(--bg-card); padding: 15px; border-radius: 12px; border-left: 4px solid var(--info); box-shadow: var(--shadow); display:flex; flex-direction:column; gap:10px; flex-shrink: 0; animation: fadeIn 0.4s ease;';
+        
+        div.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div>
+                    <span style="font-size:10px; background:var(--bg-input); padding:2px 8px; border-radius:4px; color:var(--text-muted); font-weight:600; text-transform:uppercase;">${mat.category}</span>
+                    <span style="font-size:10px; background:var(--bg-input); padding:2px 8px; border-radius:4px; color:var(--text-muted); font-weight:600; text-transform:uppercase; margin-left:5px;">${mat.type}</span>
+                    <div style="font-size:14px; font-weight:600; color:var(--text-main); margin-top:5px;">${icon} ${mat.title}</div>
+                </div>
+                <button onclick="deleteGlobalMaterial(${mat.id})" style="background:transparent; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-trash"></i></button>
+            </div>
+            
+            <div style="display:flex; gap:10px; margin-top:5px; align-items: stretch;">
+                <button class="btn-info" onclick="openSendToStudentModal(${mat.id})" style="flex:2; font-size:12px; padding:8px 0; display:flex; align-items:center; justify-content:center; border-radius:8px; height: 35px; min-height: 35px; box-sizing: border-box; border: none;">
+                    <i class="fas fa-paper-plane" style="margin-right:5px;"></i> Send to Student
+                </button>
+                <a href="${mat.link}" target="_blank" class="btn-success" style="flex:1; font-size:12px; padding:8px 0; display:flex; align-items:center; justify-content:center; text-decoration:none; border-radius:8px; height: 35px; min-height: 35px; box-sizing: border-box; text-align: center;">
+                    <i class="fas fa-eye" style="margin-right:5px;"></i> View
+                </a>
+            </div>
+        `;
+        container.appendChild(div);
+    });
+
+    currentLibDisplayCount += nextBatch.length;
+}
+
+function handleLibraryScroll() {
+    const container = document.getElementById('globalLibraryList');
+    
+    if (container.scrollTop + container.clientHeight >= container.scrollHeight - 15) {
+        loadMoreLibraryItems();
+    }
+}
+
+async function deleteGlobalMaterial(id) {
+    Swal.fire({
+        title: 'Delete from Library?',
+        text: "Are you sure? (This won't remove it from students who already received it)",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, Delete'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            globalMaterials = globalMaterials.filter(m => m.id !== id);
+            await saveData();
+            renderGlobalMaterials();
+        }
+    });
+}
+
+let tempActiveStudents = []; 
+
+async function openSendToStudentModal(matId) {
+    const material = globalMaterials.find(m => m.id === matId);
+    if (!material) return;
+
+    tempActiveStudents = students.filter(s => s.status?.isActive).sort((a,b) => a.name.localeCompare(b.name));
+    
+    let optionsHtml = '';
+    tempActiveStudents.forEach(s => {
+        optionsHtml += `<option value="${s.id}" style="padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer;">${s.name} (${s.class || 'N/A'})</option>`;
+    });
+
+    const { value: selectedStudentId } = await Swal.fire({
+        title: 'Send Material',
+        html: `
+            <div style="text-align:left; margin-bottom:15px; font-size:13px; color:var(--text-main);">
+                <strong>Material:</strong> ${material.title} <br>
+                <span style="color:var(--info); font-weight:600;">${material.category}</span>
+            </div>
+            
+            <input type="text" id="swal-search-student" class="swal2-input" placeholder="🔍 Search student by name..." style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="filterSendStudentList()">
+            
+            <select id="send-mat-student" class="swal2-select" size="6" style="width:100%; font-size:14px; margin:0; padding:5px; box-sizing: border-box; overflow-y: auto; border-radius: 8px;">
+                ${optionsHtml}
+            </select>
+            <div style="font-size:11px; color:var(--text-muted); text-align:left; margin-top:8px;">* Click on a student name to select</div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send to Portal',
+        confirmButtonColor: 'var(--success)',
+        preConfirm: () => {
+            const val = document.getElementById('send-mat-student').value;
+            if (!val) { Swal.showValidationMessage('Please select a student from the list'); }
+            return val;
+        }
+    });
+
+    if (selectedStudentId) {
+        assignMaterialToStudent(parseInt(selectedStudentId), material);
+    }
+}
+
+window.filterSendStudentList = function() {
+    const filter = document.getElementById('swal-search-student').value.toUpperCase();
+    const select = document.getElementById('send-mat-student');
+    
+    select.innerHTML = ''; 
+    
+    tempActiveStudents.forEach(s => {
+        const text = `${s.name} (${s.class || 'N/A'})`;
+        if (text.toUpperCase().indexOf(filter) > -1) {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.innerHTML = text;
+            opt.style.padding = '10px';
+            opt.style.borderBottom = '1px solid #e2e8f0';
+            opt.style.cursor = 'pointer';
+            select.appendChild(opt);
+        }
+    });
+};
+
+async function assignMaterialToStudent(studentId, material) {
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return;
+
+    const student = students[studentIndex];
+    if (!student.study_materials) student.study_materials = [];
+
+    student.study_materials.push({
+        id: Date.now(), 
+        title: material.title,
+        type: material.type,
+        link: material.link,
+        date: new Date().toISOString().split('T')[0]
+    });
+
+    Swal.fire({
+        title: 'Sent Fast!',
+        text: `${material.title} added to ${student.name}'s portal.`,
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+    });
+
+    db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(studentId)).update({
+        study_materials: student.study_materials
+    }).catch(e => console.log("Background sync pending"));
 }
