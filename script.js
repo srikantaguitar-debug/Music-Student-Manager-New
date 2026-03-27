@@ -4242,70 +4242,128 @@ async function deleteGlobalMaterial(id) {
     });
 }
 
+// 🟢 Send Material to Student Portal Logic (Searchable with Profile Photos & WhatsApp)
 let tempActiveStudents = []; 
 
+// 1. Helper function to generate custom HTML list with photos
+window.generateStudentListHtml = function(studentsList) {
+    let html = '';
+    studentsList.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        html += `
+            <div class="student-select-item" onclick="selectStudentForMaterial(${s.id}, this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); border-left: 4px solid transparent; cursor:pointer; transition: all 0.2s; background: var(--bg-card);">
+                <img src="${photoSrc}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
+                <div style="flex-grow: 1; text-align: left;">
+                    <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    });
+    if(studentsList.length === 0) {
+        html = `<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;">No student found</div>`;
+    }
+    return html;
+};
+
+// 2. Function to handle selection highlighting
+window.selectStudentForMaterial = function(studentId, divElement) {
+    document.getElementById('selected-student-id').value = studentId;
+    const allItems = document.querySelectorAll('.student-select-item');
+    allItems.forEach(item => {
+        item.style.backgroundColor = 'var(--bg-card)';
+        item.style.borderColor = 'transparent';
+    });
+    divElement.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+    divElement.style.borderColor = 'var(--primary)';
+};
+
+// 3. Open Send Modal
 async function openSendToStudentModal(matId) {
     const material = globalMaterials.find(m => m.id === matId);
     if (!material) return;
 
     tempActiveStudents = students.filter(s => s.status?.isActive).sort((a,b) => a.name.localeCompare(b.name));
-    
-    let optionsHtml = '';
-    tempActiveStudents.forEach(s => {
-        optionsHtml += `<option value="${s.id}" style="padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer;">${s.name} (${s.class || 'N/A'})</option>`;
-    });
+    let listHtml = generateStudentListHtml(tempActiveStudents);
 
-    const { value: selectedStudentId } = await Swal.fire({
+    const result = await Swal.fire({
         title: 'Send Material',
         html: `
-            <div style="text-align:left; margin-bottom:15px; font-size:13px; color:var(--text-main);">
+            <div style="text-align:left; margin-bottom:15px; font-size:13px; color:var(--text-main); background: var(--bg-input); padding: 10px; border-radius: 8px;">
                 <strong>Material:</strong> ${material.title} <br>
                 <span style="color:var(--info); font-weight:600;">${material.category}</span>
             </div>
             
             <input type="text" id="swal-search-student" class="swal2-input" placeholder="🔍 Search student by name..." style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="filterSendStudentList()">
             
-            <select id="send-mat-student" class="swal2-select" size="6" style="width:100%; font-size:14px; margin:0; padding:5px; box-sizing: border-box; overflow-y: auto; border-radius: 8px;">
-                ${optionsHtml}
-            </select>
-            <div style="font-size:11px; color:var(--text-muted); text-align:left; margin-top:8px;">* Click on a student name to select</div>
+            <input type="hidden" id="selected-student-id" value="">
+            
+            <div id="send-mat-student-list" style="width:100%; max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                ${listHtml}
+            </div>
+            <div style="font-size:11px; color:var(--text-muted); text-align:left; margin-top:8px;">* Click on a student to select</div>
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send to Portal',
-        confirmButtonColor: 'var(--success)',
+        showDenyButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> To Portal',
+        denyButtonText: '<i class="fab fa-whatsapp"></i> WhatsApp',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: 'var(--primary)',
+        denyButtonColor: '#25D366',
         preConfirm: () => {
-            const val = document.getElementById('send-mat-student').value;
-            if (!val) { Swal.showValidationMessage('Please select a student from the list'); }
+            const val = document.getElementById('selected-student-id').value;
+            if (!val) { Swal.showValidationMessage('Please select a student from the list'); return false; }
+            return val;
+        },
+        preDeny: () => {
+            const val = document.getElementById('selected-student-id').value;
+            if (!val) { Swal.showValidationMessage('Please select a student from the list'); return false; }
             return val;
         }
     });
 
-    if (selectedStudentId) {
-        assignMaterialToStudent(parseInt(selectedStudentId), material);
+    if (result.isConfirmed && result.value) {
+        assignMaterialToStudent(parseInt(result.value), material);
+    } else if (result.isDenied && result.value) {
+        sendMaterialViaWhatsApp(parseInt(result.value), material);
     }
 }
 
-window.filterSendStudentList = function() {
-    const filter = document.getElementById('swal-search-student').value.toUpperCase();
-    const select = document.getElementById('send-mat-student');
+// 4. WhatsApp-এ সরাসরি মেসেজ পাঠানোর ফাংশন
+window.sendMaterialViaWhatsApp = function(studentId, material) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if (cleanPhone && cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+    if (!cleanPhone) {
+        Swal.fire('Error', 'Student phone number is missing!', 'error');
+        return;
+    }
+
+    const waMsg = `Hello ${student.name},\n\nHere is your study material for Music Classes:\n\n*Topic:* ${material.title}\n*Category:* ${material.category}\n*Type:* ${material.type}\n\n*Link:* ${material.link}\n\nRegards,\nSrikanta Banerjee`;
+    const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}`;
     
-    select.innerHTML = ''; 
-    
-    tempActiveStudents.forEach(s => {
-        const text = `${s.name} (${s.class || 'N/A'})`;
-        if (text.toUpperCase().indexOf(filter) > -1) {
-            const opt = document.createElement('option');
-            opt.value = s.id;
-            opt.innerHTML = text;
-            opt.style.padding = '10px';
-            opt.style.borderBottom = '1px solid #e2e8f0';
-            opt.style.cursor = 'pointer';
-            select.appendChild(opt);
-        }
-    });
+    window.open(waUrl, '_blank');
 };
 
+// 5. Search Box Filter Function (Updated for Photos)
+window.filterSendStudentList = function() {
+    const filter = document.getElementById('swal-search-student').value.toUpperCase();
+    const listContainer = document.getElementById('send-mat-student-list');
+    
+    const filteredStudents = tempActiveStudents.filter(s => {
+        const text = `${s.name} (${s.class || 'N/A'})`.toUpperCase();
+        return text.indexOf(filter) > -1;
+    });
+    
+    listContainer.innerHTML = generateStudentListHtml(filteredStudents);
+    document.getElementById('selected-student-id').value = ''; 
+};
+
+// 6. Assign Material to Portal
 async function assignMaterialToStudent(studentId, material) {
     const studentIndex = students.findIndex(s => s.id === studentId);
     if (studentIndex === -1) return;
