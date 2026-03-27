@@ -1300,6 +1300,7 @@ async function exportData() {
         attendance: attendance || {}, 
         fees: fees || {}, 
         reminders: reminders || [], 
+        globalMaterials: globalMaterials || [], /* 🟢 এটি নতুন অ্যাড করা হলো */
         studentSerialCounter: studentSerialCounter || 1,
         instituteLogo: instituteLogo || null, 
         authorizedSignature: authorizedSignature || null,
@@ -1335,7 +1336,7 @@ async function exportData() {
 
         Swal.fire({ 
             title: 'Full Backup Successful!', 
-            text: 'All data (Students, Photos, Fees, Signature & PIN) saved offline.', 
+            text: 'All data (Students, Photos, Fees, Materials, Signature & PIN) saved offline.', 
             icon: 'success' 
         }); 
     } catch (err) { 
@@ -1344,6 +1345,134 @@ async function exportData() {
             Swal.fire('Error', 'Failed to save backup.', 'error'); 
         } 
     } 
+}
+
+async function importData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = ''; 
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const json = e.target.result;
+            const importedData = JSON.parse(json);
+
+            if (!importedData || !importedData.students) {
+                Swal.fire('Error', 'Invalid backup file.', 'error');
+                return;
+            }
+
+            const totalStudents = importedData.students.length;
+            let loadedCount = 0;
+
+            Swal.fire({
+                title: 'Restoring Data...',
+                html: `
+                    <div style="margin-bottom: 15px;">
+                        <i class="fas fa-cloud-upload-alt fa-3x" style="color: var(--primary);"></i>
+                    </div>
+                    <h1 style="color: var(--success); font-weight: bold; font-size: 40px; margin: 0;" id="live-counter">0</h1>
+                    <p style="margin: 5px 0 15px 0; color: var(--text-muted); font-size: 14px;">
+                        STUDENTS RESTORED OUT OF <b>${totalStudents}</b>
+                    </p>
+                    <div style="width: 100%; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; height: 10px; margin-bottom: 10px;">
+                        <div id="live-progress-bar" style="width: 0%; height: 100%; background-color: var(--primary); transition: width 0.1s;"></div>
+                    </div>
+                    <div id="restore-status" style="font-size: 12px; color: var(--danger); font-weight: 500;">
+                        Initializing...
+                    </div>
+                `,
+                showConfirmButton: false,
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            students = importedData.students.map(migrateStudentData);
+            attendance = importedData.attendance || {};
+            fees = importedData.fees || {};
+            reminders = importedData.reminders || [];
+            globalMaterials = importedData.globalMaterials || []; /* 🟢 এটি নতুন অ্যাড করা হলো */
+            studentSerialCounter = importedData.studentSerialCounter || 1;
+            
+            if(importedData.instituteLogo) instituteLogo = importedData.instituteLogo;
+            if(importedData.authorizedSignature) authorizedSignature = importedData.authorizedSignature;
+            if(importedData.app_pin) localStorage.setItem('app_pin', importedData.app_pin);
+
+            const user = firebase.auth().currentUser;
+            if (user) {
+                document.getElementById('restore-status').innerText = "Cleaning old database...";
+                
+                dbSet('attendance', attendance).catch(console.error);
+                dbSet('fees', fees).catch(console.error);
+                dbSet('reminders', reminders).catch(console.error);
+                dbSet('globalMaterials', globalMaterials).catch(console.error); /* 🟢 এটি নতুন অ্যাড করা হলো */
+                dbSet('studentSerialCounter', studentSerialCounter).catch(console.error);
+                if(instituteLogo) dbSet('instituteLogo', instituteLogo).catch(console.error);
+                if(authorizedSignature) dbSet('authorizedSignature', authorizedSignature).catch(console.error);
+                if(importedData.app_pin) dbSet('app_pin', importedData.app_pin).catch(console.error);
+
+                const snapshot = await db.collection(COLLECTION_NAME).doc(user.uid).collection('students').get();
+                const deleteBatch = db.batch();
+                snapshot.docs.forEach(doc => { deleteBatch.delete(doc.ref); });
+                await deleteBatch.commit();
+
+                document.getElementById('restore-status').innerText = "Uploading students...";
+                
+                let writeBatch = db.batch();
+                let batchCount = 0;
+
+                for (const s of students) {
+                    const ref = db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(s.id));
+                    writeBatch.set(ref, s);
+                    
+                    batchCount++;
+                    loadedCount++;
+
+                    const counterEl = document.getElementById('live-counter');
+                    const progressEl = document.getElementById('live-progress-bar');
+                    
+                    if(counterEl) counterEl.innerText = loadedCount;
+                    if(progressEl) {
+                        const percentage = (loadedCount / totalStudents) * 100;
+                        progressEl.style.width = percentage + "%";
+                    }
+
+                    if (batchCount >= 400) {
+                        await writeBatch.commit();
+                        writeBatch = db.batch();
+                        batchCount = 0;
+                    }
+                }
+                if (batchCount > 0) await writeBatch.commit();
+            }
+
+            loadAllData();
+            
+            if(authorizedSignature) {
+                const sigPreview = document.getElementById('authSigPreview');
+                if(sigPreview) {
+                    sigPreview.src = authorizedSignature;
+                    sigPreview.style.display = 'block';
+                    document.getElementById('removeAuthSigBtn').style.display = 'inline-block';
+                }
+            }
+
+            Swal.fire({
+                title: 'Restore Complete!',
+                html: `Successfully restored <b>${loadedCount}</b> students.<br>You can now use the app.`,
+                icon: 'success',
+                confirmButtonColor: 'var(--primary)'
+            });
+
+        } catch (error) {
+            console.error("Restore Error:", error);
+            Swal.fire('Error', 'Failed to restore. Check console.', 'error');
+        }
+    };
+    reader.readAsText(file);
 }
 
 function openTab(tabName) { 
@@ -1442,132 +1571,6 @@ async function dbSet(key, value) {
         console.error(`❌ Save Error (${key}):`, error);
         throw new Error(`Failed to save ${key}`);
     }
-}
-
-async function importData(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    event.target.value = ''; 
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const json = e.target.result;
-            const importedData = JSON.parse(json);
-
-            if (!importedData || !importedData.students) {
-                Swal.fire('Error', 'Invalid backup file.', 'error');
-                return;
-            }
-
-            const totalStudents = importedData.students.length;
-            let loadedCount = 0;
-
-            Swal.fire({
-                title: 'Restoring Data...',
-                html: `
-                    <div style="margin-bottom: 15px;">
-                        <i class="fas fa-cloud-upload-alt fa-3x" style="color: var(--primary);"></i>
-                    </div>
-                    <h1 style="color: var(--success); font-weight: bold; font-size: 40px; margin: 0;" id="live-counter">0</h1>
-                    <p style="margin: 5px 0 15px 0; color: var(--text-muted); font-size: 14px;">
-                        STUDENTS RESTORED OUT OF <b>${totalStudents}</b>
-                    </p>
-                    <div style="width: 100%; background-color: #e2e8f0; border-radius: 10px; overflow: hidden; height: 10px; margin-bottom: 10px;">
-                        <div id="live-progress-bar" style="width: 0%; height: 100%; background-color: var(--primary); transition: width 0.1s;"></div>
-                    </div>
-                    <div id="restore-status" style="font-size: 12px; color: var(--danger); font-weight: 500;">
-                        Initializing...
-                    </div>
-                `,
-                showConfirmButton: false,
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            students = importedData.students.map(migrateStudentData);
-            attendance = importedData.attendance || {};
-            fees = importedData.fees || {};
-            reminders = importedData.reminders || [];
-            studentSerialCounter = importedData.studentSerialCounter || 1;
-            
-            if(importedData.instituteLogo) instituteLogo = importedData.instituteLogo;
-            if(importedData.authorizedSignature) authorizedSignature = importedData.authorizedSignature;
-            if(importedData.app_pin) localStorage.setItem('app_pin', importedData.app_pin);
-
-            const user = firebase.auth().currentUser;
-            if (user) {
-                document.getElementById('restore-status').innerText = "Cleaning old database...";
-                
-                dbSet('attendance', attendance).catch(console.error);
-                dbSet('fees', fees).catch(console.error);
-                dbSet('reminders', reminders).catch(console.error);
-                dbSet('studentSerialCounter', studentSerialCounter).catch(console.error);
-                if(instituteLogo) dbSet('instituteLogo', instituteLogo).catch(console.error);
-                if(authorizedSignature) dbSet('authorizedSignature', authorizedSignature).catch(console.error);
-                if(importedData.app_pin) dbSet('app_pin', importedData.app_pin).catch(console.error);
-
-                const snapshot = await db.collection(COLLECTION_NAME).doc(user.uid).collection('students').get();
-                const deleteBatch = db.batch();
-                snapshot.docs.forEach(doc => { deleteBatch.delete(doc.ref); });
-                await deleteBatch.commit();
-
-                document.getElementById('restore-status').innerText = "Uploading students...";
-                
-                let writeBatch = db.batch();
-                let batchCount = 0;
-
-                for (const s of students) {
-                    const ref = db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(s.id));
-                    writeBatch.set(ref, s);
-                    
-                    batchCount++;
-                    loadedCount++;
-
-                    const counterEl = document.getElementById('live-counter');
-                    const progressEl = document.getElementById('live-progress-bar');
-                    
-                    if(counterEl) counterEl.innerText = loadedCount;
-                    if(progressEl) {
-                        const percentage = (loadedCount / totalStudents) * 100;
-                        progressEl.style.width = percentage + "%";
-                    }
-
-                    if (batchCount >= 400) {
-                        await writeBatch.commit();
-                        writeBatch = db.batch();
-                        batchCount = 0;
-                    }
-                }
-                if (batchCount > 0) await writeBatch.commit();
-            }
-
-            loadAllData();
-            
-            if(authorizedSignature) {
-                const sigPreview = document.getElementById('authSigPreview');
-                if(sigPreview) {
-                    sigPreview.src = authorizedSignature;
-                    sigPreview.style.display = 'block';
-                    document.getElementById('removeAuthSigBtn').style.display = 'inline-block';
-                }
-            }
-
-            Swal.fire({
-                title: 'Restore Complete!',
-                html: `Successfully restored <b>${loadedCount}</b> students.<br>You can now use the app.`,
-                icon: 'success',
-                confirmButtonColor: 'var(--primary)'
-            });
-
-        } catch (error) {
-            console.error("Restore Error:", error);
-            Swal.fire('Error', 'Failed to restore. Check console.', 'error');
-        }
-    };
-    reader.readAsText(file);
 }
 
 function openStatusChangeModal(id, toActive) { document.getElementById('statusChangeStudentId').value = id; document.getElementById('statusChangeToActive').value = toActive; document.getElementById('statusChangeTitle').textContent = toActive ? 'Activate Student' : 'Deactivate Student'; document.getElementById('statusDate').valueAsDate = new Date(); document.getElementById('statusNote').value = ''; document.getElementById('statusChangeModal').style.display = 'flex'; }
