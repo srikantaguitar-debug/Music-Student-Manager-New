@@ -171,16 +171,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                         feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
                         
                         let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
-                            let txnHtml = rec.data.transactionId ? `<br><span style="font-size:10px; color:#047857; font-weight:600; display:inline-block; margin-top:3px; background:#d1fae5; padding:2px 6px; border-radius:4px;">Txn: ${rec.data.transactionId}</span>` : '';
-                            return `<div style="margin-bottom:10px; padding:12px; background:#f0fdf4; border-radius:10px; border-left:4px solid #22c55e; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                            // ট্রানজ্যাকশন আইডি থাকলে দেখাবে
+                            let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:#047857; font-weight:600; display:inline-block; margin-top:6px; background:#d1fae5; padding:4px 8px; border-radius:6px; border:1px dashed #34d399;"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
+                            
+                            // পেমেন্টের তারিখ ফরম্যাট করা (যেমন: 15 Oct, 2023)
+                            let payDate = rec.data.date ? new Date(rec.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+                            
+                            // মাসের নাম ফরম্যাট করা
+                            let monthName = new Date(rec.month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                            
+                            return `
+                            <div style="margin-bottom:15px; padding:16px; background:#f0fdf4; border-radius:14px; border-left:6px solid #22c55e; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);">
                                 <div>
-                                    <strong style="color:#166534; font-size:14px;">${rec.month}</strong><br>
-                                    <span style="font-size:11px; color:#15803d;">Paid via ${rec.data.mode || 'Cash'}</span>
+                                    <strong style="color:#166534; font-size:16px; letter-spacing: 0.5px;">${monthName}</strong><br>
+                                    <span style="font-size:12px; color:#15803d; display:flex; align-items:center; gap:5px; margin-top:4px; font-weight: 500;">
+                                        <i class="fas fa-calendar-check" style="color:#22c55e;"></i> Paid on: ${payDate} (${rec.data.mode || 'Cash'})
+                                    </span>
                                     ${txnHtml}
                                 </div>
-                                <div style="font-size:16px; font-weight:bold; color:#166534;">₹${rec.data.amount}</div>
+                                <div style="font-size:20px; font-weight:800; color:#166534; background:#dcfce7; padding:8px 14px; border-radius:10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">₹${rec.data.amount}</div>
                             </div>`;
-                        }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No payment records.</p>';
+                        }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
 
                         // ৪. Due Data
                         let dueHtml = '';
