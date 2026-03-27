@@ -3878,15 +3878,15 @@ function shareQRCode(studentId) {
             <p style="font-size:13px; color:gray; margin-bottom: 15px;">Share this profile link or QR code with the student.</p>
             
             <div style="display: flex; flex-direction: column; gap: 10px; align-items: center;">
-                ${cleanPhone ? `<a href="${waUrl}" target="_blank" style="background:#25D366; color:white; padding:12px 15px; border-radius:8px; text-decoration:none; font-size:14px; width: 85%; font-weight:bold; box-shadow: 0 4px 6px rgba(37, 211, 102, 0.3);">
+                ${cleanPhone ? `<a href="${waUrl}" target="_blank" style="background:#25D366; color:white; padding:12px 15px; border-radius:8px; text-decoration:none; font-size:14px; width: 95%; font-weight:bold; box-shadow: 0 4px 6px rgba(37, 211, 102, 0.3); box-sizing:border-box;">
                     <i class="fab fa-whatsapp" style="font-size:16px;"></i> Send Link to WhatsApp
                 </a>` : `<p style="color:red; font-size:12px; margin:0; font-weight:bold;">Student phone number is missing!</p>`}
                 
-                <div style="display:flex; gap:10px; width: 85%; justify-content: center;">
-                    <button onclick="tempShareQRImage()" style="flex:1; background:#3b82f6; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">
-                        <i class="fas fa-share-alt"></i> Share QR Image
+                <div style="display:flex; gap:8px; width: 95%; justify-content: center; box-sizing:border-box;">
+                    <button onclick="tempShareQRImage()" style="flex:1; background:#3b82f6; color:white; border:none; padding:10px 2px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:13px; white-space: nowrap;">
+                        <i class="fas fa-share-alt"></i> Share Image
                     </button>
-                    <button onclick="tempDownloadQR()" style="flex:1; background:#10b981; color:white; border:none; padding:10px; border-radius:8px; cursor:pointer; font-weight:bold;">
+                    <button onclick="tempDownloadQR()" style="flex:1; background:#10b981; color:white; border:none; padding:10px 2px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:13px; white-space: nowrap;">
                         <i class="fas fa-download"></i> Download
                     </button>
                 </div>
