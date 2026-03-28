@@ -1,171 +1,189 @@
-// --- Firebase Config ---
-const firebaseConfig = {
-    apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
-    authDomain: "student-management-syste-6a036.firebaseapp.com",
-    projectId: "student-management-syste-6a036",
-    storageBucket: "student-management-syste-6a036.firebasestorage.app",
-    messagingSenderId: "198959369817",
-    appId: "1:198959369817:web:f24dfd15b9d3d897d9eb48"
-};
-
-const app = firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-// ENABLE OFFLINE PERSISTENCE
-if (!window.location.search.includes('student=')) {
-    db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log(err));
-}
-
-const COLLECTION_NAME = 'music_classes';
-let DOC_ID = 'main_data';
-
-// --- Optimized Database Functions ---
-async function openDB() { return true; }
-
-async function dbGet(key) {
-    try {
-        const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
-        const doc = await docRef.get(); 
-        if (doc.exists) {
-            const data = doc.data();
-            return data[key] !== undefined ? data[key] : null;
-        }
-        return null;
-    } catch (error) {
-        console.log("Offline mode: Reading from cache...");
-        return null;
-    }
-}
-
-async function dbDelete(key) {
-    try {
-        const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
-        await docRef.update({ [key]: firebase.firestore.FieldValue.delete() });
-    } catch (error) { console.error("Delete Error:", error); }
-}
-
-async function dbClear() {
-    try { await db.collection(COLLECTION_NAME).doc(DOC_ID).delete(); }
-    catch (error) { console.error("Clear Error:", error); }
-}
-
-async function syncOldDataToFirebase() {
-    const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
-    const doc = await docRef.get();
-    
-    if (doc.exists) {
-        console.log("Online data found. Skip migration.");
-        return;
-    }
-
-    const lsPin = localStorage.getItem('app_pin');
-    if (lsPin) {
-        Swal.fire({ title: 'Syncing...', text: 'Uploading local data...', didOpen: () => Swal.showLoading() });
-        
-        const dataToUpload = {};
-        if(localStorage.getItem('app_pin')) dataToUpload['app_pin'] = localStorage.getItem('app_pin');
-        if(localStorage.getItem('students')) dataToUpload['students'] = JSON.parse(localStorage.getItem('students'));
-        if(localStorage.getItem('attendance')) dataToUpload['attendance'] = JSON.parse(localStorage.getItem('attendance'));
-        if(localStorage.getItem('fees')) dataToUpload['fees'] = JSON.parse(localStorage.getItem('fees'));
-        if(localStorage.getItem('studentSerialCounter')) dataToUpload['studentSerialCounter'] = localStorage.getItem('studentSerialCounter');
-        if(localStorage.getItem('instituteLogo')) dataToUpload['instituteLogo'] = localStorage.getItem('instituteLogo');
-        if(localStorage.getItem('authorizedSignature')) dataToUpload['authorizedSignature'] = localStorage.getItem('authorizedSignature');
-
-        await docRef.set(dataToUpload, { merge: true });
-        Swal.fire('Success', 'Data synced!', 'success');
-    } else {
-        await dbSet('app_pin', '1234');
-    }
-}
-
-if ('serviceWorker' in navigator) { 
-    window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
-}
-
-let lastCheckedDate = new Date().toDateString();
-
-function startClock() {
-    setInterval(() => {
-        const now = new Date();
-        const options = { 
-            weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', 
-            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true 
+        // --- 2. Firebase Config ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
+            authDomain: "student-management-syste-6a036.firebaseapp.com",
+            projectId: "student-management-syste-6a036",
+            storageBucket: "student-management-syste-6a036.firebasestorage.app",
+            messagingSenderId: "198959369817",
+            appId: "1:198959369817:web:f24dfd15b9d3d897d9eb48"
         };
-        document.getElementById('liveClock').textContent = now.toLocaleString('en-IN', options);
 
-        if (now.toDateString() !== lastCheckedDate) {
-            lastCheckedDate = now.toDateString();
-            document.getElementById('attendanceDate').valueAsDate = now;
-            renderAttendance();
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // --- 3. ENABLE OFFLINE PERSISTENCE (Fast & Offline) ---
+        // WhatsApp বা In-app ব্রাউজারের সমস্যার জন্য স্টুডেন্ট পোর্টালে অফলাইন ক্যাশে বন্ধ রাখা হলো
+        if (!window.location.search.includes('student=')) {
+            db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log(err));
         }
-    }, 1000);
-}
 
-const auth = firebase.auth();
+        const COLLECTION_NAME = 'music_classes';
+        let DOC_ID = 'main_data';
+
+        // --- 4. Optimized Database Functions ---
+        async function openDB() { return true; }
+
+        async function dbGet(key) {
+            try {
+                const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
+                const doc = await docRef.get(); 
+                if (doc.exists) {
+                    const data = doc.data();
+                    return data[key] !== undefined ? data[key] : null;
+                }
+                return null;
+            } catch (error) {
+                console.log("Offline mode: Reading from cache...");
+                return null;
+            }
+        }
+
+        async function dbDelete(key) {
+            try {
+                const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
+                await docRef.update({ [key]: firebase.firestore.FieldValue.delete() });
+            } catch (error) { console.error("Delete Error:", error); }
+        }
+
+        async function dbClear() {
+            try { await db.collection(COLLECTION_NAME).doc(DOC_ID).delete(); }
+            catch (error) { console.error("Clear Error:", error); }
+        }
+
+        // --- 5. Data Migration (One time) ---
+        async function syncOldDataToFirebase() {
+            const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
+            const doc = await docRef.get();
+            
+            if (doc.exists) {
+                console.log("Online data found. Skip migration.");
+                return;
+            }
+
+            const lsPin = localStorage.getItem('app_pin');
+            if (lsPin) {
+                Swal.fire({ title: 'Syncing...', text: 'Uploading local data...', didOpen: () => Swal.showLoading() });
+                
+                const dataToUpload = {};
+                if(localStorage.getItem('app_pin')) dataToUpload['app_pin'] = localStorage.getItem('app_pin');
+                if(localStorage.getItem('students')) dataToUpload['students'] = JSON.parse(localStorage.getItem('students'));
+                if(localStorage.getItem('attendance')) dataToUpload['attendance'] = JSON.parse(localStorage.getItem('attendance'));
+                if(localStorage.getItem('fees')) dataToUpload['fees'] = JSON.parse(localStorage.getItem('fees'));
+                if(localStorage.getItem('studentSerialCounter')) dataToUpload['studentSerialCounter'] = localStorage.getItem('studentSerialCounter');
+                if(localStorage.getItem('instituteLogo')) dataToUpload['instituteLogo'] = localStorage.getItem('instituteLogo');
+                if(localStorage.getItem('authorizedSignature')) dataToUpload['authorizedSignature'] = localStorage.getItem('authorizedSignature');
+
+                await docRef.set(dataToUpload, { merge: true });
+                Swal.fire('Success', 'Data synced!', 'success');
+            } else {
+                await dbSet('app_pin', '1234');
+            }
+        }
+
+        // --- 6. App Logic & Initialization ---
+        
+        if ('serviceWorker' in navigator) { 
+            window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
+        }
+        
+        let lastCheckedDate = new Date().toDateString();
+
+        function startClock() {
+            setInterval(() => {
+                const now = new Date();
+                const options = { 
+                    weekday: 'short',
+                    day: 'numeric',  
+                    month: 'short',  
+                    year: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit', 
+                    second: '2-digit', 
+                    hour12: true 
+                };
+
+                document.getElementById('liveClock').textContent = now.toLocaleString('en-IN', options);
+
+                if (now.toDateString() !== lastCheckedDate) {
+                    lastCheckedDate = now.toDateString();
+                    document.getElementById('attendanceDate').valueAsDate = now;
+                    renderAttendance();
+                }
+            }, 1000);
+        }
+
+        const auth = firebase.auth();
 
 document.addEventListener('DOMContentLoaded', async () => {
-    loadTheme();
-    const urlParams = new URLSearchParams(window.location.search);
-    const studentViewId = urlParams.get('student');
-    const managerUid = urlParams.get('manager');
+            loadTheme();
 
-    if (studentViewId && managerUid) {
-        document.getElementById('loginOverlay').style.display = 'none';
+            const urlParams = new URLSearchParams(window.location.search);
+            const studentViewId = urlParams.get('student');
+            const managerUid = urlParams.get('manager');
 
-        async function renderStudentPortal() {
-            document.body.innerHTML = '<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><i class="fas fa-spinner fa-spin fa-3x" style="color:#6366f1; margin-bottom:15px;"></i><h3 style="color:#1e293b; font-family:Poppins;">Loading Portal...</h3></div>';
-            
-            try {
-                const docRef = db.collection('music_classes').doc(managerUid);
-                const [studentDoc, mainDoc] = await Promise.all([
-                    docRef.collection('students').doc(studentViewId).get(),
-                    docRef.get()
-                ]);
+if (studentViewId && managerUid) {
+                document.getElementById('loginOverlay').style.display = 'none';
 
-                if(studentDoc.exists && mainDoc.exists) {
-                    const s = studentDoc.data();
-                    const globalData = mainDoc.data();
-                    const globalAtt = globalData.attendance || {};
-                    const globalFees = globalData.fees || {};
+                async function renderStudentPortal() {
+                    document.body.innerHTML = '<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><i class="fas fa-spinner fa-spin fa-3x" style="color:#6366f1; margin-bottom:15px;"></i><h3 style="color:#1e293b; font-family:Poppins;">Loading Portal...</h3></div>';
                     
-                    if (s.allow_profile_view !== false) {
-                        
-                        // ১. Personal Notice
-                        let noticeHtml = '';
-                        if (s.personal_notice && s.personal_notice.trim() !== '') {
-                            noticeHtml = `
-                            <div style="background: linear-gradient(90deg, #fffbeb, #fef3c7); padding: 12px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                                <i class="fas fa-bell fa-shake" style="color: #d97706;"></i>
-                                <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
-                            </div>`;
-                        }
+                    try {
+                        const docRef = db.collection('music_classes').doc(managerUid);
+                        const [studentDoc, mainDoc] = await Promise.all([
+                            docRef.collection('students').doc(studentViewId).get(),
+                            docRef.get()
+                        ]);
 
-                        // ২. Attendance Data
-                        let attRecords = [];
-                        Object.keys(globalAtt).forEach(date => { if(globalAtt[date][studentViewId]) attRecords.push({ date, data: globalAtt[date][studentViewId] }); });
-                        attRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
-                        
-                        let attHtml = attRecords.length > 0 ? attRecords.map(rec => {
-                            let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : rec.data;
-                            let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : 'No note';
-                            let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
-                            let clr = status === 'present' ? '#16a34a' : '#dc2626';
-                            const d = new Date(rec.date);
-                            const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
-                            const formattedDate = d.toLocaleDateString('en-IN');
-                            let timeDisplay = time ? formatTime12H(time) : '';
-                            let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
+                        if(studentDoc.exists && mainDoc.exists) {
+                            const s = studentDoc.data();
+                            const globalData = mainDoc.data();
+                            const globalAtt = globalData.attendance || {};
+                            const globalFees = globalData.fees || {};
+                            
+                            if (s.allow_profile_view !== false) {
+                                
+                                // ১. Personal Notice
+                                let noticeHtml = '';
+                                if (s.personal_notice && s.personal_notice.trim() !== '') {
+                                    noticeHtml = `
+                                    <div style="background: linear-gradient(90deg, #fffbeb, #fef3c7); padding: 12px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                                        <i class="fas fa-bell fa-shake" style="color: #d97706;"></i>
+                                        <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
+                                    </div>`;
+                                }
 
-                            return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                                <div>
-                                    <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}
-                                    <br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>
-                                </div>
-                                <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
-                            </div>`;
-                        }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
+// ২. Attendance Data (Fixed: Handled legacy strings + added Day & Time)
+                                let attRecords = [];
+                                Object.keys(globalAtt).forEach(date => { if(globalAtt[date][studentViewId]) attRecords.push({ date, data: globalAtt[date][studentViewId] }); });
+                                attRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
+                                
+                                let attHtml = attRecords.length > 0 ? attRecords.map(rec => {
+                                    // Handle both old string data ('present') and new object data {status: 'present', time: '10:00'}
+                                    let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : rec.data;
+                                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : 'No note';
+                                    let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
 
-                        // ৩. Payment Data
+                                    let clr = status === 'present' ? '#16a34a' : '#dc2626';
+
+                                    // Format Date and Day
+                                    const d = new Date(rec.date);
+                                    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+                                    const formattedDate = d.toLocaleDateString('en-IN');
+
+                                    // Format Time (using the existing formatTime12H function)
+                                    let timeDisplay = time ? formatTime12H(time) : '';
+                                    let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
+
+                                    return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                                        <div>
+                                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}
+                                            <br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>
+                                        </div>
+                                        <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
+                                    </div>`;
+                                }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
+
+// ৩. Payment Data
                         let feeRecords = [];
                         Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
                         feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
@@ -193,327 +211,355 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>`;
                         }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
 
-                        // ৪. Due Data
-                        let dueHtml = '';
-                        let dueMonthsList = [];
-                        const portalNow = new Date();
-                        const portalToday = portalNow.getDate();
-                        const portalDUE_DATE = 10;
-                        
-                        let iterDate = new Date(s.joining_date);
-                        if (!isNaN(iterDate.getTime())) {
-                            iterDate.setDate(1);
-                            while (iterDate <= portalNow) {
-                                const y = iterDate.getFullYear();
-                                const m = iterDate.getMonth() + 1;
-                                const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+// ৪. Due Data (Fixed for Standalone Portal View)
+                                let dueHtml = '';
+                                let dueMonthsList = [];
+                                const portalNow = new Date();
+                                const portalToday = portalNow.getDate();
+                                const portalDUE_DATE = 10; // মাসের ১০ তারিখের পর ডিউ দেখাবে
                                 
-                                let isPastDue = false;
-                                if (y < portalNow.getFullYear()) isPastDue = true;
-                                else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
-                                else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
+                                let iterDate = new Date(s.joining_date);
+                                if (!isNaN(iterDate.getTime())) {
+                                    iterDate.setDate(1);
+                                    while (iterDate <= portalNow) {
+                                        const y = iterDate.getFullYear();
+                                        const m = iterDate.getMonth() + 1;
+                                        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+                                        
+                                        // ১. চেক করা হচ্ছে মাসটি ডিউ হয়েছে কিনা
+                                        let isPastDue = false;
+                                        if (y < portalNow.getFullYear()) isPastDue = true;
+                                        else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
+                                        else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
 
-                                let wasActive = false;
-                                const monthEnd = new Date(y, m, 0, 23, 59, 59);
-                                const joinDate = new Date(s.joining_date);
-                                if (joinDate <= monthEnd) {
-                                    const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
-                                    let statusAtStart = 'Active'; 
-                                    for (let i = 0; i < history.length; i++) { 
-                                        if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
-                                    }
-                                    let changesInMonth = history.filter(h => { 
-                                        const d = new Date(h.date); 
-                                        return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
-                                    });
-                                    
-                                    if (changesInMonth.length === 0) {
-                                        wasActive = (statusAtStart === 'Active');
-                                    } else {
-                                        const lastChange = changesInMonth[changesInMonth.length - 1];
-                                        wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
+                                        // ২. চেক করা হচ্ছে স্টুডেন্ট ওই মাসে অ্যাক্টিভ ছিল কিনা
+                                        let wasActive = false;
+                                        const monthEnd = new Date(y, m, 0, 23, 59, 59);
+                                        const joinDate = new Date(s.joining_date);
+                                        if (joinDate <= monthEnd) {
+                                            const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+                                            let statusAtStart = 'Active'; 
+                                            for (let i = 0; i < history.length; i++) { 
+                                                if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
+                                            }
+                                            let changesInMonth = history.filter(h => { 
+                                                const d = new Date(h.date); 
+                                                return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
+                                            });
+                                            
+                                            if (changesInMonth.length === 0) {
+                                                wasActive = (statusAtStart === 'Active');
+                                            } else {
+                                                const lastChange = changesInMonth[changesInMonth.length - 1];
+                                                wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
+                                            }
+                                        }
+
+                                        // ৩. যদি ডিউ হয় এবং পেমেন্ট না করা থাকে
+                                        if (isPastDue && wasActive) {
+                                            if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
+                                                const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                                                dueMonthsList.push(formattedMonth);
+                                            }
+                                        }
+                                        iterDate.setMonth(iterDate.getMonth() + 1);
                                     }
                                 }
 
-                                if (isPastDue && wasActive) {
-                                    if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
-                                        const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                                        dueMonthsList.push(formattedMonth);
-                                    }
+                                if(dueMonthsList.length > 0) {
+                                    const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
+                                    dueHtml = `
+                                    <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
+                                    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
+                                        <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
+                                        <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
+                                        <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
+                                    </div>`;
                                 }
-                                iterDate.setMonth(iterDate.getMonth() + 1);
-                            }
-                        }
 
-                        if(dueMonthsList.length > 0) {
-                            const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
-                            dueHtml = `
-                            <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
-                            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
-                                <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
-                                    <i class="fas fa-exclamation-triangle"></i>
-                                </div>
-                                <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
-                                <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
-                                <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
-                            </div>`;
-                        }
-
-                        // ৫. Study Materials Data
-                        let materialsHtml = '';
-                        if (s.study_materials && s.study_materials.length > 0) {
-                            materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
-                                let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
-                                return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
-                                    <div style="display:flex; align-items:center; gap:10px;">
-                                        <div style="font-size:20px;">${icon}</div>
-                                        <div>
-                                            <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
-                                            <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
-                                        </div>
-                                    </div>
-                                    <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
-                                </div>`;
-                            }).join('');
-                        } else {
-                            materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
-                        }
-
-                        // ৬. HTML Structure (Injecting into body)
-                        document.body.innerHTML = `
-                            <style>
-                                .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
-                                .modal-content-portal { background:#fff; width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                                .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
-                                .scroller-box::-webkit-scrollbar { width: 4px; }
-                                .scroller-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-                                .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:#94a3b8; background: #f1f5f9; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-                            </style>
-                            
-                            <div style="background: #f4f7f6; min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px;">
-                                <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
-                                    <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
-                                    <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
-                                </div>
-
-                                <div style="margin-top:-60px; padding:0 20px;">
-                                    <div style="text-align: center; margin-bottom: 25px;">
-                                        <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid #fff; object-fit:cover; background:#eee; box-shadow:0 8px 16px rgba(0,0,0,0.1);">
-                                        <h2 style="margin:10px 0 5px 0; color:#1e293b; font-size:20px; font-weight: 700;">${s.name}</h2>
-                                        <span style="background:#dcfce7; color:#166534; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; border: 1px solid #bbf7d0;">Active Student</span>
-                                    </div>
-
-                                    ${noticeHtml}
-
-                                    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px;">
-                                        <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                            <div style="display:flex; align-items:center; gap:15px;">
-                                                <div style="background:#eff6ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
-                                                <span style="font-size:15px; font-weight:600; color:#334155;">Complete Profile Details</span>
+                                // ৫. Study Materials Data
+                                let materialsHtml = '';
+                                if (s.study_materials && s.study_materials.length > 0) {
+                                    materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
+                                        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
+                                        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <div style="font-size:20px;">${icon}</div>
+                                                <div>
+                                                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
+                                                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+                                                </div>
                                             </div>
-                                            <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
-                                        </button>
-                                        
-                                        <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                            <div style="display:flex; align-items:center; gap:15px;">
-                                                <div style="background:#f3e8ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
-                                                <span style="font-size:15px; font-weight:600; color:#334155;">Attendance History</span>
-                                            </div>
-                                            <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
-                                        </button>
-                                        
-                                        <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                            <div style="display:flex; align-items:center; gap:15px;">
-                                                <div style="background:#dcfce7; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
-                                                <span style="font-size:15px; font-weight:600; color:#334155;">Payment History</span>
-                                            </div>
-                                            <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
-                                        </button>
-                                    </div>
+                                            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
+                                        </div>`;
+                                    }).join('');
+                                } else {
+                                    materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
+                                }
 
-                                    ${dueHtml}
-
-                                    <div style="margin-top: 10px;">
-                                        <h4 style="margin:0 0 15px 5px; color:#334155; font-size:16px;"><i class="fas fa-book-open" style="color:#6366f1; margin-right:5px;"></i> My Study Materials</h4>
-                                        <div class="scroller-box" style="background:#fff; border-radius:16px; padding:15px; box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
-                                    </div>
-                                </div>
-
-                                <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
-                                    <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
-                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
-                                    <div class="scroller-box" style="font-size: 14px; color: #475569;">
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                            <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                            <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                            <span style="font-weight:600;">Class:</span> <span style="color:#1e293b;">${s.class || 'N/A'}</span>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                            <span style="font-weight:600;">Fee Amount:</span> <span style="color:#10b981; font-weight:700;">₹${s.fee_amount || 500}</span>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                            <span style="font-weight:600;">Phone:</span> <span style="color:#1e293b;">${s.phone || 'N/A'}</span>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                            <span style="font-weight:600;">DOB:</span> <span style="color:#1e293b;">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                        </div>
-                                        <div style="display:flex; justify-content:space-between; padding: 10px 0;">
-                                            <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:#1e293b;">${s.address || 'N/A'}</span>
-                                        </div>
-                                    </div>
-                                </div></div>
-
-                                <div id="m-att" class="modal-portal"><div class="modal-content-portal">
-                                    <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
-                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
-                                    <div class="scroller-box">${attHtml}</div>
-                                </div></div>
-
-                                <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
-                                    <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
-                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Payment History</h3>
-                                    <div class="scroller-box">${paidHtml}</div>
-                                </div></div>
-
-                                <div style="position:fixed; bottom:0; left:0; width:100%; background:#fff; padding:15px; display:flex; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,0.06); border-radius:24px 24px 0 0; box-sizing:border-box;">
-                                    <button onclick="window.location.reload()" style="flex:0.7; background:#f1f5f9; color:#334155; border:none; border-radius:14px; height:50px; font-size:20px; cursor:pointer;"><i class="fas fa-home"></i></button>
+                                // ৬. HTML Structure
+                                document.body.innerHTML = `
+                                    <style>
+                                        .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
+                                        .modal-content-portal { background:#fff; width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                                        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                                        .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
+                                        .scroller-box::-webkit-scrollbar { width: 4px; }
+                                        .scroller-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+                                        .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:#94a3b8; background: #f1f5f9; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+                                    </style>
                                     
-                                    <a href="tel:7001471235" style="flex:1; background:#6366f1; color:#fff; text-decoration:none; display:flex; align-items:center; justify-content:center; border-radius:14px; font-weight:600; font-size:15px; box-shadow:0 4px 10px rgba(99,102,241,0.3);"><i class="fas fa-headset" style="margin-right:6px;"></i> Help</a>
-                                    
-                                    <button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="flex:1; background:#fff; color:#ef4444; border:2px solid #fecaca; border-radius:14px; font-weight:600; font-size:15px; cursor:pointer;">Log Out</button>
-                                </div>
-                            </div>`;
-                    } else {
-                        document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
-                    }
-                } else {
-                    document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
-                }
-            } catch(e) { 
-                console.error(e); 
-                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Connection Error</h2><button onclick="window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Retry</button></div>`;
-            }
-        }
+                                    <div style="background: #f4f7f6; min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px;">
+                                        <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                                            <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
+                                            <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
+                                        </div>
 
-        if (localStorage.getItem(`verified_student_${studentViewId}`) === 'true') {
-            renderStudentPortal();
-        } else {
-            const vOverlay = document.createElement('div');
-            vOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #4f46e5, #7c3aed); z-index:10000; display:flex; align-items:center; justify-content:center;";
-            vOverlay.innerHTML = `
-                <div style="background:#fff; padding:35px 25px; border-radius:24px; width:85%; max-width:350px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
-                    <div style="background:#eff6ff; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
-                        <i class="fas fa-user-graduate" style="color:#4f46e5; font-size:24px;"></i>
-                    </div>
-                    <h3 style="margin-bottom:5px; color:#1e293b; font-family:'Poppins', sans-serif;">Student Login</h3>
-                    <p style="font-size:13px; color:#64748b; margin-bottom:25px;">Verify your identity to continue</p>
-                    
-                    <div style="text-align:left; margin-bottom:15px;">
-                        <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Phone Number</label>
-                        <input type="tel" id="v_phone" placeholder="e.g. 9876543210" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
-                    </div>
-                    <div style="text-align:left; margin-bottom:25px;">
-                        <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Date of Birth</label>
-                        <input type="date" id="v_dob" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
-                    </div>
-                    
-                    <button id="v_btn" style="width:100%; padding:14px; background:#4f46e5; color:#fff; border:none; border-radius:12px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(79, 70, 229, 0.3);">Access Portal <i class="fas fa-arrow-right" style="margin-left:5px;"></i></button>
-                    <p id="v_err" style="color:#ef4444; font-size:12px; margin-top:15px; display:none; background:#fef2f2; padding:8px; border-radius:8px;"></p>
-                </div>`;
-            document.body.appendChild(vOverlay);
-            
-            document.getElementById('v_btn').onclick = async function() {
-                const ph = document.getElementById('v_phone').value.trim();
-                const dob = document.getElementById('v_dob').value;
-                const err = document.getElementById('v_err');
-                const btn = document.getElementById('v_btn');
-                
-                if(!ph || !dob) { err.textContent = "Please fill all fields"; err.style.display='block'; return; }
-                
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
-                btn.disabled = true;
-                
-                try {
-                    const sDoc = await db.collection('music_classes').doc(managerUid).collection('students').doc(studentViewId).get();
-                    if(sDoc.exists && sDoc.data().phone === ph && sDoc.data().dob === dob) {
-                        localStorage.setItem(`verified_student_${studentViewId}`, 'true');
-                        vOverlay.remove();
-                        renderStudentPortal();
-                    } else { 
-                        err.textContent = "Incorrect details. Try again."; 
-                        err.style.display='block'; 
-                        btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
-                        btn.disabled = false;
-                    }
-                } catch(e) {
-                    err.textContent = "Network error. Check internet."; 
-                    err.style.display='block';
-                    btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
-                    btn.disabled = false;
-                }
-            };
-        }
-        return; 
-    }
+                                        <div style="margin-top:-60px; padding:0 20px;">
+                                            <div style="text-align: center; margin-bottom: 25px;">
+                                                <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid #fff; object-fit:cover; background:#eee; box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                                                <h2 style="margin:10px 0 5px 0; color:#1e293b; font-size:20px; font-weight: 700;">${s.name}</h2>
+                                                <span style="background:#dcfce7; color:#166534; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; border: 1px solid #bbf7d0;">Active Student</span>
+                                            </div>
+
+                                            ${noticeHtml}
+                                            <div style="margin-top: 25px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid #10b981;">
+    <h4 style="margin:0 0 15px 0; color:#334155; font-size:16px;">
+        <i class="fas fa-stopwatch" style="color:#10b981; margin-right:5px;"></i> Daily Practice Log
+    </h4>
     
-    auth.onAuthStateChanged(async (user) => {
-        const loginOverlay = document.getElementById('loginOverlay');
-        const userDisplay = document.getElementById('currentUserDisplay');
+    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;"><i class="fas fa-clock"></i> Time:</span>
+        <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; color: #1e293b; background: white;">
+        <span style="font-size: 10px; color: #94a3b8;">(Optional)</span>
+    </div>
 
-        if (user) {
-            console.log("Logged in:", user.email);
-            if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
-            
-            loginOverlay.style.display = 'none';
-            DOC_ID = user.uid; 
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <input type="number" id="practiceMinutes" placeholder="Mins (e.g. 45)" style="width: 35%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
+        <input type="text" id="practiceTopic" placeholder="Topic (e.g. C Major Scale)" style="width: 65%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
+    </div>
+    
+    <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);">
+        <i class="fas fa-check-circle"></i> Log Practice
+    </button>
+    <div id="practiceHistoryPortal" style="margin-top: 15px; max-height: 150px; overflow-y: auto;"></div>
+</div>
 
-            await syncOldDataToFirebase();
-            await loadInstituteLogo();
-            await loadAuthSignature();
+                                            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px;">
+                                                <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                                    <div style="display:flex; align-items:center; gap:15px;">
+                                                        <div style="background:#eff6ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
+                                                        <span style="font-size:15px; font-weight:600; color:#334155;">Complete Profile Details</span>
+                                                    </div>
+                                                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                                                </button>
+                                                
+                                                <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                                    <div style="display:flex; align-items:center; gap:15px;">
+                                                        <div style="background:#f3e8ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
+                                                        <span style="font-size:15px; font-weight:600; color:#334155;">Attendance History</span>
+                                                    </div>
+                                                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                                                </button>
+                                                
+                                                <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                                    <div style="display:flex; align-items:center; gap:15px;">
+                                                        <div style="background:#dcfce7; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
+                                                        <span style="font-size:15px; font-weight:600; color:#334155;">Payment History</span>
+                                                    </div>
+                                                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                                                </button>
+                                            </div>
 
-            secureAction(() => { 
-                initApp(); 
-                startClock(); 
-            }, true);
+                                            ${dueHtml}
 
-        } else {
-            console.log("No user.");
-            loginOverlay.style.display = 'flex';
-            document.getElementById('securityOverlay').style.display = 'none';
-        }
-    });
-});
+                                            <div style="margin-top: 10px;">
+                                                <h4 style="margin:0 0 15px 5px; color:#334155; font-size:16px;"><i class="fas fa-book-open" style="color:#6366f1; margin-right:5px;"></i> My Study Materials</h4>
+                                                <div class="scroller-box" style="background:#fff; border-radius:16px; padding:15px; box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
+                                            </div>
+                                        </div>
 
-function handleLogin() {
-    const email = document.getElementById('loginEmail').value;
-    const password = document.getElementById('loginPassword').value;
-    const errorMsg = document.getElementById('loginError');
+                                        <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
+                                            <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
+                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
+                                            <div class="scroller-box" style="font-size: 14px; color: #475569;">
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                                    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                                    <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                                    <span style="font-weight:600;">Class:</span> <span style="color:#1e293b;">${s.class || 'N/A'}</span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:#10b981; font-weight:700;">₹${s.fee_amount || 500}</span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                                    <span style="font-weight:600;">Phone:</span> <span style="color:#1e293b;">${s.phone || 'N/A'}</span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                                    <span style="font-weight:600;">DOB:</span> <span style="color:#1e293b;">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
+                                                </div>
+                                                <div style="display:flex; justify-content:space-between; padding: 10px 0;">
+                                                    <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:#1e293b;">${s.address || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                        </div></div>
 
-    if (!email || !password) {
-        errorMsg.textContent = "Email and password required!";
-        errorMsg.style.display = 'block';
-        return;
-    }
+                                        <div id="m-att" class="modal-portal"><div class="modal-content-portal">
+                                            <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
+                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
+                                            <div class="scroller-box">${attHtml}</div>
+                                        </div></div>
 
-    const loginBtn = document.querySelector('#loginOverlay button');
-    const originalText = loginBtn.innerHTML;
-    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+                                        <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
+                                            <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
+                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Payment History</h3>
+                                            <div class="scroller-box">${paidHtml}</div>
+                                        </div></div>
 
-    auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {})
-        .catch((error) => {
-            console.error(error);
-            errorMsg.textContent = "Error: " + error.message;
-            errorMsg.style.display = 'block';
-            loginBtn.innerHTML = originalText;
+                                        <div style="position:fixed; bottom:0; left:0; width:100%; background:#fff; padding:15px; display:flex; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,0.06); border-radius:24px 24px 0 0; box-sizing:border-box;">
+                                            <button onclick="window.location.reload()" style="flex:0.7; background:#f1f5f9; color:#334155; border:none; border-radius:14px; height:50px; font-size:20px; cursor:pointer;"><i class="fas fa-home"></i></button>
+                                            
+                                            <a href="tel:7001471235" style="flex:1; background:#6366f1; color:#fff; text-decoration:none; display:flex; align-items:center; justify-content:center; border-radius:14px; font-weight:600; font-size:15px; box-shadow:0 4px 10px rgba(99,102,241,0.3);"><i class="fas fa-headset" style="margin-right:6px;"></i> Help</a>
+                                            
+                                            <button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="flex:1; background:#fff; color:#ef4444; border:2px solid #fecaca; border-radius:14px; font-weight:600; font-size:15px; cursor:pointer;">Log Out</button>
+                                        </div>
+                                        </div></div>
+    `;
+    
+    setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+
+                            } else {
+                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p>><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                            }
+                        } else {
+                            document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                        }
+                    } catch(e) { 
+                        console.error(e); 
+                        document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Connection Error</h2><button onclick="window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Retry</button></div>`;
+                    }
+                }
+
+                if (localStorage.getItem(`verified_student_${studentViewId}`) === 'true') {
+                    renderStudentPortal();
+                } else {
+                    const vOverlay = document.createElement('div');
+                    vOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #4f46e5, #7c3aed); z-index:10000; display:flex; align-items:center; justify-content:center;";
+                    vOverlay.innerHTML = `
+                        <div style="background:#fff; padding:35px 25px; border-radius:24px; width:85%; max-width:350px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+                            <div style="background:#eff6ff; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
+                                <i class="fas fa-user-graduate" style="color:#4f46e5; font-size:24px;"></i>
+                            </div>
+                            <h3 style="margin-bottom:5px; color:#1e293b; font-family:'Poppins', sans-serif;">Student Login</h3>
+                            <p style="font-size:13px; color:#64748b; margin-bottom:25px;">Verify your identity to continue</p>
+                            
+                            <div style="text-align:left; margin-bottom:15px;">
+                                <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Phone Number</label>
+                                <input type="tel" id="v_phone" placeholder="e.g. 9876543210" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
+                            </div>
+                            <div style="text-align:left; margin-bottom:25px;">
+                                <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Date of Birth</label>
+                                <input type="date" id="v_dob" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
+                            </div>
+                            
+                            <button id="v_btn" style="width:100%; padding:14px; background:#4f46e5; color:#fff; border:none; border-radius:12px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(79, 70, 229, 0.3);">Access Portal <i class="fas fa-arrow-right" style="margin-left:5px;"></i></button>
+                            <p id="v_err" style="color:#ef4444; font-size:12px; margin-top:15px; display:none; background:#fef2f2; padding:8px; border-radius:8px;"></p>
+                        </div>`;
+                    document.body.appendChild(vOverlay);
+                    
+                    document.getElementById('v_btn').onclick = async function() {
+                        const ph = document.getElementById('v_phone').value.trim();
+                        const dob = document.getElementById('v_dob').value;
+                        const err = document.getElementById('v_err');
+                        const btn = document.getElementById('v_btn');
+                        
+                        if(!ph || !dob) { err.textContent = "Please fill all fields"; err.style.display='block'; return; }
+                        
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+                        btn.disabled = true;
+                        
+                        try {
+                            const sDoc = await db.collection('music_classes').doc(managerUid).collection('students').doc(studentViewId).get();
+                            if(sDoc.exists && sDoc.data().phone === ph && sDoc.data().dob === dob) {
+                                localStorage.setItem(`verified_student_${studentViewId}`, 'true');
+                                vOverlay.remove();
+                                renderStudentPortal();
+                            } else { 
+                                err.textContent = "Incorrect details. Try again."; 
+                                err.style.display='block'; 
+                                btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
+                                btn.disabled = false;
+                            }
+                        } catch(e) {
+                            err.textContent = "Network error. Check internet."; 
+                            err.style.display='block';
+                            btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
+                            btn.disabled = false;
+                        }
+                    };
+                }
+                return; 
+            }
+            auth.onAuthStateChanged(async (user) => {
+                const loginOverlay = document.getElementById('loginOverlay');
+                const userDisplay = document.getElementById('currentUserDisplay');
+
+                if (user) {
+                    console.log("Logged in:", user.email);
+                    if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
+                    
+                    loginOverlay.style.display = 'none';
+                    DOC_ID = user.uid; 
+
+                    await syncOldDataToFirebase();
+                    await loadInstituteLogo();
+                    await loadAuthSignature();
+
+                    secureAction(() => { 
+                        initApp(); 
+                        startClock(); 
+                    }, true);
+
+                } else {
+                    console.log("No user.");
+                    loginOverlay.style.display = 'flex';
+                    document.getElementById('securityOverlay').style.display = 'none';
+                }
+            });
         });
-}
 
-function handleSignUp() {
+
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorMsg = document.getElementById('loginError');
+
+            if (!email || !password) {
+                errorMsg.textContent = "Email and password required!";
+                errorMsg.style.display = 'block';
+                return;
+            }
+
+            const loginBtn = document.querySelector('#loginOverlay button');
+            const originalText = loginBtn.innerHTML;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {})
+                .catch((error) => {
+                    console.error(error);
+                    errorMsg.textContent = "Error: " + error.message;
+                    errorMsg.style.display = 'block';
+                    loginBtn.innerHTML = originalText;
+                });
+        }
+        function handleSignUp() {
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
     const errorMsg = document.getElementById('loginError');
@@ -524,13 +570,15 @@ function handleSignUp() {
         return;
     }
 
+    // বাটনের টেক্সট পরিবর্তন করে লোডিং দেখানো
     const signUpBtn = document.querySelectorAll('#loginOverlay button')[1]; 
     const originalText = signUpBtn.innerHTML;
     signUpBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
 
     auth.createUserWithEmailAndPassword(email, password)
         .then((userCredential) => {
-            // Handled by onAuthStateChanged
+            // অ্যাকাউন্ট সফলভাবে তৈরি হলে Firebase অটোমেটিক লগইন করিয়ে দেবে।
+            // আপনার onAuthStateChanged ফাংশন বাকি কাজ সামলে নেবে।
         })
         .catch((error) => {
             console.error(error);
@@ -540,338 +588,402 @@ function handleSignUp() {
         });
 }
 
-function handleLogout() {
-    Swal.fire({
-        title: 'Logout?',
-        text: "You need internet to login again.",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        confirmButtonText: 'Yes, Logout'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            auth.signOut().then(() => {
-                window.location.reload();
+        function handleLogout() {
+            Swal.fire({
+                title: 'Logout?',
+                text: "You need internet to login again.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                confirmButtonText: 'Yes, Logout'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    auth.signOut().then(() => {
+                        window.location.reload();
+                    });
+                }
             });
         }
-    });
-}
 
-function toggleTheme() {
-    const body = document.body;
-    const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-    body.setAttribute('data-theme', newTheme);
-    localStorage.setItem('app_theme', newTheme);
-    updateThemeButton(newTheme);
-}
+        function toggleTheme() {
+            const body = document.body;
+            const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('app_theme', newTheme);
+            updateThemeButton(newTheme);
+        }
 
-function loadTheme() {
-    const t = localStorage.getItem('app_theme') || 'light';
-    document.body.setAttribute('data-theme', t);
-    updateThemeButton(t);
-}
+        function loadTheme() {
+            const t = localStorage.getItem('app_theme') || 'light';
+            document.body.setAttribute('data-theme', t);
+            updateThemeButton(t);
+        }
 
-function updateThemeButton(theme) {
-    const btn = document.getElementById('themeToggleBtn');
-    if(btn) btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i> Switch to Light Mode' : '<i class="fas fa-moon"></i> Switch to Dark Mode';
-}
+        function updateThemeButton(theme) {
+            const btn = document.getElementById('themeToggleBtn');
+            if(btn) btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i> Switch to Light Mode' : '<i class="fas fa-moon"></i> Switch to Dark Mode';
+        }
 
-let isPhotoDeletedInEdit = false;
+        let isPhotoDeletedInEdit = false;
 
-function removeEditPhoto() {
-    document.getElementById('editPhotoPreview').src = 'https://via.placeholder.com/100?text=No+Photo';
-    currentEditPhotoBase64 = null; 
-    isPhotoDeletedInEdit = true;
-}
+        function removeEditPhoto() {
+            document.getElementById('editPhotoPreview').src = 'https://via.placeholder.com/100?text=No+Photo';
+            currentEditPhotoBase64 = null; 
+            isPhotoDeletedInEdit = true;
+        }
 
-async function loadStudentsFromSubCollection() {
-    try {
-        const snapshot = await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').get();
-        if (snapshot.empty) return [];
-        return snapshot.docs.map(doc => doc.data());
-    } catch (error) {
-        console.error("Error loading students:", error);
-        return [];
-    }
-}
-
-async function initApp() { 
-    const now = new Date();
-    document.getElementById('attendanceDate').valueAsDate = now;
-    document.getElementById('attendanceTime').value = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
-    
-    const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`; 
-    const prevDate = new Date(now);
-    prevDate.setMonth(prevDate.getMonth() - 1);
-    const prevMonthStr = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
-
-    document.getElementById('feeMonth').value = currentMonthStr; 
-    document.getElementById('reportMonth').value = currentMonthStr; 
-    document.getElementById('reportYear').value = now.getFullYear(); 
-    document.getElementById('idCardIssueDate').valueAsDate = now; 
-    document.getElementById('analyticsYear').value = now.getFullYear(); 
-    document.getElementById('compMonth1').value = prevMonthStr;
-    document.getElementById('compMonth2').value = currentMonthStr;
-
-    toggleReportInputs(); 
-
-    try {
-        let loadedStudents = await loadStudentsFromSubCollection();
-
-        if (loadedStudents.length === 0) {
-            const legacyStudents = await dbGet('students');
-            if (legacyStudents && Array.isArray(legacyStudents) && legacyStudents.length > 0) {
-                console.log("Found legacy data, migrating...");
-                loadedStudents = legacyStudents.map(migrateStudentData);
-                
-                loadedStudents.forEach(st => {
-                     db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(st.id)).set(st);
-                });
+        async function loadStudentsFromSubCollection() {
+            try {
+                const snapshot = await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').get();
+                if (snapshot.empty) return [];
+                return snapshot.docs.map(doc => doc.data());
+            } catch (error) {
+                console.error("Error loading students:", error);
+                return [];
             }
         }
 
-        const [aData, fData, rData, scData, gmData] = await Promise.all([
-            dbGet('attendance'),
-            dbGet('fees'),
-            dbGet('reminders'),
-            dbGet('studentSerialCounter'),
-            dbGet('globalMaterials')
-        ]);
+        async function initApp() { 
+            const now = new Date();
+            document.getElementById('attendanceDate').valueAsDate = now;
+            document.getElementById('attendanceTime').value = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+            
+            const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`; 
+            const prevDate = new Date(now);
+            prevDate.setMonth(prevDate.getMonth() - 1);
+            const prevMonthStr = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-        students = loadedStudents || []; 
-        attendance = aData || {}; 
-        fees = fData || {}; 
-        reminders = rData || []; 
-        globalMaterials = gmData || [];
-        studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
+            document.getElementById('feeMonth').value = currentMonthStr; 
+            document.getElementById('reportMonth').value = currentMonthStr; 
+            document.getElementById('reportYear').value = now.getFullYear(); 
+            document.getElementById('idCardIssueDate').valueAsDate = now; 
+            document.getElementById('analyticsYear').value = now.getFullYear(); 
+            document.getElementById('compMonth1').value = prevMonthStr;
+            document.getElementById('compMonth2').value = currentMonthStr;
+
+            toggleReportInputs(); 
+
+            try {
+                let loadedStudents = await loadStudentsFromSubCollection();
+
+                if (loadedStudents.length === 0) {
+                    const legacyStudents = await dbGet('students');
+                    if (legacyStudents && Array.isArray(legacyStudents) && legacyStudents.length > 0) {
+                        console.log("Found legacy data, migrating...");
+                        loadedStudents = legacyStudents.map(migrateStudentData);
+                        
+                        loadedStudents.forEach(st => {
+                             db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(st.id)).set(st);
+                        });
+                    }
+                }
+
+                const [aData, fData, rData, scData, gmData] = await Promise.all([
+                    dbGet('attendance'),
+                    dbGet('fees'),
+                    dbGet('reminders'),
+                    dbGet('studentSerialCounter'),
+                    dbGet('globalMaterials')
+                ]);
+
+                students = loadedStudents || []; 
+                attendance = aData || {}; 
+                fees = fData || {}; 
+                reminders = rData || []; 
+                globalMaterials = gmData || [];
+                studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
+                
+                loadAllData(); 
+            } catch(e) {
+                console.error("Init Error:", e);
+                if(!students) students = [];
+                if(!attendance) attendance = {};
+            }
+
+            document.getElementById('attendanceDate').addEventListener('change', renderAttendance); 
+            document.getElementById('feeMonth').addEventListener('change', renderFees); 
+            
+            comparePeriods(); 
+            updateYearlyChart();
+        }
+
+        const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes"; 
+        const MY_NAME = "Srikanta Banerjee"; 
+        const DEFAULT_FEE = 500, DUE_DATE = 10; 
         
-        loadAllData(); 
-    } catch(e) {
-        console.error("Init Error:", e);
-        if(!students) students = [];
-        if(!attendance) attendance = {};
+        let students = [], attendance = {}, fees = {}, reminders = [], globalMaterials = [], studentSerialCounter = 1; 
+        let financeChartInstance = null; 
+        let instituteLogo = null; 
+        let authorizedSignature = null;
+        let analyticsChartInstance = null; 
+        let currentlyViewingStudentId = null; 
+        let currentStudentView = 'active'; 
+        let html5QrcodeScanner = null;
+        
+        let dismissedBirthdays = JSON.parse(localStorage.getItem('dismissedBirthdays')) || [];
+        // 🟢 NEW: Future Date Inactive Logic (Time Machine)
+window.isStudentCurrentlyActive = function(student, targetDateStr = null) {
+    if (!student) return false;
+    if (!student.status || !student.status.history || student.status.history.length === 0) {
+        return isStudentCurrentlyActive(student) !== false;
     }
-
-    document.getElementById('attendanceDate').addEventListener('change', renderAttendance); 
-    document.getElementById('feeMonth').addEventListener('change', renderFees); 
     
-    comparePeriods(); 
-    updateYearlyChart();
-}
-
-const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes"; 
-const MY_NAME = "Srikanta Banerjee"; 
-const DEFAULT_FEE = 500, DUE_DATE = 10; 
-
-let students = [], attendance = {}, fees = {}, reminders = [], globalMaterials = [], studentSerialCounter = 1; 
-let financeChartInstance = null; 
-let instituteLogo = null; 
-let authorizedSignature = null;
-let analyticsChartInstance = null; 
-let currentlyViewingStudentId = null; 
-let currentStudentView = 'active'; 
-let html5QrcodeScanner = null;
-
-let dismissedBirthdays = JSON.parse(localStorage.getItem('dismissedBirthdays')) || [];
-
-async function saveInstituteLogo(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 200; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const logoBase64 = canvas.toDataURL('image/jpeg', 0.8); await dbSet('instituteLogo', logoBase64); await loadInstituteLogo(); Swal.fire('Success', 'Logo saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
-async function loadInstituteLogo() { instituteLogo = await dbGet('instituteLogo'); const img = document.getElementById('logoPreview'); const headerLogo = document.getElementById('headerLogo'); const btn = document.getElementById('removeLogoBtn'); if (instituteLogo) { img.src = instituteLogo; img.style.display = 'block'; btn.style.display = 'inline-block'; headerLogo.src = instituteLogo; headerLogo.style.display = 'block'; } else { img.style.display = 'none'; btn.style.display = 'none'; headerLogo.style.display = 'none'; } }
-async function removeLogo() { await dbDelete('instituteLogo'); instituteLogo = null; await loadInstituteLogo(); }
-async function saveAuthSignature(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 150; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const sigBase64 = canvas.toDataURL('image/png'); await dbSet('authorizedSignature', sigBase64); await loadAuthSignature(); Swal.fire('Success', 'Signature saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
-async function loadAuthSignature() { authorizedSignature = await dbGet('authorizedSignature'); const img = document.getElementById('authSigPreview'); const btn = document.getElementById('removeAuthSigBtn'); if (authorizedSignature) { img.src = authorizedSignature; img.style.display = 'block'; btn.style.display = 'inline-block'; } else { img.style.display = 'none'; btn.style.display = 'none'; } }
-async function removeAuthSignature() { await dbDelete('authorizedSignature'); authorizedSignature = null; await loadAuthSignature(); }
-
-/* SIGNATURE PAD LOGIC */
-let signaturePad = null;
-let isDrawing = false;
-let currentStudentSignature = null;
-let sigRotation = 0;
-
-function openSignatureModal() {
-    const modal = document.getElementById('signatureModal');
-    modal.style.display = 'flex';
+    let targetDate = new Date(); // আজকের দিন
+    if (targetDateStr) targetDate = new Date(targetDateStr);
+    targetDate.setHours(23, 59, 59, 999); // দিনের শেষ মুহূর্ত পর্যন্ত চেক করবে
     
-    const canvas = document.getElementById('sigCanvas');
-    const wrapper = document.getElementById('sigWrapper');
-    
-    canvas.width = wrapper.clientWidth - 40;
-    canvas.height = wrapper.clientHeight - 40;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#000";
-    ctx.lineWidth = 3;
-    ctx.lineCap = "round";
-
-    sigRotation = 0;
-    document.querySelector('.sig-canvas-box').style.transform = `rotate(0deg)`;
-
-    canvas.addEventListener('mousedown', startDraw);
-    canvas.addEventListener('mousemove', draw);
-    canvas.addEventListener('mouseup', stopDraw);
-    canvas.addEventListener('touchstart', startDraw, {passive: false});
-    canvas.addEventListener('touchmove', draw, {passive: false});
-    canvas.addEventListener('touchend', stopDraw);
-}
-
-function closeSignatureModal() {
-    document.getElementById('signatureModal').style.display = 'none';
-}
-
-function startDraw(e) {
-    isDrawing = true;
-    draw(e);
-    e.preventDefault(); 
-}
-
-function draw(e) {
-    if (!isDrawing) return;
-    const canvas = document.getElementById('sigCanvas');
-    const ctx = canvas.getContext('2d');
-    const rect = canvas.getBoundingClientRect();
-    
-    let x, y;
-    if (e.type.includes('touch')) {
-        x = e.touches[0].clientX - rect.left;
-        y = e.touches[0].clientY - rect.top;
-    } else {
-        x = e.clientX - rect.left;
-        y = e.clientY - rect.top;
-    }
-
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    e.preventDefault();
-}
-
-function stopDraw() {
-    isDrawing = false;
-    const canvas = document.getElementById('sigCanvas');
-    const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-}
-
-function clearSignature() {
-    const canvas = document.getElementById('sigCanvas');
-    const ctx = canvas.getContext('2d');
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
-function rotateSignaturePad() {
-    sigRotation = (sigRotation + 90) % 360;
-    document.querySelector('.sig-canvas-box').style.transform = `rotate(${sigRotation}deg)`;
-}
-
-function saveSignature() {
-    const canvas = document.getElementById('sigCanvas');
-    currentStudentSignature = canvas.toDataURL('image/png');
-    document.getElementById('signatureStatus').style.display = 'block';
-    closeSignatureModal();
-    Swal.fire('Saved', 'Signature captured successfully.', 'success');
-}
-
-function getFeeCalculationStartDate(student) { return new Date(student.joining_date); }
-
-function wasStudentActiveDuringMonth(student, monthStr) {
-    const [year, month] = monthStr.split('-').map(Number);
-    const monthStart = new Date(year, month - 1, 1);
-    const monthEnd = new Date(year, month, 0, 23, 59, 59);
     const joinDate = new Date(student.joining_date);
-    if (joinDate > monthEnd) return false;
+    joinDate.setHours(0, 0, 0, 0);
+    if (targetDate < joinDate) return false;
     
-    const history = (student.status.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+    // হিস্ট্রিগুলো তারিখ অনুযায়ী সাজানো
+    const history = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let currentStatus = 'Active'; 
     
-    let statusAtStart = 'Active'; 
-    for (let i = 0; i < history.length; i++) { 
-        if (new Date(history[i].date) < monthStart) { 
-            statusAtStart = history[i].status; 
-        } 
+    for (let i = 0; i < history.length; i++) {
+        const hDate = new Date(history[i].date);
+        hDate.setHours(0, 0, 0, 0);
+        
+        // যদি ইনঅ্যাক্টিভ করার তারিখ আজকে বা আজকের আগে হয়, তবেই স্ট্যাটাস বদলাবে
+        if (hDate <= targetDate) {
+            currentStatus = history[i].status; 
+        } else {
+            // ভবিষ্যতের তারিখ হলে লুপ ব্রেক হয়ে যাবে (ফলে আগের Active স্ট্যাটাসটাই থেকে যাবে)
+            break; 
+        }
     }
-    
-    let changesInMonth = history.filter(h => { 
-        const d = new Date(h.date); 
-        return d >= monthStart && d <= monthEnd; 
-    });
-    
-    if (changesInMonth.length === 0) { return statusAtStart === 'Active'; }
-    
-    const lastChangeInMonth = changesInMonth[changesInMonth.length - 1];
-    const changeDate = new Date(lastChangeInMonth.date);
-    
-    if (lastChangeInMonth.status === 'Inactive') { 
-        return changeDate.getDate() > 10; 
-    } else { 
-        return true; 
-    }
-}
+    return currentStatus === 'Active';
+};
+        
+        async function saveInstituteLogo(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 200; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const logoBase64 = canvas.toDataURL('image/jpeg', 0.8); await dbSet('instituteLogo', logoBase64); await loadInstituteLogo(); Swal.fire('Success', 'Logo saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
+        async function loadInstituteLogo() { instituteLogo = await dbGet('instituteLogo'); const img = document.getElementById('logoPreview'); const headerLogo = document.getElementById('headerLogo'); const btn = document.getElementById('removeLogoBtn'); if (instituteLogo) { img.src = instituteLogo; img.style.display = 'block'; btn.style.display = 'inline-block'; headerLogo.src = instituteLogo; headerLogo.style.display = 'block'; } else { img.style.display = 'none'; btn.style.display = 'none'; headerLogo.style.display = 'none'; } }
+        async function removeLogo() { await dbDelete('instituteLogo'); instituteLogo = null; await loadInstituteLogo(); }
+        async function saveAuthSignature(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 150; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const sigBase64 = canvas.toDataURL('image/png'); await dbSet('authorizedSignature', sigBase64); await loadAuthSignature(); Swal.fire('Success', 'Signature saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
+        async function loadAuthSignature() { authorizedSignature = await dbGet('authorizedSignature'); const img = document.getElementById('authSigPreview'); const btn = document.getElementById('removeAuthSigBtn'); if (authorizedSignature) { img.src = authorizedSignature; img.style.display = 'block'; btn.style.display = 'inline-block'; } else { img.style.display = 'none'; btn.style.display = 'none'; } }
+        async function removeAuthSignature() { await dbDelete('authorizedSignature'); authorizedSignature = null; await loadAuthSignature(); }
+        
+        /* SIGNATURE PAD LOGIC */
+        let signaturePad = null;
+        let isDrawing = false;
+        let currentStudentSignature = null;
+        let sigRotation = 0;
 
-function checkGlobalDues(studentId) { 
-    const s = students.find(x => x.id === studentId); 
-    if (!s) return false; 
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonthIndex = now.getMonth();
-    const today = now.getDate();
-    let iterDate = new Date(s.joining_date);
-    if(isNaN(iterDate.getTime())) return false;
-    iterDate.setDate(1);
-    while (iterDate <= now) { 
-        const y = iterDate.getFullYear(); 
-        const m = iterDate.getMonth() + 1; 
-        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
-        if (wasStudentActiveDuringMonth(s, monthStr)) { 
-            if (y < currentYear || (y === currentYear && m - 1 < currentMonthIndex)) { 
-                if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
-            } else if (y === currentYear && m - 1 === currentMonthIndex && today > DUE_DATE) { 
-                if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
+        function openSignatureModal() {
+            const modal = document.getElementById('signatureModal');
+            modal.style.display = 'flex';
+            
+            const canvas = document.getElementById('sigCanvas');
+            const wrapper = document.getElementById('sigWrapper');
+            
+            canvas.width = wrapper.clientWidth - 40;
+            canvas.height = wrapper.clientHeight - 40;
+            
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 3;
+            ctx.lineCap = "round";
+
+            sigRotation = 0;
+            document.querySelector('.sig-canvas-box').style.transform = `rotate(0deg)`;
+
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDraw);
+            canvas.addEventListener('touchstart', startDraw, {passive: false});
+            canvas.addEventListener('touchmove', draw, {passive: false});
+            canvas.addEventListener('touchend', stopDraw);
+        }
+
+        function closeSignatureModal() {
+            document.getElementById('signatureModal').style.display = 'none';
+        }
+
+        function startDraw(e) {
+            isDrawing = true;
+            draw(e);
+            e.preventDefault(); 
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const canvas = document.getElementById('sigCanvas');
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            
+            let x, y;
+            if (e.type.includes('touch')) {
+                x = e.touches[0].clientX - rect.left;
+                y = e.touches[0].clientY - rect.top;
+            } else {
+                x = e.clientX - rect.left;
+                y = e.clientY - rect.top;
+            }
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            e.preventDefault();
+        }
+
+        function stopDraw() {
+            isDrawing = false;
+            const canvas = document.getElementById('sigCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.beginPath();
+        }
+
+        function clearSignature() {
+            const canvas = document.getElementById('sigCanvas');
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function rotateSignaturePad() {
+            sigRotation = (sigRotation + 90) % 360;
+            document.querySelector('.sig-canvas-box').style.transform = `rotate(${sigRotation}deg)`;
+        }
+
+        function saveSignature() {
+            const canvas = document.getElementById('sigCanvas');
+            currentStudentSignature = canvas.toDataURL('image/png');
+            document.getElementById('signatureStatus').style.display = 'block';
+            closeSignatureModal();
+            Swal.fire('Saved', 'Signature captured successfully.', 'success');
+        }
+
+        function getFeeCalculationStartDate(student) { return new Date(student.joining_date); }
+        
+        // 🟢 NEW: নির্দিষ্ট তারিখে স্টুডেন্ট অ্যাক্টিভ ছিল কিনা তা চেক করার ফাংশন
+function isStudentActiveOnDate(student, targetDateStr) {
+    if (!targetDateStr) return isStudentCurrentlyActive(student) !== false;
+    
+    const targetDate = new Date(targetDateStr);
+    targetDate.setHours(23, 59, 59, 999); // দিনের শেষ সময় পর্যন্ত চেক
+    
+    const joinDate = new Date(student.joining_date);
+    joinDate.setHours(0, 0, 0, 0);
+
+    if (targetDate < joinDate) return false; // জয়েন করার আগের ডেট হলে দেখাবে না
+
+    if (!student.status || !student.status.history || student.status.history.length === 0) {
+        return isStudentCurrentlyActive(student) !== false;
+    }
+
+    // ইতিহাস (History) ডেট অনুযায়ী সাজিয়ে চেক করা
+    const history = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let currentStatus = 'Active'; 
+
+    for (let i = 0; i < history.length; i++) {
+        const hDate = new Date(history[i].date);
+        hDate.setHours(0, 0, 0, 0);
+        if (hDate <= targetDate) {
+            currentStatus = history[i].status; // টার্গেট ডেটের আগে কোনো পরিবর্তন হলে স্ট্যাটাস আপডেট হবে
+        } else {
+            break; // ভবিষ্যতের ইভেন্ট বাদ দেওয়া হলো
+        }
+    }
+    return currentStatus === 'Active';
+}
+        function wasStudentActiveDuringMonth(student, monthStr) {
+            const [year, month] = monthStr.split('-').map(Number);
+            const monthStart = new Date(year, month - 1, 1);
+            const monthEnd = new Date(year, month, 0, 23, 59, 59);
+            const joinDate = new Date(student.joining_date);
+            if (joinDate > monthEnd) return false;
+            
+            const history = (student.status.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+            
+            let statusAtStart = 'Active'; 
+            for (let i = 0; i < history.length; i++) { 
+                if (new Date(history[i].date) < monthStart) { 
+                    statusAtStart = history[i].status; 
+                } 
+            }
+            
+            let changesInMonth = history.filter(h => { 
+                const d = new Date(h.date); 
+                return d >= monthStart && d <= monthEnd; 
+            });
+            
+            if (changesInMonth.length === 0) { return statusAtStart === 'Active'; }
+            
+            const lastChangeInMonth = changesInMonth[changesInMonth.length - 1];
+            const changeDate = new Date(lastChangeInMonth.date);
+            
+            if (lastChangeInMonth.status === 'Inactive') { 
+                return changeDate.getDate() > 10; 
+            } else { 
+                return true; 
+            }
+        }
+
+        function checkGlobalDues(studentId) { 
+            const s = students.find(x => x.id === studentId); 
+            if (!s) return false; 
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonthIndex = now.getMonth();
+            const today = now.getDate();
+            let iterDate = new Date(s.joining_date);
+            if(isNaN(iterDate.getTime())) return false;
+            iterDate.setDate(1);
+            while (iterDate <= now) { 
+                const y = iterDate.getFullYear(); 
+                const m = iterDate.getMonth() + 1; 
+                const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+                if (wasStudentActiveDuringMonth(s, monthStr)) { 
+                    if (y < currentYear || (y === currentYear && m - 1 < currentMonthIndex)) { 
+                        if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
+                    } else if (y === currentYear && m - 1 === currentMonthIndex && today > DUE_DATE) { 
+                        if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
+                    } 
+                } 
+                iterDate.setMonth(iterDate.getMonth() + 1); 
             } 
-        } 
-        iterDate.setMonth(iterDate.getMonth() + 1); 
-    } 
-    return false; 
-}
+            return false; 
+        }
 
-function getDueMonthsList(studentId) { 
-    const s = students.find(x => x.id === studentId); 
-    if (!s) return []; 
-    const dueMonths = []; 
-    const now = new Date(); 
-    let iterDate = new Date(s.joining_date);
-    if(isNaN(iterDate.getTime())) return [];
-    iterDate.setDate(1);
-    while (iterDate <= now) { 
-        const y = iterDate.getFullYear(); 
-        const m = iterDate.getMonth() + 1; 
-        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
-        if (wasStudentActiveDuringMonth(s, monthStr) && isMonthDue(monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
-            dueMonths.push(formatMonthYear(monthStr)); 
-        } 
-        iterDate.setMonth(iterDate.getMonth() + 1); 
-    } 
-    return dueMonths; 
-}
+        function getDueMonthsList(studentId) { 
+            const s = students.find(x => x.id === studentId); 
+            if (!s) return []; 
+            const dueMonths = []; 
+            const now = new Date(); 
+            let iterDate = new Date(s.joining_date);
+            if(isNaN(iterDate.getTime())) return [];
+            iterDate.setDate(1);
+            while (iterDate <= now) { 
+                const y = iterDate.getFullYear(); 
+                const m = iterDate.getMonth() + 1; 
+                const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+                if (wasStudentActiveDuringMonth(s, monthStr) && isMonthDue(monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
+                    dueMonths.push(formatMonthYear(monthStr)); 
+                } 
+                iterDate.setMonth(iterDate.getMonth() + 1); 
+            } 
+            return dueMonths; 
+        }
 
-function getDueMsg(student, month) { 
-    const feePerMonth = student.fee_amount || DEFAULT_FEE; 
-    const cls = student.class || 'Music'; 
-    const dueMonthsArray = getDueMonthsList(student.id);
+        function getDueMsg(student, month) { 
+            const feePerMonth = student.fee_amount || DEFAULT_FEE; 
+            const cls = student.class || 'Music'; 
+            const dueMonthsArray = getDueMonthsList(student.id);
 
-    if (dueMonthsArray.length > 1) {
-        const totalDueAmount = dueMonthsArray.length * feePerMonth;
-        const monthsStr = dueMonthsArray.join(", ");
-        return `Dear ${student.name},\n\nThis is a friendly reminder that your total fee of ₹${totalDueAmount} for the months of [${monthsStr}] for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
-    } else if (dueMonthsArray.length === 1) {
-        return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${dueMonthsArray[0]} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
-    } else {
-        const monthName = formatMonthYear(month); 
-        return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${monthName} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
-    }
-}
-
+            if (dueMonthsArray.length > 1) {
+                const totalDueAmount = dueMonthsArray.length * feePerMonth;
+                const monthsStr = dueMonthsArray.join(", ");
+                return `Dear ${student.name},\n\nThis is a friendly reminder that your total fee of ₹${totalDueAmount} for the months of [${monthsStr}] for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
+            } else if (dueMonthsArray.length === 1) {
+                return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${dueMonthsArray[0]} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
+            } else {
+                const monthName = formatMonthYear(month); 
+                return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${monthName} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
+            }
+        }
+        
 function getPaidMsg(student, monthsStr, amount, txnId) { 
     const cls = student.class || 'Music'; 
     const monthArray = monthsStr.split(',');
@@ -882,7 +994,7 @@ function getPaidMsg(student, monthsStr, amount, txnId) {
     msg += `\n\nThank you.`; 
     return msg; 
 }
-
+        
 function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) { 
     const student = students.find(s => s.id === studentId); 
     if(!student) return; 
@@ -907,9 +1019,8 @@ function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) {
         window.open(`mailto:${student.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msgBody)}`, '_self'); 
     } 
 }
-
-function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
-
+        function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
+        
 function dismissBirthday(studentId) {
     const currentYear = new Date().getFullYear();
     const uniqueKey = `${studentId}_${currentYear}`; 
@@ -934,9 +1045,9 @@ function dismissBirthday(studentId) {
     }
 }
 
-let pendingAction = null, pinInput = "";
-function secureAction(callback, isInit = false) { pendingAction = callback; pinInput = ""; updatePinDots(); document.querySelector('.close-pin').style.display = isInit ? 'none' : 'block'; document.getElementById('securityOverlay').style.display = 'flex'; }
-function closePinScreen() { 
+        let pendingAction = null, pinInput = "";
+        function secureAction(callback, isInit = false) { pendingAction = callback; pinInput = ""; updatePinDots(); document.querySelector('.close-pin').style.display = isInit ? 'none' : 'block'; document.getElementById('securityOverlay').style.display = 'flex'; }
+        function closePinScreen() { 
     if (!students || students.length === 0) {
         return; 
     }
@@ -944,9 +1055,9 @@ function closePinScreen() {
     pendingAction = null; 
     pinInput = ""; 
 }
-function pressPin(key) { if (key === 'C') pinInput = ""; else if (pinInput.length < 4) pinInput += key; updatePinDots(); }
-function updatePinDots() { document.querySelectorAll('.pin-dot').forEach((dot, index) => { index < pinInput.length ? dot.classList.add('filled') : dot.classList.remove('filled'); }); }
-
+        function pressPin(key) { if (key === 'C') pinInput = ""; else if (pinInput.length < 4) pinInput += key; updatePinDots(); }
+        function updatePinDots() { document.querySelectorAll('.pin-dot').forEach((dot, index) => { index < pinInput.length ? dot.classList.add('filled') : dot.classList.remove('filled'); }); }
+        
 async function submitPin() {
     let currentPin = localStorage.getItem('app_pin');
     
@@ -983,7 +1094,7 @@ async function submitPin() {
         });
     }
 }
-
+        
 async function changeAppPin() { 
     const newPin = document.getElementById('newAppPin').value; 
     
@@ -998,50 +1109,50 @@ async function changeAppPin() {
         Swal.fire('Error', 'PIN must be 4 digits.', 'error'); 
     } 
 }
+        
+        function sendWelcomeMsg(type, studentId) {
+            const student = students.find(s => s.id === studentId);
+            if (!student) return;
 
-function sendWelcomeMsg(type, studentId) {
-    const student = students.find(s => s.id === studentId);
-    if (!student) return;
-
-    const msgBody = `Welcome ${student.name} to the ${student.class || 'Music'} class! We are glad to have you with us. Your classes are on ${student.class_day || 'scheduled day'} at ${student.class_time ? formatTime12H(student.class_time) : 'scheduled time'}. Regards, Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard & Mandolin Classes)`;
-    
-    if (type === 'wa') {
-        let cleanPhone = student.phone.replace(/[^0-9]/g, '');
-        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
-    } else if (type === 'sms') {
-        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
-    } else if (type === 'mail') {
-        window.open(`mailto:${student.email}?subject=${encodeURIComponent("Welcome to Music Classes")}&body=${encodeURIComponent(msgBody)}`, '_self');
-    }
-}
-
-window.shareWelcomePdf = async function(fileName) {
-    const file = window.tempPdfFile;
-    if (navigator.canShare && navigator.share && file) {
-        try {
-            await navigator.share({
-                files: [file],
-                title: 'Welcome Note',
-                text: 'Welcome to Music Classes'
-            });
-        } catch (err) {
-            console.log("Share failed", err);
-            alert("Share not supported or cancelled.");
+            const msgBody = `Welcome ${student.name} to the ${student.class || 'Music'} class! We are glad to have you with us. Your classes are on ${student.class_day || 'scheduled day'} at ${student.class_time ? formatTime12H(student.class_time) : 'scheduled time'}. Regards, Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard & Mandolin Classes)`;
+            
+            if (type === 'wa') {
+                let cleanPhone = student.phone.replace(/[^0-9]/g, '');
+                if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+                window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+            } else if (type === 'sms') {
+                window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+            } else if (type === 'mail') {
+                window.open(`mailto:${student.email}?subject=${encodeURIComponent("Welcome to Music Classes")}&body=${encodeURIComponent(msgBody)}`, '_self');
+            }
         }
-    } else {
-        alert("Sharing not supported on this device/browser.");
-    }
-};
+        
+        window.shareWelcomePdf = async function(fileName) {
+            const file = window.tempPdfFile;
+            if (navigator.canShare && navigator.share && file) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Welcome Note',
+                        text: 'Welcome to Music Classes'
+                    });
+                } catch (err) {
+                    console.log("Share failed", err);
+                    alert("Share not supported or cancelled.");
+                }
+            } else {
+                alert("Sharing not supported on this device/browser.");
+            }
+        };
 
-window.downloadWelcomePdf = function(fileName) {
-     const pdf = window.tempPdfObj;
-     if(pdf) pdf.save(fileName);
-};
-
-window.sendWelcomeSmsFromModal = function(studentId) {
-    sendWelcomeMsg('sms', studentId);
-};
+        window.downloadWelcomePdf = function(fileName) {
+             const pdf = window.tempPdfObj;
+             if(pdf) pdf.save(fileName);
+        };
+        
+        window.sendWelcomeSmsFromModal = function(studentId) {
+            sendWelcomeMsg('sms', studentId);
+        };
 
 async function generateWelcomeNote(studentId) {
     const student = students.find(s => s.id === studentId);
@@ -1597,7 +1708,7 @@ async function saveStatusChange() {
         closeModal('statusChangeModal'); 
         Swal.fire('Updated', `Status changed.`, 'success'); 
     } 
-}        
+}       
 
 function formatTime12H(timeStr) {
     if(!timeStr) return '';
@@ -1754,13 +1865,15 @@ function showClassStudents(className) {
     tableHead.innerHTML = '<th>ID</th><th>Student</th><th>Contact</th>'; 
     tableBody.innerHTML = ''; 
     
-    const classStudents = students.filter(s => s.status?.isActive && (s.class ? s.class.trim() : 'Unassigned') === className); 
+    // এখানে s.class.trim() যোগ করা হয়েছে যাতে স্পেস থাকলেও সব স্টুডেন্টকে খুঁজে পায়
+    const classStudents = students.filter(s => isStudentCurrentlyActive(s) && (s.class ? s.class.trim() : 'Unassigned') === className); 
     
     classStudents.forEach(s => { tableBody.innerHTML += `<tr><td>${s.serial_no}</td><td>${getStudentHtml(s)}</td><td>${getContactButtons(s.id)}</td></tr>`; }); 
     document.getElementById('classStudentsModal').style.display = 'flex'; 
 }
+
 function showCategoryList(type) { 
-    const list = students.filter(s => type === 'active' ? s.status?.isActive : !s.status?.isActive); 
+    const list = students.filter(s => type === 'active' ? isStudentCurrentlyActive(s) : !isStudentCurrentlyActive(s)); 
     document.getElementById('classStudentsTitle').textContent = type === 'active' ? 'Active Students' : 'Inactive Students'; 
     const tableBody = document.querySelector('#classStudentsTable tbody'); 
     const tableHead = document.querySelector('#classStudentsTable thead tr');
@@ -1842,7 +1955,7 @@ function renderReminders() {
 }
 
 function renderDashboard() { 
-    const activeStudents = students.filter(s => s.status?.isActive); 
+    const activeStudents = students.filter(s => isStudentCurrentlyActive(s)); 
     document.getElementById('studentStatsSummary').innerHTML = `<div class="clickable-stat" onclick="showCategoryList('active')"><h4>Active</h4><p class="summary-collected">${activeStudents.length}</p></div><div class="clickable-stat" onclick="showCategoryList('inactive')"><h4>Inactive</h4><p class="summary-due">${students.length - activeStudents.length}</p></div><div><h4>Total</h4><p class="summary-total" style="color:var(--text-main);">${students.length}</p></div>`; 
     
     const birthdayBox = document.getElementById('birthdayAlertBox'); const birthdayList = document.getElementById('birthdayList'); 
@@ -1924,7 +2037,7 @@ function renderDashboard() {
 
     const dueTableBody = document.querySelector('#dueFeeTable tbody'); const dueMessageEl = document.getElementById('dueFeeMessage'); dueTableBody.innerHTML = ''; 
     
-    const defaulters = students.filter(s => s.status?.isActive).map(s => { return { student: s, months: getDueMonthsList(s.id) }; }).filter(item => item.months.length > 0); 
+    const defaulters = students.filter(s => isStudentCurrentlyActive(s)).map(s => { return { student: s, months: getDueMonthsList(s.id) }; }).filter(item => item.months.length > 0); 
     
     if (defaulters.length === 0) { 
         dueMessageEl.textContent = "No pending dues."; 
@@ -2302,7 +2415,7 @@ function updateYearlyChart() {
 function comparePeriods() { const m1 = document.getElementById('compMonth1').value; const m2 = document.getElementById('compMonth2').value; if(!m1 || !m2) { return; } const s1 = calculateMonthStats(m1); const s2 = calculateMonthStats(m2); document.getElementById('compIncome1').textContent = `₹${s1.income}`; document.getElementById('compIncome2').textContent = `₹${s2.income}`; document.getElementById('compStudent1').textContent = s1.studentCount; document.getElementById('compStudent2').textContent = s2.studentCount; const incDiff = s2.income - s1.income; const stuDiff = s2.studentCount - s1.studentCount; const incDiffEl = document.getElementById('compIncomeDiff'); incDiffEl.innerHTML = incDiff > 0 ? `<i class="fas fa-arrow-up"></i> ₹${incDiff}` : (incDiff < 0 ? `<i class="fas fa-arrow-down"></i> ₹${Math.abs(incDiff)}` : '-'); incDiffEl.className = 'comp-diff ' + (incDiff >= 0 ? 'diff-up' : 'diff-down'); const stuDiffEl = document.getElementById('compStudentDiff'); stuDiffEl.innerHTML = stuDiff > 0 ? `<i class="fas fa-arrow-up"></i> ${stuDiff}` : (stuDiff < 0 ? `<i class="fas fa-arrow-down"></i> ${Math.abs(stuDiff)}` : '-'); stuDiffEl.className = 'comp-diff ' + (stuDiff >= 0 ? 'diff-up' : 'diff-down'); document.getElementById('comparisonResults').style.display = 'block'; }
 
 function exportDashboardPDF() { 
-    const activeStudents = students.filter(s => s.status?.isActive); 
+    const activeStudents = students.filter(s => isStudentCurrentlyActive(s)); 
     const currentYear = new Date().getFullYear(); 
     const currentMonthStr = `${currentYear}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
     let monthlyCollected = 0, monthlyDueAmount = 0, yearlyCollected = 0, yearlyDueAmount = 0; 
@@ -2554,7 +2667,7 @@ function switchStudentView(view) {
         inactiveDiv.style.display = 'block';
     }
 }
-let studentDisplayLimit = 20;
+let studentDisplayLimit = 20; // একবারে ২০ জন দেখাবে
 
 function loadStudentsList(showAll = false) { 
     const activeList = document.getElementById('activeStudentsList');
@@ -2565,8 +2678,9 @@ function loadStudentsList(showAll = false) {
     let inactiveCount = 0;
 
     students.forEach(student => { 
-        const isActive = student.status?.isActive;
+        const isActive = isStudentCurrentlyActive(student);
         
+        // Lazy load logic (সার্চ করলে সবাইকে দেখাবে, নাহলে লিমিট অনুযায়ী দেখাবে)
         if (!showAll) {
             if (isActive && activeCount >= studentDisplayLimit) return;
             if (!isActive && inactiveCount >= studentDisplayLimit) return;
@@ -2609,9 +2723,10 @@ function loadStudentsList(showAll = false) {
         }
     }); 
 
+    // Add "Load More" button 
     if (!showAll) {
-        const activeTotal = students.filter(s => s.status?.isActive).length;
-        const inactiveTotal = students.filter(s => !s.status?.isActive).length;
+        const activeTotal = students.filter(s => isStudentCurrentlyActive(s)).length;
+        const inactiveTotal = students.filter(s => !isStudentCurrentlyActive(s)).length;
 
         if (activeTotal > studentDisplayLimit) {
             activeList.innerHTML += `<tr><td colspan="7" style="text-align:center; padding:15px;"><button class="btn-secondary" onclick="loadMoreStudents()" style="width:100%; border-radius:8px;"><i class="fas fa-chevron-down"></i> Load More Students</button></td></tr>`;
@@ -2623,7 +2738,7 @@ function loadStudentsList(showAll = false) {
 }
 
 function loadMoreStudents() {
-    studentDisplayLimit += 20; 
+    studentDisplayLimit += 20; // ক্লিকে আরও ২০ জন বাড়বে
     loadStudentsList(false);
 }
 
@@ -2631,6 +2746,7 @@ function filterStudentLists() {
     const input = document.getElementById('searchStudents');
     const filter = input.value.toUpperCase();
     
+    // সার্চ বক্সে কিছু লিখলে সবাইকে একসাথে লোড করবে, নাহলে লিমিটে ফিরে যাবে
     if (filter.length > 0) {
         loadStudentsList(true); 
     } else {
@@ -2870,9 +2986,11 @@ async function generateIDCard() {
     const { jsPDF } = window.jspdf; 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [86, 54] }); 
     
-    doc.setFillColor(24, 75, 115);
+    // বাঁ দিকের নীল অংশ
+    doc.setFillColor(24, 75, 115); // আপনার ছবির মত গাড় নীল কালার
     doc.rect(0, 0, 30, 54, 'F'); 
     
+    // স্টুডেন্টের ছবি (বাঁ দিকে, নীল অংশের ওপর)
     if (student.photo) { 
         doc.addImage(student.photo, 'JPEG', 5, 5, 20, 20); 
         doc.setDrawColor(0, 0, 0); 
@@ -2886,23 +3004,27 @@ async function generateIDCard() {
         doc.text("No Photo", 15, 16, {align: 'center'}); 
     } 
 
+// --- QR Code ছবির ঠিক নিচে ---
     try {
         const baseUrl = window.location.origin + window.location.pathname;
         const qrText = `${baseUrl}?student=${student.id}&manager=${DOC_ID}`;
         const qr = new QRious({ value: qrText, size: 250, level: 'M' });
         doc.addImage(qr.toDataURL('image/jpeg'), 'JPEG', 6, 28, 18, 18);
     } catch(e) { console.error("QR Code generation failed for ID Card", e); }
-    
+    // ------------------------------
+    // ডান দিকের জলছাপ লোগো
     if (instituteLogo) { 
         doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.1 })); 
         doc.addImage(instituteLogo, 'JPEG', 40, 9, 36, 36); doc.restoreGraphicsState(); 
     } 
     
+    // হেডারের লেখা
     doc.setTextColor(0, 0, 0); doc.setFontSize(7.5); doc.setFont("helvetica", "bold"); 
     const headerLines = doc.splitTextToSize(INSTITUTE_NAME, 52); 
     doc.text(headerLines, 58, 6, {align: "center"}); 
     doc.setDrawColor(24, 75, 115); doc.setLineWidth(0.5); doc.line(33, 12, 83, 12); 
     
+    // ডান দিকের টেক্সট ডিটেইলস (X শুরু 33 থেকে)
     let yText = 16; const labelX = 33; const valX = 46; 
     const addField = (label, val) => { 
         doc.setFont("helvetica", "bold"); doc.text(label, labelX, yText); 
@@ -2922,17 +3044,22 @@ async function generateIDCard() {
     doc.text(addrLines, valX, yText); 
     yText += (addrLines.length * 3) + 1; 
     
+    
+    // Issue and Valid Date
     doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); 
     let validText = `Issued: ${issueDateStr}`; if (endDateStr) validText += ` | Valid: ${endDateStr}`; 
     doc.text(validText, 33, yText); 
 
+    // সিগনেচার
     if (authorizedSignature) { doc.addImage(authorizedSignature, 'PNG', 65, 36, 18, 6); } 
     doc.setFontSize(6); doc.setFont("helvetica", "bold"); doc.text("Auth. Signature:", 83, 43, {align: "right"}); 
     doc.setFont("helvetica", "italic"); doc.text("Srikanta Banerjee", 83, 46, {align: "right"}); 
     
+    // নিচের দিকের সবুজ স্ট্রিপ
     doc.setFillColor(67, 160, 130); doc.rect(30, 49, 56, 5, 'F'); 
     doc.setTextColor(255, 255, 255); doc.setFontSize(6.5); doc.setFont("helvetica", "bold"); doc.text("AUTHORIZED STUDENT CARD", 58, 52.5, {align: "center"}); 
 
+    // PDF সেভ করা বা শেয়ার করা
     const fileName = `ID_Card_${student.name}.pdf`; 
     if (navigator.canShare && navigator.share) { 
         const pdfBlob = doc.output('blob'); const file = new File([pdfBlob], fileName, { type: 'application/pdf' }); 
@@ -2958,7 +3085,8 @@ function renderAttendance() {
 
     let totalActive = 0, presentCount = 0, absentCount = 0;
 
-    const activeStudents = students.filter(s => s.status?.isActive);
+    // 🟢 FIX: বর্তমান স্ট্যাটাসের বদলে, ওই নির্দিষ্ট ডেটের স্ট্যাটাস চেক করে লিস্ট করা হলো
+    const activeStudents = students.filter(s => isStudentCurrentlyActive(s, dateInput));
 
     activeStudents.sort((a, b) => {
         const getScore = (student) => {
@@ -3080,6 +3208,7 @@ async function addAttendanceNote(studentId) {
         showCancelButton: true,
         confirmButtonText: 'Save Note',
         confirmButtonColor: 'var(--primary)',
+        cancelButtonColor: '#ef4444',
         allowOutsideClick: false 
     });
 
@@ -3285,6 +3414,7 @@ function openEditStudentModal(id) {
     document.getElementById('editAddress').value = student.address || ''; 
     document.getElementById('editStudentDOB').value = student.dob || ""; 
     
+    // 🟢 NEW: Set Toggle Value
     document.getElementById('editAllowProfile').checked = student.allow_profile_view !== false;
     
     currentEditPhotoBase64 = null; 
@@ -3317,8 +3447,10 @@ async function saveStudentChanges() {
     student.address = document.getElementById('editAddress').value;
     student.dob = document.getElementById('editStudentDOB').value;
     
+    // 🟢 NEW: Get Toggle Value
     student.allow_profile_view = document.getElementById('editAllowProfile').checked;
     
+    // 🟢 NEW: Sync Portal Data (Attendance & Fees) for the Student View
     let studentAtt = [];
     Object.keys(attendance).forEach(date => { if (attendance[date]?.[id]) studentAtt.push({ date, data: attendance[date][id] }); });
     let studentFees = [];
@@ -3355,6 +3487,7 @@ function showStudentDetails(studentId) {
     document.getElementById('modalPhone').innerHTML = student.phone ? `${student.phone}` : 'N/A'; 
     document.getElementById('modalEmail').innerHTML = student.email ? `${student.email}` : 'N/A'; 
     document.getElementById('modalAddress').textContent = student.address || 'N/A'; 
+    // 🟢 Load Personal Notice in Modal
     const currentNotice = student.personal_notice || '';
     document.getElementById('currentNoticeDisplay').innerHTML = currentNotice ? `Current Notice: <span>${currentNotice}</span>` : 'No active notice.';
     document.getElementById('personalNoticeInput').value = currentNotice;
@@ -3415,7 +3548,8 @@ function showStudentDetails(studentId) {
     renderStudentDetailsHistory();
     document.getElementById('exportPdfBtn').onclick = () => exportStudentDetailsAsPDF(studentId); 
     renderStudentNotes(studentId);
-    renderStudyMaterials(studentId); 
+    renderStudyMaterials(studentId);
+    renderPracticeLogTeacher(studentId); /* 🟢 এই লাইনটি অ্যাড করুন */
     document.getElementById('studentDetailsModal').style.display = 'flex'; 
 }
 
@@ -3519,7 +3653,7 @@ async function exportToExcel() {
         Fee: s.fee_amount,
         Phone: s.phone,
         Guardian: s.guardian,
-        Status: s.status?.isActive ? 'Active' : 'Inactive',
+        Status: isStudentCurrentlyActive(s) ? 'Active' : 'Inactive',
         JoiningDate: s.joining_date
     }));
 
@@ -3746,7 +3880,8 @@ function showAttendanceList(type) {
 
     let list = [];
     let title = '';
-    const activeStudents = students.filter(s => s.status?.isActive);
+    // 🟢 FIX: এখানেও হিস্ট্রি স্ট্যাটাস চেক বসানো হলো
+    const activeStudents = students.filter(s => isStudentCurrentlyActive(s, date));
 
     if (type === 'total') {
         list = activeStudents;
@@ -3785,6 +3920,10 @@ function showAttendanceList(type) {
     document.getElementById('classStudentsModal').style.display = 'flex';
 }
 
+// ==========================================
+// NEW FEATURES FOR INDEX 17 (BULK MSG & QR)
+// ==========================================
+
 function openBulkMessageModal() {
     document.getElementById('bulkMsgFilter').value = 'All';
     document.getElementById('bulkMsgText').value = '';
@@ -3800,7 +3939,7 @@ function sendBulkMsg(type) {
         return;
     }
 
-    let targetStudents = students.filter(s => s.status?.isActive);
+    let targetStudents = students.filter(s => isStudentCurrentlyActive(s));
     if(filter !== 'All') {
         targetStudents = targetStudents.filter(s => s.class_day === filter);
     }
@@ -3836,18 +3975,23 @@ function shareQRCode(studentId) {
     const student = students.find(s => s.id === studentId);
     if(!student) return;
     
+    // Generate Web Link
     const baseUrl = window.location.origin + window.location.pathname;
     const qrText = `${baseUrl}?student=${student.id}&manager=${DOC_ID}`;
     
+    // Generate QR Image
     const qr = new QRious({ value: qrText, size: 250, level: 'H' });
     const qrImg = qr.toDataURL();
     
+    // WhatsApp Logic
     let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
     if (cleanPhone && cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
     
+    // 🟢 🔗 ইমোজি সরিয়ে লিংকটি একদম পরিষ্কার লাইনে দেওয়া হয়েছে
     const waMsg = `Hello ${student.name},\n\nHere is your Digital ID Card link for Music Classes. Click the link below to view your profile, attendance, and fees:\n\n${qrText}\n\nRegards,\nSrikanta Banerjee`;
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waMsg)}`;
 
+    // Global helper functions for buttons
     window.tempDownloadQR = function() {
         const link = document.createElement('a');
         link.download = `QR_${student.name}.png`;
@@ -3898,7 +4042,7 @@ function shareQRCode(studentId) {
         showConfirmButton: false,
         showCancelButton: true,
         cancelButtonText: 'Close Window',
-        cancelButtonColor: '#6b7280'
+        cancelButtonColor: '#ef4444'
     });
 }
 
@@ -3924,12 +4068,14 @@ function closeQRScanner() {
 function onScanSuccess(decodedText, decodedResult) {
     let studentId = null;
     
+    // Check if it's a new Web URL QR Code
     if(decodedText.includes("student=")) {
         try {
             const url = new URL(decodedText);
             studentId = parseInt(url.searchParams.get("student"));
         } catch(e) {}
     } 
+    // Check if it's an old Text QR Code
     else if(decodedText.includes("[APP_ID:")) {
         const match = decodedText.match(/\[APP_ID:(\d+)\]/);
         if(match && match[1]) studentId = parseInt(match[1]);
@@ -3964,6 +4110,7 @@ function onScanSuccess(decodedText, decodedResult) {
 function onScanError(errorMessage) {
     // Ignore minor scan errors
 }
+ // --- এখান থেকে Study Material এর JavaScript শুরু ---
 
 async function openAddMaterialModal(studentId) {
     const student = students.find(s => s.id === studentId);
@@ -3983,6 +4130,7 @@ async function openAddMaterialModal(studentId) {
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: 'Save Material',
+        cancelButtonColor: '#ef4444',
         preConfirm: () => {
             return {
                 title: document.getElementById('swal-mat-title').value.trim(),
@@ -4003,11 +4151,14 @@ async function openAddMaterialModal(studentId) {
             date: new Date().toISOString().split('T')[0]
         });
 
+        // ১. ডেটাবেসের জন্য অপেক্ষা না করে সাথে সাথে UI আপডেট করে দিন (সুপার ফাস্ট হবে)
         renderStudyMaterials(studentId);
         
+        // ২. চট করে একটি সাকসেস মেসেজ (Toast) দেখিয়ে দিন
         const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
         Toast.fire({ icon: 'success', title: 'Material added instantly!' });
 
+        // ৩. ব্যাকগ্রাউন্ডে নীরবে ফায়ারবেসে সেভ হতে দিন (await সরিয়ে দেওয়া হলো)
         db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(studentId)).update({
             study_materials: student.study_materials
         }).catch(e => console.log("Will sync to Firebase automatically."));
@@ -4071,28 +4222,30 @@ async function deleteStudyMaterial(studentId, matId) {
         }
     });
 }
-
+// --- Study Material এর JavaScript শেষ ---
+// 🟢 Save Personal Notice
 async function savePersonalNotice() {
     const text = document.getElementById('personalNoticeInput').value.trim();
     if (!text) { Swal.fire('Error', 'Write a notice first!', 'error'); return; }
 
     const studentIndex = students.findIndex(s => s.id === currentlyViewingStudentId);
     if(studentIndex !== -1) {
-        students[studentIndex].personal_notice = text; 
+        students[studentIndex].personal_notice = text; // নোটিশ স্টুডেন্টের ডেটায় সেভ করা হলো
         
         await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(currentlyViewingStudentId)).update({ 
             personal_notice: text 
         });
         
         Swal.fire('Saved', 'Notice added successfully', 'success');
-        showStudentDetails(currentlyViewingStudentId); 
+        showStudentDetails(currentlyViewingStudentId); // পেজ রিফ্রেশ
     }
 }
 
+// 🟢 Delete Personal Notice
 async function deletePersonalNotice() {
     const studentIndex = students.findIndex(s => s.id === currentlyViewingStudentId);
     if(studentIndex !== -1) {
-        students[studentIndex].personal_notice = ""; 
+        students[studentIndex].personal_notice = ""; // নোটিশ ক্লিয়ার করা হলো
         
         await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(currentlyViewingStudentId)).update({ 
             personal_notice: "" 
@@ -4103,6 +4256,10 @@ async function deletePersonalNotice() {
         showStudentDetails(currentlyViewingStudentId);
     }
 }
+
+// ==========================================
+// GLOBAL MATERIAL LIBRARY LOGIC
+// ==========================================
 
 async function saveGlobalMaterial() {
     const title = document.getElementById('libMatTitle').value.trim();
@@ -4126,6 +4283,7 @@ async function saveGlobalMaterial() {
 
     globalMaterials.push(newMaterial);
     
+    // UI সাথে সাথে আপডেট হবে
     document.getElementById('libMatTitle').value = '';
     document.getElementById('libMatLink').value = '';
     renderGlobalMaterials();
@@ -4133,14 +4291,17 @@ async function saveGlobalMaterial() {
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
     Toast.fire({ icon: 'success', title: 'Saved to Library' });
 
+    // ব্যাকগ্রাউন্ডে সেভ হবে
     saveData().catch(e => console.log("Background sync pending"));
 }
 
+// 🟢 Global Material Library - Lazy Loading Variables
 let currentFilteredMaterials = [];
 let currentLibDisplayCount = 0;
-const LIB_ITEMS_PER_PAGE = 10; 
+const LIB_ITEMS_PER_PAGE = 10; // একবারে ১০টি করে মেটেরিয়াল লোড হবে
 
 function renderGlobalMaterials() {
+    // ট্যাব ওপেন হলে বাই-ডিফল্ট সব ফিল্টার রিসেট করে সব ডাটা দেখাবে
     document.getElementById('searchLibrary').value = '';
     document.getElementById('filterLibCategory').value = 'All';
     document.getElementById('filterLibType').value = 'All';
@@ -4154,8 +4315,9 @@ function filterLibrary() {
     
     const container = document.getElementById('globalLibraryList');
     container.innerHTML = '';
-    currentLibDisplayCount = 0; 
+    currentLibDisplayCount = 0; // স্ক্রল কাউন্ট রিসেট
 
+    // Search এবং Filter অনুযায়ী ডাটা ফিল্টার করা
     currentFilteredMaterials = globalMaterials.filter(mat => {
         const matchText = mat.title.toLowerCase().includes(searchText) || 
                           mat.category.toLowerCase().includes(searchText) ||
@@ -4172,17 +4334,20 @@ function filterLibrary() {
         return;
     }
 
+    // লেটেস্ট অ্যাড করা মেটেরিয়াল ওপরে দেখাবে
     currentFilteredMaterials.sort((a, b) => b.id - a.id);
 
+    // প্রথম ১০টি মেটেরিয়াল লোড করা
     loadMoreLibraryItems();
 }
 
 function loadMoreLibraryItems() {
     const container = document.getElementById('globalLibraryList');
     
+    // লিস্ট থেকে পরের ১০টি মেটেরিয়াল বের করা
     const nextBatch = currentFilteredMaterials.slice(currentLibDisplayCount, currentLibDisplayCount + LIB_ITEMS_PER_PAGE);
     
-    if (nextBatch.length === 0) return; 
+    if (nextBatch.length === 0) return; // আর কিছু লোড করার নেই
 
     nextBatch.forEach(mat => {
         let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : 
@@ -4214,12 +4379,15 @@ function loadMoreLibraryItems() {
         container.appendChild(div);
     });
 
+    // স্ক্রল কাউন্ট আপডেট করা
     currentLibDisplayCount += nextBatch.length;
 }
 
+// 🟢 Lazy Loading (Infinite Scroll) Scroll Detector
 function handleLibraryScroll() {
     const container = document.getElementById('globalLibraryList');
     
+    // ইউজার লিস্টের একদম নিচে পৌঁছালে নতুন ব্যাচ লোড হবে
     if (container.scrollTop + container.clientHeight >= container.scrollHeight - 15) {
         loadMoreLibraryItems();
     }
@@ -4243,9 +4411,9 @@ async function deleteGlobalMaterial(id) {
 }
 
 // 🟢 Send Material to Student Portal Logic (Searchable with Profile Photos & WhatsApp)
-let tempActiveStudents = []; 
+let tempActiveStudents = []; // সার্চিং এর জন্য ডাটা স্টোর করতে
 
-// 1. Helper function to generate custom HTML list with photos
+// Helper function to generate custom HTML list with photos
 window.generateStudentListHtml = function(studentsList) {
     let html = '';
     studentsList.forEach(s => {
@@ -4266,7 +4434,7 @@ window.generateStudentListHtml = function(studentsList) {
     return html;
 };
 
-// 2. Function to handle selection highlighting
+// Function to handle selection highlighting
 window.selectStudentForMaterial = function(studentId, divElement) {
     document.getElementById('selected-student-id').value = studentId;
     const allItems = document.querySelectorAll('.student-select-item');
@@ -4278,12 +4446,11 @@ window.selectStudentForMaterial = function(studentId, divElement) {
     divElement.style.borderColor = 'var(--primary)';
 };
 
-// 3. Open Send Modal
 async function openSendToStudentModal(matId) {
     const material = globalMaterials.find(m => m.id === matId);
     if (!material) return;
 
-    tempActiveStudents = students.filter(s => s.status?.isActive).sort((a,b) => a.name.localeCompare(b.name));
+    tempActiveStudents = students.filter(s => isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     let listHtml = generateStudentListHtml(tempActiveStudents);
 
     const result = await Swal.fire({
@@ -4309,6 +4476,7 @@ async function openSendToStudentModal(matId) {
         confirmButtonText: '<i class="fas fa-paper-plane"></i> To Portal',
         denyButtonText: '<i class="fab fa-whatsapp"></i> WhatsApp',
         cancelButtonText: 'Cancel',
+        cancelButtonColor: '#ef4444',
         confirmButtonColor: 'var(--primary)',
         denyButtonColor: '#25D366',
         preConfirm: () => {
@@ -4330,7 +4498,7 @@ async function openSendToStudentModal(matId) {
     }
 }
 
-// 4. WhatsApp-এ সরাসরি মেসেজ পাঠানোর ফাংশন
+// 🟢 WhatsApp-এ সরাসরি মেসেজ পাঠানোর ফাংশন
 window.sendMaterialViaWhatsApp = function(studentId, material) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -4349,7 +4517,7 @@ window.sendMaterialViaWhatsApp = function(studentId, material) {
     window.open(waUrl, '_blank');
 };
 
-// 5. Search Box Filter Function (Updated for Photos)
+// 🔍 Search Box Filter Function
 window.filterSendStudentList = function() {
     const filter = document.getElementById('swal-search-student').value.toUpperCase();
     const listContainer = document.getElementById('send-mat-student-list');
@@ -4363,7 +4531,6 @@ window.filterSendStudentList = function() {
     document.getElementById('selected-student-id').value = ''; 
 };
 
-// 6. Assign Material to Portal
 async function assignMaterialToStudent(studentId, material) {
     const studentIndex = students.findIndex(s => s.id === studentId);
     if (studentIndex === -1) return;
@@ -4391,3 +4558,211 @@ async function assignMaterialToStudent(studentId, material) {
         study_materials: student.study_materials
     }).catch(e => console.log("Background sync pending"));
 }
+// ==========================================
+// 🟢 PRACTICE TRACKER LOGIC (Instant Save & Optional Topic)
+// ==========================================
+
+window.submitPracticeLog = function(studentId) {
+    const minutes = document.getElementById('practiceMinutes').value;
+    let topic = document.getElementById('practiceTopic').value.trim();
+    const timeInputEl = document.getElementById('practiceTimeInput');
+    const timeInputVal = timeInputEl ? timeInputEl.value : '';
+
+    // 🟢 Topic অপশনাল করা হলো (না দিলে 'Regular Practice' সেভ হবে)
+    if (!topic) {
+        topic = "Regular Practice"; 
+    }
+
+    if (!minutes || minutes <= 0) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Enter valid minutes!', showConfirmButton: false, timer: 2000 });
+        return;
+    }
+
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-IN'); 
+    const dayStr = now.toLocaleDateString('en-IN', { weekday: 'short' }); 
+    
+    let timeStr = '';
+    if (timeInputVal) {
+        const [h, m] = timeInputVal.split(':');
+        const ampm = h >= 12 ? 'PM' : 'AM';
+        const h12 = h % 12 || 12;
+        timeStr = `${h12.toString().padStart(2, '0')}:${m} ${ampm}`;
+    } else {
+        timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); 
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const managerUid = urlParams.get('manager');
+    const isStudentPortal = !!managerUid;
+    const targetUid = managerUid ? managerUid : DOC_ID;
+
+    // 🟢 Instant Find Student Data
+    let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
+    if (studentIndex === -1) return;
+    let studentData = students[studentIndex];
+
+    if (!studentData.practice_log) studentData.practice_log = [];
+
+    studentData.practice_log.unshift({
+        id: Date.now(),
+        minutes: parseInt(minutes),
+        topic: topic,
+        date: dateStr,
+        day: dayStr,
+        time: timeStr
+    });
+
+    // 🟢 1. Instant UI Update (সাথে সাথে সেভ দেখাবে)
+    document.getElementById('practiceMinutes').value = '';
+    document.getElementById('practiceTopic').value = '';
+    if(timeInputEl) timeInputEl.value = '';
+    
+    Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${minutes} minutes!`, icon: 'success', timer: 2000, showConfirmButton: false });
+    renderPracticeHistoryPortal(studentData); 
+
+    // 🟢 2. Background Database Save (নীরবে সেভ হবে)
+    if (!isStudentPortal) {
+        students[studentIndex] = studentData;
+        dbSet('students', students).catch(e => {}); 
+    }
+    
+    db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+        practice_log: studentData.practice_log
+    }).catch(e => console.log("Sync error:", e));
+};
+
+window.renderPracticeHistoryPortal = function(student) {
+    // 🟢 পোর্টাল ওপেন হলেই গ্লোবাল ভেরিয়েবলে ডেটা রেখে দেবে যাতে ইনস্ট্যান্ট সেভ হয়
+    const existingIdx = students.findIndex(s => String(s.id) === String(student.id));
+    if(existingIdx === -1) students.push(student);
+    else students[existingIdx] = student;
+
+    const container = document.getElementById('practiceHistoryPortal');
+    if (!container) return;
+    if (!student.practice_log || student.practice_log.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:#94a3b8; font-size:12px;">No practice logged yet.</div>';
+        return;
+    }
+    let html = '';
+    student.practice_log.slice(0, 10).forEach(log => { 
+        html += `
+            <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #10b981; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: #065f46; font-size: 13px;">${log.topic}</strong><br>
+                    <span style="font-size: 11px; color: #166534;">📅 ${log.date} (${log.day}) 🕒 ${log.time}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">${log.minutes} mins</div>
+                    <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px;"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+    });
+    container.innerHTML = html;
+};
+
+window.renderPracticeLogTeacher = function(studentId) {
+    const student = students.find(s => s.id === studentId);
+    const container = document.getElementById('modalPracticeList');
+    if (!container || !student) return;
+
+    container.innerHTML = '';
+    if (student.practice_log && student.practice_log.length > 0) {
+        student.practice_log.forEach(log => {
+            container.innerHTML += `
+                <li style="padding: 8px 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: var(--success); font-size: 13px;">${log.topic}</strong><br>
+                        <span style="font-size: 10px; color: var(--text-muted);"><i class="fas fa-clock"></i> ${log.date} | ${log.day} | ${log.time}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="font-size: 12px; font-weight: bold; color: var(--text-main); background: var(--bg-body); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color);">${log.minutes} mins</div>
+                        <button onclick="editPracticeLogTeacher(${student.id}, ${log.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:14px;"><i class="fas fa-edit"></i></button>
+                        <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'teacher')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-trash"></i></button>
+                    </div>
+                </li>`;
+        });
+    } else {
+        container.innerHTML = '<li style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">No practice records found.</li>';
+    }
+};
+
+window.deletePracticeLog = function(studentId, logId, context) {
+    Swal.fire({
+        title: 'Delete Practice Log?',
+        text: "Are you sure?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Delete'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const managerUid = urlParams.get('manager');
+            const isStudentPortal = !!managerUid;
+            const targetUid = managerUid ? managerUid : DOC_ID;
+
+            let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
+            if (studentIndex === -1) return;
+            let studentData = students[studentIndex];
+
+            studentData.practice_log = studentData.practice_log.filter(log => log.id !== logId);
+
+            // 🟢 1. Instant UI Update
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully!', showConfirmButton: false, timer: 1500 });
+            if (context === 'student') renderPracticeHistoryPortal(studentData);
+            else renderPracticeLogTeacher(studentId);
+
+            // 🟢 2. Background Save
+            if (!isStudentPortal) {
+                students[studentIndex] = studentData;
+                dbSet('students', students).catch(e => {});
+            }
+            db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+                practice_log: studentData.practice_log
+            }).catch(e => console.log("Delete sync failed.", e));
+        }
+    });
+};
+
+window.editPracticeLogTeacher = async function(studentId, logId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const log = student.practice_log.find(l => l.id === logId);
+    if (!log) return;
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Edit Practice Log',
+        html: `
+            <input id="edit-prac-mins" type="number" class="swal2-input" value="${log.minutes}" placeholder="Minutes" style="width: 85%;">
+            <input id="edit-prac-topic" type="text" class="swal2-input" value="${log.topic}" placeholder="Topic (Optional)" style="width: 85%; margin-top: 10px;">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Save Changes',
+        confirmButtonColor: 'var(--success)',
+        preConfirm: () => {
+            const mins = document.getElementById('edit-prac-mins').value;
+            let topic = document.getElementById('edit-prac-topic').value.trim();
+            if (!topic) topic = "Regular Practice";
+            if (!mins || mins <= 0) Swal.showValidationMessage('Please enter valid minutes');
+            return { minutes: parseInt(mins), topic: topic };
+        }
+    });
+
+    if (formValues) {
+        log.minutes = formValues.minutes;
+        log.topic = formValues.topic;
+
+        try {
+            await dbSet('students', students);
+            await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(studentId)).update({
+                practice_log: student.practice_log
+            });
+        } catch(e) { console.log("Will sync later."); }
+
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Updated successfully!', showConfirmButton: false, timer: 1500 });
+        renderPracticeLogTeacher(studentId);
+    }
+};
