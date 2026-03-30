@@ -4,9 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Music Classes Manager (Pro)</title>
+    
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-<link rel="preconnect" href="https://cdn.jsdelivr.net">
-<link rel="preconnect" href="https://www.gstatic.com">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://www.gstatic.com">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -25,89 +26,90 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
     <script src="https://unpkg.com/html5-qrcode" defer></script>
     
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="loginOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: var(--text-main);">
-    <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 85%; max-width: 350px; text-align: center; border: 1px solid var(--border-color);">
-        <h2 style="color: var(--primary); margin-bottom: 20px;">Manager Login</h2>
-        <input type="email" id="loginEmail" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
-        <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
-        
-        <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
-            <i class="fas fa-sign-in-alt"></i> Login
-        </button>
-        
-        <p id="loginError" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;"></p>
-    </div>
-</div>
-
-<div id="welcomeNoteTemplate">
-    <div class="wn-watermark"><img id="wnWatermarkImg" src="" style="width:100%;"></div>
-    
-    <div class="wn-header">
-        <img id="wnHeaderLogo" class="wn-logo" src="">
-        <h1 class="wn-title">GUITAR, BASS GUITAR, PIANO, KEYBOARD, MANDOLIN CLASSES</h1>
-        <p class="wn-phone">Ph- 7001471235</p>
-    </div>
-    
-    <div class="wn-details-box">
-        <div class="wn-info-col">
-            <div class="wn-row"><span class="wn-label">Student Name:</span><span id="wnStudentName" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Class:</span><span id="wnClass" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Class Time:</span><span id="wnTime" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Monthly Fees:</span><span id="wnFee" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Address:</span><span id="wnAddress" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Phone:</span><span id="wnPhone" class="wn-val"></span></div>
-        </div>
-
-        <div class="wn-photo-col">
-            <img id="wnStudentPhoto" src="">
+    <div id="loginOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: var(--text-main);">
+        <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 85%; max-width: 350px; text-align: center; border: 1px solid var(--border-color);">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Manager Login</h2>
+            <input type="email" id="loginEmail" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
+            <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
+            
+            <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+            
+            <p id="loginError" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;"></p>
         </div>
     </div>
 
-    <div class="wn-welcome-box">
-        <h2 class="wn-welcome-title">প্রিয় শিক্ষার্থী,</h2>
-        <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন।</p>
-    </div>
-
-    <div class="wn-rules-box">
-        <h3 class="wn-rules-title">📌 নিয়মাবলী (Rules for Student):</h3>
-        <ul class="wn-rules-list">
-            <li>আপনাকে মাসিক বেতন (Monthly Fees) অবশ্যই <strong>অগ্রিম (Advance)</strong> পরিশোধ করতে হবে।</li>
-            <li>প্রতি মাসের <strong style="color:#d32f2f;">10 তারিখের</strong> মধ্যে ফিস জমা দেওয়া বাধ্যতামূলক।</li>
-            <li>আপনি যদি কোনো মাসে ক্লাস মিস করেন বা অনুপস্থিত থাকেন, তবুও আপনার সিট বজায় রাখার জন্য সেই মাসের <strong>পুরো বেতন</strong> পরিশোধ করতে হবে। <span style="color:#d32f2f;">*</span></li>
-            <li>ক্লাসের দিন বা সময় (Day & Time) পরিবর্তন হলে কর্তৃপক্ষ দায়ী থাকবে না। <span style="color:#d32f2f;">*</span></li>
-        </ul>
-    </div>
-
-    <div style="font-size: 18px; color: #444; margin-top: 30px; font-style: italic;">
-        <p><span style="color:#d32f2f;">*</span> Conditions Apply.</p>
-        <p>আমি উপরের নিয়মগুলো পড়লাম এবং মেনে চলতে সম্মত হলাম।</p>
-    </div>
-
-    <div class="wn-footer">
-        <div class="wn-sig-box" style="text-align: left;">
-            <div style="height: 130px; display: flex; align-items: flex-end; justify-content: flex-start;">
-                <img id="wnStudentSig" src="" style="display:none;">
+    <div id="welcomeNoteTemplate">
+        <div class="wn-watermark"><img id="wnWatermarkImg" src="" style="width:100%;"></div>
+        
+        <div class="wn-header">
+            <img id="wnHeaderLogo" class="wn-logo" src="">
+            <h1 class="wn-title">GUITAR, BASS GUITAR, PIANO, KEYBOARD, MANDOLIN CLASSES</h1>
+            <p class="wn-phone">Ph- 7001471235</p>
+        </div>
+        
+        <div class="wn-details-box">
+            <div class="wn-info-col">
+                <div class="wn-row"><span class="wn-label">Student Name:</span><span id="wnStudentName" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Class:</span><span id="wnClass" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Class Time:</span><span id="wnTime" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Monthly Fees:</span><span id="wnFee" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Address:</span><span id="wnAddress" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Phone:</span><span id="wnPhone" class="wn-val"></span></div>
             </div>
-            <span id="wnStudentNameSig" style="font-weight: bold; border-top: 2px solid #333; padding-top: 5px; display: block; margin-top: 5px; font-size: 22px;">
-            </span>
-            <div style="font-size: 22px; font-weight: bold; color: #333; margin-top: 5px;">
-                Date: <span id="wnFooterDate"></span>
+
+            <div class="wn-photo-col">
+                <img id="wnStudentPhoto" src="">
             </div>
         </div>
 
-        <div class="wn-sig-box">
-            <img id="wnSigImg" class="wn-sig-img" src="">
-            <span class="wn-owner">Srikanta Banerjee</span>
-            <span style="font-size: 18px;">(Owner & Instructor)</span>
+        <div class="wn-welcome-box">
+            <h2 class="wn-welcome-title">প্রিয় শিক্ষার্থী,</h2>
+            <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন।</p>
+        </div>
+
+        <div class="wn-rules-box">
+            <h3 class="wn-rules-title">📌 নিয়মাবলী (Rules for Student):</h3>
+            <ul class="wn-rules-list">
+                <li>আপনাকে মাসিক বেতন (Monthly Fees) অবশ্যই <strong>অগ্রিম (Advance)</strong> পরিশোধ করতে হবে।</li>
+                <li>প্রতি মাসের <strong style="color:#d32f2f;">10 তারিখের</strong> মধ্যে ফিস জমা দেওয়া বাধ্যতামূলক।</li>
+                <li>আপনি যদি কোনো মাসে ক্লাস মিস করেন বা অনুপস্থিত থাকেন, তবুও আপনার সিট বজায় রাখার জন্য সেই মাসের <strong>পুরো বেতন</strong> পরিশোধ করতে হবে। <span style="color:#d32f2f;">*</span></li>
+                <li>ক্লাসের দিন বা সময় (Day & Time) পরিবর্তন হলে কর্তৃপক্ষ দায়ী থাকবে না। <span style="color:#d32f2f;">*</span></li>
+            </ul>
+        </div>
+
+        <div style="font-size: 18px; color: #444; margin-top: 30px; font-style: italic;">
+            <p><span style="color:#d32f2f;">*</span> Conditions Apply.</p>
+            <p>আমি উপরের নিয়মগুলো পড়লাম এবং মেনে চলতে সম্মত হলাম।</p>
+        </div>
+
+        <div class="wn-footer">
+            <div class="wn-sig-box" style="text-align: left;">
+                <div style="height: 130px; display: flex; align-items: flex-end; justify-content: flex-start;">
+                    <img id="wnStudentSig" src="" style="display:none;">
+                </div>
+                <span id="wnStudentNameSig" style="font-weight: bold; border-top: 2px solid #333; padding-top: 5px; display: block; margin-top: 5px; font-size: 22px;">
+                </span>
+                <div style="font-size: 22px; font-weight: bold; color: #333; margin-top: 5px;">
+                    Date: <span id="wnFooterDate"></span>
+                </div>
+            </div>
+
+            <div class="wn-sig-box">
+                <img id="wnSigImg" class="wn-sig-img" src="">
+                <span class="wn-owner">Srikanta Banerjee</span>
+                <span style="font-size: 18px;">(Owner & Instructor)</span>
+            </div>
         </div>
     </div>
-</div>
+
     <div id="securityOverlay">
         <span class="close-pin" onclick="closePinScreen()" style="position: absolute; top: 30px; right: 20px; font-size: 30px; opacity: 0.7;">&times;</span>
         <div style="font-size: 20px; letter-spacing: 2px; margin-bottom: 20px; opacity: 0.9;">ENTER PIN</div>
@@ -128,11 +130,11 @@
                 <canvas id="sigCanvas"></canvas>
             </div>
         </div>
- <div class="sig-toolbar">
-    <button class="btn-danger" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
-    <button class="btn-success" onclick="saveSignature()"><i class="fas fa-save"></i> Save Signature</button>
-    <button class="btn-warning" onclick="closeSignatureModal()">Close</button>
-</div>
+        <div class="sig-toolbar">
+            <button class="btn-danger" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
+            <button class="btn-success" onclick="saveSignature()"><i class="fas fa-save"></i> Save Signature</button>
+            <button class="btn-warning" onclick="closeSignatureModal()">Close</button>
+        </div>
     </div>
 
     <header>
@@ -169,20 +171,19 @@
         </div>
 
         <div id="attendance" class="tab-content active">
-            
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <div class="form-group" style="display: flex; gap: 8px; margin-bottom: 0; flex: 1;">
-        <div style="flex: 1;">
-            <label style="font-size: 11px; margin-bottom: 2px;">Date</label>
-            <input type="date" id="attendanceDate" onchange="renderAttendance()" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
-        </div>
-        <div style="flex: 1;">
-            <label style="font-size: 11px; margin-bottom: 2px;">Time</label>
-            <input type="time" id="attendanceTime" placeholder="Default: Current" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
-        </div>
-    </div>
-    <button class="btn-primary" onclick="startQRScanner()" style="margin-left: 10px; height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; align-self: flex-end;"><i class="fas fa-qrcode"></i> Scan QR</button>
-</div>
+                <div class="form-group" style="display: flex; gap: 8px; margin-bottom: 0; flex: 1;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; margin-bottom: 2px;">Date</label>
+                        <input type="date" id="attendanceDate" onchange="renderAttendance()" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; margin-bottom: 2px;">Time</label>
+                        <input type="time" id="attendanceTime" placeholder="Default: Current" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="startQRScanner()" style="margin-left: 10px; height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; align-self: flex-end;"><i class="fas fa-qrcode"></i> Scan QR</button>
+            </div>
 
             <div id="attendanceSummary" class="summary-box" style="margin-bottom: 10px; margin-top: 0; padding: 6px 4px; gap: 4px; min-height: unset;">
                 <div onclick="showAttendanceList('total')" class="clickable-stat" style="padding: 2px;">
@@ -291,14 +292,11 @@
             
             <div id="globalLibraryList" onscroll="handleLibraryScroll()" style="display:flex; flex-direction:column; gap:12px; max-height: 450px; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;"></div>
         </div>
-            <div id="reminderListContainer"></div>
-        </div>
 
         <div id="studentMgmt" class="tab-content">
-            
             <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-    <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
-</div>
+                <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
+            </div>
 
             <div class="dashboard-card" style="border-color: var(--info);">
                 <h3><i class="fas fa-user-plus"></i> Add Student</h3>
@@ -370,6 +368,16 @@
                 <h3 style="color: var(--pink); border:none;"><i class="fas fa-birthday-cake"></i> Birthdays Today!</h3>
                 <div id="birthdayList"></div>
             </div>
+            
+            <div id="todaysPracticeBox" class="dashboard-card" style="display: none; border-top-color: var(--success); background-color: rgba(16, 185, 129, 0.05);">
+                <h3 style="color: var(--success); border:none; margin-bottom:10px;">
+                    <i class="fas fa-stopwatch"></i> Today's Practice Logs 
+                    <span style="color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 16px; margin-left: 5px;" onclick="showTodaysPracticingStudentsModal()">
+                        (<span id="todaysPracticeCount">0</span>)
+                    </span>
+                </h3>
+                <div id="todaysPracticeList" style="max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
+            </div>
 
             <div class="dashboard-grid">
                 <div class="dashboard-card">
@@ -419,7 +427,9 @@
             </div>
 
             <table id="reportTable" style="display: none; margin-top: 10px;"><thead></thead><tbody></tbody></table>
-        </div> <div id="analytics" class="tab-content">
+        </div> 
+
+        <div id="analytics" class="tab-content">
              <div class="dashboard-card">
                 <h3>Yearly Analysis & Comparison</h3>
                 <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
@@ -506,18 +516,18 @@
                     </div>
                 </div>
                 <div class="dashboard-card" style="border-top-color: var(--danger);">
-    <label>Account Status</label>
-    <div style="margin-top: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="currentUserDisplay">Checking status...</div>
-    <button class="btn-danger" onclick="handleLogout()" style="width:100%;">
-        <i class="fas fa-sign-out-alt"></i> Logout
-    </button>
-</div>
+                    <label>Account Status</label>
+                    <div style="margin-top: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="currentUserDisplay">Checking status...</div>
+                    <button class="btn-danger" onclick="handleLogout()" style="width:100%;">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                </div>
                 <div class="dashboard-card">
                     <label>Backup Data</label>
                     <button class="btn-primary btn-google" onclick="secureAction(exportData)" style="width:100%; margin-top:5px;"><i class="fab fa-google-drive"></i> Backup</button>
                     <button class="btn-success" onclick="secureAction(exportToExcel)" style="width:100%; margin-top:10px; background: #1D6F42;">
-    <i class="fas fa-file-excel"></i> Export to Excel (Secure)
-</button>
+                        <i class="fas fa-file-excel"></i> Export to Excel (Secure)
+                    </button>
                     <hr style="margin: 15px 0; border-top: 1px solid var(--border-color);">
                     <label>Restore / Reset</label>
                     <button class="btn-warning" onclick="secureAction(() => document.getElementById('importFile').click())" style="width:100%;"><i class="fas fa-file-upload"></i> Restore JSON</button>
@@ -550,7 +560,6 @@
     </div>
 
     <div id="studentDetailsModal" class="modal">
-        
         <div class="modal-content">
             <span class="close-button" onclick="closeModal('studentDetailsModal')">&times;</span>
             <div style="text-align: center; margin-bottom: 20px;">
@@ -586,11 +595,11 @@
                 <select id="detailsFilterMonth" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
             </div>
             
-
             <div style="margin-bottom:20px;">
                 <h4 style="margin:0 0 10px 0;">Status History</h4>
                 <ul id="modalStatusHistory" class="scrollable-list"></ul>
             </div>
+            
             <div style="margin-bottom:20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                  <div>
                     <h4 style="margin:0 0 5px 0;">Paid</h4>
@@ -602,59 +611,56 @@
                     <div style="font-size:11px; color:red; margin-top:5px;">Absent: <ul id="modalAbsentList" class="scrollable-list" style="max-height:80px;"></ul></div>
                  </div>
             </div>
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--success); padding-bottom: 5px;">
-            <i class="fas fa-stopwatch" style="color: var(--success);"></i> Practice History
-        </h4>
-        <div style="max-height: 150px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-            <ul id="modalPracticeList" style="list-style: none; padding: 0; margin: 0;">
-                </ul>
-        </div>
-    </div>
-            
-    <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--info); padding-bottom: 5px;">
-            <i class="fas fa-book-open" style="color: var(--info);"></i> Study Materials
-        </h4>
-        <button class="btn-info" onclick="openAddMaterialModal(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 10px; background: #0ea5e9;">
-            <i class="fas fa-plus-circle"></i> Add Note/Video/PDF Link
-        </button>
-        <div style="max-height: 120px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-            <ul id="modalStudyMaterialsList" style="list-style: none; padding: 0; margin: 0;"></ul>
-        </div>
-    </div>
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
-        <i class="fas fa-sticky-note" style="color: var(--warning);"></i> Class Notes History
-    </h4>
-    
-    <input type="text" id="noteSearchInput" placeholder="Search by Date or Note content..." 
-           onkeyup="filterStudentNotes()" 
-           style="padding: 8px; font-size: 12px; margin-bottom: 10px;">
 
-    <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px;">
-        <ul id="modalNotesList" style="list-style: none; padding: 0; margin: 0;">
-            </ul>
-    </div>
-    <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
-        <i class="fas fa-bullhorn" style="color: var(--warning);"></i> Personal Notice
-    </h4>
-    <div id="currentNoticeDisplay" style="font-size:12px; margin-bottom:10px; color: var(--text-main); font-weight:600;"></div>
-    <textarea id="personalNoticeInput" rows="2" placeholder="Write notice for this student..." style="width:100%; border-radius:8px; border:1px solid var(--border-color); padding:8px; font-size:12px; background: var(--bg-card); color: var(--text-main); box-sizing: border-box;"></textarea>
-    <div style="display:flex; gap:10px; margin-top:10px;">
-        <button class="btn-success" onclick="savePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Save Notice</button>
-        <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
-    </div>
-</div>
-</div>
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--success); padding-bottom: 5px;">
+                    <i class="fas fa-stopwatch" style="color: var(--success);"></i> Practice History
+                </h4>
+                <div style="max-height: 150px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <ul id="modalPracticeList" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+            </div>
+            
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--info); padding-bottom: 5px;">
+                    <i class="fas fa-book-open" style="color: var(--info);"></i> Study Materials
+                </h4>
+                <button class="btn-info" onclick="openAddMaterialModal(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 10px; background: #0ea5e9;">
+                    <i class="fas fa-plus-circle"></i> Add Note/Video/PDF Link
+                </button>
+                <div style="max-height: 120px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <ul id="modalStudyMaterialsList" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+                <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
+                    <i class="fas fa-sticky-note" style="color: var(--warning);"></i> Class Notes History
+                </h4>
+                <input type="text" id="noteSearchInput" placeholder="Search by Date or Note content..." onkeyup="filterStudentNotes()" style="padding: 8px; font-size: 12px; margin-bottom: 10px;">
+                <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px;">
+                    <ul id="modalNotesList" style="list-style: none; padding: 0; margin: 0;"></ul>
+                </div>
+                
+                <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); margin-top:15px;">
+                    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
+                        <i class="fas fa-bullhorn" style="color: var(--warning);"></i> Personal Notice
+                    </h4>
+                    <div id="currentNoticeDisplay" style="font-size:12px; margin-bottom:10px; color: var(--text-main); font-weight:600;"></div>
+                    <textarea id="personalNoticeInput" rows="2" placeholder="Write notice for this student..." style="width:100%; border-radius:8px; border:1px solid var(--border-color); padding:8px; font-size:12px; background: var(--bg-card); color: var(--text-main); box-sizing: border-box;"></textarea>
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button class="btn-success" onclick="savePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Save Notice</button>
+                        <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
+                    </div>
+                </div>
+            </div>
+
             <div style="background: var(--bg-input); padding: 15px; border-radius: 12px;">
                 <label>Generate Documents</label>
                 <div style="display: flex; gap: 10px; margin-bottom: 10px;">
                     <input type="date" id="idCardIssueDate">
                     <input type="date" id="idCardEndDate">
                 </div>
-                
                 <div style="display: flex; gap: 10px;">
                     <button class="btn-info" onclick="generateIDCard()" style="flex:1;">ID Card</button>
                     <button class="btn-primary" id="exportPdfBtn" style="flex:1;">Profile PDF</button>
@@ -721,19 +727,20 @@
             <input type="file" id="editStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
             <input type="file" id="editStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
             <div style="text-align: center; margin-bottom: 15px;">
-    <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
-        <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
-        <div style="position: absolute; bottom: 0; background: rgba(0,0,0,0.5); width: 100%; color: white; font-size: 10px;">EDIT</div>
-    </div>
-    
-    <button type="button" onclick="removeEditPhoto()" style="margin-top: 5px; background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
-        <i class="fas fa-trash"></i> Remove Photo
-    </button>
-</div>
-<div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
-    <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
-    <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
-</div>
+                <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
+                    <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                    <div style="position: absolute; bottom: 0; background: rgba(0,0,0,0.5); width: 100%; color: white; font-size: 10px;">EDIT</div>
+                </div>
+                <button type="button" onclick="removeEditPhoto()" style="margin-top: 5px; background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+                    <i class="fas fa-trash"></i> Remove Photo
+                </button>
+            </div>
+            
+            <div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
+                <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
+                <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
+            </div>
+            
             <div class="form-grid">
                 <div class="form-group"><label>Name</label><input type="text" id="editStudentName"></div>
                 <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
@@ -780,6 +787,6 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
