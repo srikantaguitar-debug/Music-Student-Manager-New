@@ -26,92 +26,78 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
     <script src="https://unpkg.com/html5-qrcode" defer></script>
     
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div id="loginOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: var(--text-main);">
-    <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 85%; max-width: 350px; text-align: center; border: 1px solid var(--border-color);">
-        <h2 style="color: var(--primary); margin-bottom: 20px;">Manager Login</h2>
-        <input type="email" id="loginEmail" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
-        <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
-        
-        <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
-            <i class="fas fa-sign-in-alt"></i> Login
-        </button>
-        
-        <p id="loginError" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;"></p>
-    </div>
-</div>
-
-<div id="welcomeNoteTemplate">
-    <div class="wn-watermark"><img id="wnWatermarkImg" src="" style="width:100%;"></div>
-    
-    <div class="wn-header">
-        <img id="wnHeaderLogo" class="wn-logo" src="">
-        <h1 class="wn-title">GUITAR, BASS GUITAR, PIANO, KEYBOARD, MANDOLIN CLASSES</h1>
-        <p class="wn-phone">Ph- 7001471235</p>
-    </div>
-    
-    <div class="wn-details-box">
-        <div class="wn-info-col">
-            <div class="wn-row"><span class="wn-label">Student Name:</span><span id="wnStudentName" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Class:</span><span id="wnClass" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Class Time:</span><span id="wnTime" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Monthly Fees:</span><span id="wnFee" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Address:</span><span id="wnAddress" class="wn-val"></span></div>
-            <div class="wn-row"><span class="wn-label">Phone:</span><span id="wnPhone" class="wn-val"></span></div>
-        </div>
-
-        <div class="wn-photo-col">
-            <img id="wnStudentPhoto" src="">
+    <div id="loginOverlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: var(--text-main);">
+        <div style="background: var(--bg-card); padding: 30px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); width: 85%; max-width: 350px; text-align: center; border: 1px solid var(--border-color);">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Manager Login</h2>
+            <input type="email" id="loginEmail" placeholder="Email Address" style="width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
+            <input type="password" id="loginPassword" placeholder="Password" style="width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); box-sizing: border-box;">
+            <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 16px;">
+                <i class="fas fa-sign-in-alt"></i> Login
+            </button>
+            <p id="loginError" style="color: var(--danger); font-size: 12px; margin-top: 15px; display: none;"></p>
         </div>
     </div>
 
-    <div class="wn-welcome-box">
-        <h2 class="wn-welcome-title">প্রিয় শিক্ষার্থী,</h2>
-        <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন।</p>
-    </div>
-
-    <div class="wn-rules-box">
-        <h3 class="wn-rules-title">📌 নিয়মাবলী (Rules for Student):</h3>
-        <ul class="wn-rules-list">
-            <li>আপনাকে মাসিক বেতন (Monthly Fees) অবশ্যই <strong>অগ্রিম (Advance)</strong> পরিশোধ করতে হবে।</li>
-            <li>প্রতি মাসের <strong style="color:#d32f2f;">10 তারিখের</strong> মধ্যে ফিস জমা দেওয়া বাধ্যতামূলক।</li>
-            <li>আপনি যদি কোনো মাসে ক্লাস মিস করেন বা অনুপস্থিত থাকেন, তবুও আপনার সিট বজায় রাখার জন্য সেই মাসের <strong>পুরো বেতন</strong> পরিশোধ করতে হবে। <span style="color:#d32f2f;">*</span></li>
-            <li>ক্লাসের দিন বা সময় (Day & Time) পরিবর্তন হলে কর্তৃপক্ষ দায়ী থাকবে না। <span style="color:#d32f2f;">*</span></li>
-        </ul>
-    </div>
-
-    <div style="font-size: 18px; color: #444; margin-top: 30px; font-style: italic;">
-        <p><span style="color:#d32f2f;">*</span> Conditions Apply.</p>
-        <p>আমি উপরের নিয়মগুলো পড়লাম এবং মেনে চলতে সম্মত হলাম।</p>
-    </div>
-
-    <div class="wn-footer">
-        <div class="wn-sig-box" style="text-align: left;">
-            <div style="height: 130px; display: flex; align-items: flex-end; justify-content: flex-start;">
-                <img id="wnStudentSig" src="" style="display:none;">
+    <div id="welcomeNoteTemplate">
+        <div class="wn-watermark"><img id="wnWatermarkImg" src="" style="width:100%;"></div>
+        <div class="wn-header">
+            <img id="wnHeaderLogo" class="wn-logo" src="">
+            <h1 class="wn-title">GUITAR, BASS GUITAR, PIANO, KEYBOARD, MANDOLIN CLASSES</h1>
+            <p class="wn-phone">Ph- 7001471235</p>
+        </div>
+        <div class="wn-details-box">
+            <div class="wn-info-col">
+                <div class="wn-row"><span class="wn-label">Student Name:</span><span id="wnStudentName" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Class:</span><span id="wnClass" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Class Time:</span><span id="wnTime" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Monthly Fees:</span><span id="wnFee" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Address:</span><span id="wnAddress" class="wn-val"></span></div>
+                <div class="wn-row"><span class="wn-label">Phone:</span><span id="wnPhone" class="wn-val"></span></div>
             </div>
-            <span id="wnStudentNameSig" style="font-weight: bold; border-top: 2px solid #333; padding-top: 5px; display: block; margin-top: 5px; font-size: 22px;">
-            </span>
-            <div style="font-size: 22px; font-weight: bold; color: #333; margin-top: 5px;">
-                Date: <span id="wnFooterDate"></span>
+            <div class="wn-photo-col"><img id="wnStudentPhoto" src=""></div>
+        </div>
+        <div class="wn-welcome-box">
+            <h2 class="wn-welcome-title">প্রিয় শিক্ষার্থী,</h2>
+            <p>আপনাকে <strong>আমার মিউজিক ক্লাসে</strong> স্বাগত জানাই। সুরের এই জাদুকরী ভুবনে আপনার যাত্রা আনন্দদায়ক হোক। আমি আশা করি আপনি মনোযোগ দিয়ে শিখবেন এবং ভবিষ্যতে একজন ভালো শিল্পী হিসেবে নিজেকে গড়ে তুলবেন।</p>
+        </div>
+        <div class="wn-rules-box">
+            <h3 class="wn-rules-title">📌 নিয়মাবলী (Rules for Student):</h3>
+            <ul class="wn-rules-list">
+                <li>আপনাকে মাসিক বেতন (Monthly Fees) অবশ্যই <strong>অগ্রিম (Advance)</strong> পরিশোধ করতে হবে।</li>
+                <li>প্রতি মাসের <strong style="color:#d32f2f;">10 তারিখের</strong> মধ্যে ফিস জমা দেওয়া বাধ্যতামূলক।</li>
+                <li>আপনি যদি কোনো মাসে ক্লাস মিস করেন বা অনুপস্থিত থাকেন, তবুও আপনার সিট বজায় রাখার জন্য সেই মাসের <strong>পুরো বেতন</strong> পরিশোধ করতে হবে। <span style="color:#d32f2f;">*</span></li>
+                <li>ক্লাসের দিন বা সময় (Day & Time) পরিবর্তন হলে কর্তৃপক্ষ দায়ী থাকবে না। <span style="color:#d32f2f;">*</span></li>
+            </ul>
+        </div>
+        <div style="font-size: 18px; color: #444; margin-top: 30px; font-style: italic;">
+            <p><span style="color:#d32f2f;">*</span> Conditions Apply.</p>
+            <p>আমি উপরের নিয়মগুলো পড়লাম এবং মেনে চলতে সম্মত হলাম।</p>
+        </div>
+        <div class="wn-footer">
+            <div class="wn-sig-box" style="text-align: left;">
+                <div style="height: 130px; display: flex; align-items: flex-end; justify-content: flex-start;">
+                    <img id="wnStudentSig" src="" style="display:none;">
+                </div>
+                <span id="wnStudentNameSig" style="font-weight: bold; border-top: 2px solid #333; padding-top: 5px; display: block; margin-top: 5px; font-size: 22px;"></span>
+                <div style="font-size: 22px; font-weight: bold; color: #333; margin-top: 5px;">
+                    Date: <span id="wnFooterDate"></span>
+                </div>
+            </div>
+            <div class="wn-sig-box">
+                <img id="wnSigImg" class="wn-sig-img" src="">
+                <span class="wn-owner">Srikanta Banerjee</span>
+                <span style="font-size: 18px;">(Owner & Instructor)</span>
             </div>
         </div>
-
-        <div class="wn-sig-box">
-            <img id="wnSigImg" class="wn-sig-img" src="">
-            <span class="wn-owner">Srikanta Banerjee</span>
-            <span style="font-size: 18px;">(Owner & Instructor)</span>
-        </div>
     </div>
-</div>
 
-<div id="securityOverlay">
+    <div id="securityOverlay">
         <span class="close-pin" onclick="closePinScreen()" style="position: absolute; top: 30px; right: 20px; font-size: 30px; opacity: 0.7;">&times;</span>
         <div style="font-size: 20px; letter-spacing: 2px; margin-bottom: 20px; opacity: 0.9;">ENTER PIN</div>
         <div class="pin-dots" id="pinDots"><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div></div>
@@ -127,15 +113,13 @@
 
     <div id="signatureModal" class="modal">
         <div class="sig-container-wrapper" id="sigWrapper">
-            <div class="sig-canvas-box">
-                <canvas id="sigCanvas"></canvas>
-            </div>
+            <div class="sig-canvas-box"><canvas id="sigCanvas"></canvas></div>
         </div>
- <div class="sig-toolbar">
-    <button class="btn-danger" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
-    <button class="btn-success" onclick="saveSignature()"><i class="fas fa-save"></i> Save Signature</button>
-    <button class="btn-warning" onclick="closeSignatureModal()">Close</button>
-</div>
+        <div class="sig-toolbar">
+            <button class="btn-danger" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
+            <button class="btn-success" onclick="saveSignature()"><i class="fas fa-save"></i> Save Signature</button>
+            <button class="btn-warning" onclick="closeSignatureModal()">Close</button>
+        </div>
     </div>
 
     <header>
@@ -172,21 +156,19 @@
         </div>
 
         <div id="attendance" class="tab-content active">
-            
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-    <div class="form-group" style="display: flex; gap: 8px; margin-bottom: 0; flex: 1;">
-        <div style="flex: 1;">
-            <label style="font-size: 11px; margin-bottom: 2px;">Date</label>
-            <input type="date" id="attendanceDate" onchange="renderAttendance()" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
-        </div>
-        <div style="flex: 1;">
-            <label style="font-size: 11px; margin-bottom: 2px;">Time</label>
-            <input type="time" id="attendanceTime" placeholder="Default: Current" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
-        </div>
-    </div>
-    <button class="btn-primary" onclick="startQRScanner()" style="margin-left: 10px; height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; align-self: flex-end;"><i class="fas fa-qrcode"></i> Scan QR</button>
-</div>
-
+                <div class="form-group" style="display: flex; gap: 8px; margin-bottom: 0; flex: 1;">
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; margin-bottom: 2px;">Date</label>
+                        <input type="date" id="attendanceDate" onchange="renderAttendance()" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+                    </div>
+                    <div style="flex: 1;">
+                        <label style="font-size: 11px; margin-bottom: 2px;">Time</label>
+                        <input type="time" id="attendanceTime" placeholder="Default: Current" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="startQRScanner()" style="margin-left: 10px; height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; align-self: flex-end;"><i class="fas fa-qrcode"></i> Scan QR</button>
+            </div>
             <div id="attendanceSummary" class="summary-box" style="margin-bottom: 10px; margin-top: 0; padding: 6px 4px; gap: 4px; min-height: unset;">
                 <div onclick="showAttendanceList('total')" class="clickable-stat" style="padding: 2px;">
                     <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">TOTAL</h4>
@@ -201,9 +183,7 @@
                     <p id="attAbsentCount" style="color:var(--danger); font-size:14px; font-weight:700; margin:0;">0</p>
                 </div>
             </div>
-
             <div class="search-bar"><input type="search" id="searchAttendance" onkeyup="searchTable('searchAttendance', 'attendanceTable')" placeholder="Search Name, Address..."></div>
-            
             <table id="attendanceTable"><thead><tr><th>Student</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table>
         </div>
 
@@ -224,13 +204,7 @@
                     <div style="display: flex; gap: 10px;">
                         <input type="date" id="reminderDate" style="flex:1;" onchange="updateReminderDay()">
                         <select id="reminderDay" style="flex:1;">
-                            <option value="Monday">Monday</option>
-                            <option value="Tuesday">Tuesday</option>
-                            <option value="Wednesday">Wednesday</option>
-                            <option value="Thursday">Thursday</option>
-                            <option value="Friday">Friday</option>
-                            <option value="Saturday">Saturday</option>
-                            <option value="Sunday">Sunday</option>
+                            <option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option><option value="Sunday">Sunday</option>
                         </select>
                     </div>
                     <button class="btn-primary" onclick="addReminder()" style="width:100%; margin-top: 10px;">Add Reminder</button>
@@ -240,7 +214,6 @@
 
             <hr style="margin: 25px 0; border-top: 2px dashed var(--border-color);">
             <h3 style="border-left: 4px solid var(--info); padding-left:10px; color: var(--info);">📚 Material Library</h3>
-            
             <div class="dashboard-card" style="border-color: var(--info);">
                 <h4 style="margin-top:0; margin-bottom:15px; font-size:14px; color:var(--text-muted);">Add Link to Library</h4>
                 <div class="form-grid">
@@ -248,18 +221,12 @@
                     <div style="display:flex; gap:10px;">
                         <div class="form-group" style="flex:1;">
                             <select id="libMatCategory">
-                                <option value="Guitar">🎸 Guitar</option>
-                                <option value="Bass Guitar">🎸 Bass Guitar</option>
-                                <option value="Keyboard">🎹 Keyboard/Piano</option>
-                                <option value="Mandolin">🪕 Mandolin</option>
-                                <option value="Other">📁 Other</option>
+                                <option value="Guitar">🎸 Guitar</option><option value="Bass Guitar">🎸 Bass Guitar</option><option value="Keyboard">🎹 Keyboard/Piano</option><option value="Mandolin">🪕 Mandolin</option><option value="Other">📁 Other</option>
                             </select>
                         </div>
                         <div class="form-group" style="flex:1;">
                             <select id="libMatType">
-                                <option value="video">🎬 Video</option>
-                                <option value="pdf">📄 PDF</option>
-                                <option value="audio">🎵 Audio</option>
+                                <option value="video">🎬 Video</option><option value="pdf">📄 PDF</option><option value="audio">🎵 Audio</option>
                             </select>
                         </div>
                     </div>
@@ -269,38 +236,26 @@
                     <i class="fas fa-save"></i> Save to Library
                 </button>
             </div>
-
             <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color);">
                 <div class="search-bar" style="margin-bottom: 10px;">
                     <input type="search" id="searchLibrary" onkeyup="filterLibrary()" placeholder="🔍 Search by Title...">
                 </div>
                 <div style="display: flex; gap: 10px;">
                     <select id="filterLibCategory" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
-                        <option value="All">🎸 All Categories</option>
-                        <option value="Guitar">Guitar</option>
-                        <option value="Bass Guitar">Bass Guitar</option>
-                        <option value="Keyboard">Keyboard</option>
-                        <option value="Mandolin">Mandolin</option>
-                        <option value="Other">Other</option>
+                        <option value="All">🎸 All Categories</option><option value="Guitar">Guitar</option><option value="Bass Guitar">Bass Guitar</option><option value="Keyboard">Keyboard</option><option value="Mandolin">Mandolin</option><option value="Other">Other</option>
                     </select>
                     <select id="filterLibType" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
-                        <option value="All">📂 All Types</option>
-                        <option value="video">🎬 Video</option>
-                        <option value="pdf">📄 PDF</option>
-                        <option value="audio">🎵 Audio</option>
+                        <option value="All">📂 All Types</option><option value="video">🎬 Video</option><option value="pdf">📄 PDF</option><option value="audio">🎵 Audio</option>
                     </select>
                 </div>
             </div>
-            
             <div id="globalLibraryList" onscroll="handleLibraryScroll()" style="display:flex; flex-direction:column; gap:12px; max-height: 450px; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;"></div>
         </div>
 
         <div id="studentMgmt" class="tab-content">
-            
             <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-    <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
-</div>
-
+                <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
+            </div>
             <div class="dashboard-card" style="border-color: var(--info);">
                 <h3><i class="fas fa-user-plus"></i> Add Student</h3>
                 <div style="text-align: center;">
@@ -323,36 +278,25 @@
                     <div class="form-group"><input type="text" id="address" placeholder="Address"></div>
                     <div class="form-group"><label>Date of Birth</label><input type="date" id="studentDOB"></div>
                 </div>
-                
                 <button class="btn-info" onclick="openSignatureModal()" style="width: 100%; margin-top: 10px; background: #6366f1;">
                     <i class="fas fa-pen-nib"></i> Take Digital Signature
                 </button>
                 <div id="signatureStatus" style="text-align:center; font-size:12px; color:green; display:none; margin-top:5px;">Signature Captured <i class="fas fa-check-circle"></i></div>
-
                 <button class="btn-success" onclick="addStudent()" style="width: 100%; margin-top: 10px;">Save Student</button>
             </div>
             
             <div class="search-bar">
                 <input type="search" id="searchStudents" onkeyup="filterStudentLists()" placeholder="Search student by Name, Address...">
             </div>
-
             <div style="display: flex; margin-bottom: 15px; background: var(--bg-input); border-radius: 8px; padding: 5px; border: 1px solid var(--border-color);">
                 <button id="btnShowActive" onclick="switchStudentView('active')" style="flex: 1; border: none; background: var(--primary); color: white; padding: 10px; border-radius: 6px; font-size: 13px; margin-right: 5px;">Active Students</button>
                 <button id="btnShowInactive" onclick="switchStudentView('inactive')" style="flex: 1; border: none; background: transparent; color: var(--text-muted); padding: 10px; border-radius: 6px; font-size: 13px;">Inactive Students</button>
             </div>
-
             <div id="activeStudentsContainer">
-                <table id="activeStudentsTable">
-                    <thead><tr><th>ID</th><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="activeStudentsList"></tbody>
-                </table>
+                <table id="activeStudentsTable"><thead><tr><th>ID</th><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead><tbody id="activeStudentsList"></tbody></table>
             </div>
-
             <div id="inactiveStudentsContainer" style="display: none;">
-                <table id="inactiveStudentsTable" style="opacity: 0.9;">
-                    <thead><tr><th>ID</th><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
-                    <tbody id="inactiveStudentsList"></tbody>
-                </table>
+                <table id="inactiveStudentsTable" style="opacity: 0.9;"><thead><tr><th>ID</th><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead><tbody id="inactiveStudentsList"></tbody></table>
             </div>
         </div>
 
@@ -361,27 +305,21 @@
                 <h3>Dashboard</h3>
                 <button class="btn-primary" onclick="exportDashboardPDF()" style="font-size: 11px;"><i class="fas fa-download"></i> PDF</button>
             </div>
-            
             <div id="dashboardRemindersBox" class="dashboard-card" style="display: none; border-top-color: var(--warning); background-color: rgba(253, 230, 138, 0.2);">
                 <h3 style="color: var(--warning); border:none; margin-bottom:5px;"><i class="fas fa-bell"></i> Reminders for Today</h3>
                 <div id="dashboardReminderList" style="padding-top:5px;"></div>
             </div>
-
             <div id="birthdayAlertBox" class="dashboard-card birthday-card" style="display: none;">
                 <h3 style="color: var(--pink); border:none;"><i class="fas fa-birthday-cake"></i> Birthdays Today!</h3>
                 <div id="birthdayList"></div>
             </div>
-            
             <div id="todaysPracticeBox" class="dashboard-card" style="display: none; border-top-color: var(--success); background-color: rgba(16, 185, 129, 0.05);">
                 <h3 style="color: var(--success); border:none; margin-bottom:10px;">
-    <i class="fas fa-stopwatch"></i> Today's Practice Logs 
-    <span style="color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 16px; margin-left: 5px;" onclick="showTodaysPracticingStudentsModal()">
-        (<span id="todaysPracticeCount">0</span>)
-    </span>
-</h3>
+                    <i class="fas fa-stopwatch"></i> Today's Practice Logs 
+                    <span style="color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 16px; margin-left: 5px;" onclick="showTodaysPracticingStudentsModal()">(<span id="todaysPracticeCount">0</span>)</span>
+                </h3>
                 <div id="todaysPracticeList" style="max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
             </div>
-
             <div class="dashboard-grid">
                 <div class="dashboard-card">
                     <h3>Financials</h3>
@@ -410,78 +348,41 @@
                 <h3>Generate Reports</h3>
                 <div class="form-group">
                     <select id="reportType" onchange="toggleReportInputs(); generateReport()">
-                        <option value="monthly">Monthly Report</option>
-                        <option value="yearly">Yearly Report</option>
+                        <option value="monthly">Monthly Report</option><option value="yearly">Yearly Report</option>
                     </select>
                 </div>
-                <div class="form-group" id="reportMonth-group">
-                    <input type="month" id="reportMonth" onchange="generateReport()">
-                </div>
-                <div class="form-group" id="reportYear-group" style="display: none;">
-                    <input type="number" id="reportYear" placeholder="Year" oninput="generateReport()">
-                </div>
+                <div class="form-group" id="reportMonth-group"><input type="month" id="reportMonth" onchange="generateReport()"></div>
+                <div class="form-group" id="reportYear-group" style="display: none;"><input type="number" id="reportYear" placeholder="Year" oninput="generateReport()"></div>
                 <button class="btn-primary" onclick="generateReport()" style="width: 100%;">Generate View</button>
                 <button id="exportReportBtn" class="btn-secondary" style="display:none; width: 100%; margin-top:10px;" onclick="exportReportPDF()">Download PDF</button>
             </div>
             <div id="reportSummary" class="summary-box" style="display: none;"></div>
-
-            <div class="search-bar" id="reportSearchBox" style="display: none; margin-top: 15px;">
-                <input type="search" id="searchReport" onkeyup="searchTable('searchReport', 'reportTable')" placeholder="Search student by Name...">
-            </div>
-
+            <div class="search-bar" id="reportSearchBox" style="display: none; margin-top: 15px;"><input type="search" id="searchReport" onkeyup="searchTable('searchReport', 'reportTable')" placeholder="Search student by Name..."></div>
             <table id="reportTable" style="display: none; margin-top: 10px;"><thead></thead><tbody></tbody></table>
-        </div> <div id="analytics" class="tab-content">
+        </div> 
+
+        <div id="analytics" class="tab-content">
              <div class="dashboard-card">
                 <h3>Yearly Analysis & Comparison</h3>
                 <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-                    <div class="form-group" style="margin-bottom:0; flex:1;">
-                        <label>Select Year</label>
-                        <input type="number" id="analyticsYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()">
-                    </div>
-                    <div class="form-group" style="margin-bottom:0; flex:1;">
-                        <label>Compare Year</label>
-                        <input type="number" id="compareYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()">
-                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex:1;"><label>Select Year</label><input type="number" id="analyticsYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()"></div>
+                    <div class="form-group" style="margin-bottom:0; flex:1;"><label>Compare Year</label><input type="number" id="compareYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()"></div>
                 </div>
-                <div class="chart-container" style="height: 280px; position: relative;">
-                    <canvas id="yearlyChart"></canvas>
-                </div>
+                <div class="chart-container" style="height: 280px; position: relative;"><canvas id="yearlyChart"></canvas></div>
                 <div id="yearlyAverages" class="summary-box" style="margin-top: 15px; display:none;"></div>
             </div>
-            
             <div class="dashboard-card" style="border-top-color: var(--info);">
                 <h3>Compare Specific Months</h3>
-                <div class="form-group">
-                    <label>Period A (Base)</label>
-                    <input type="month" id="compMonth1" onchange="comparePeriods()">
-                </div>
-                <div class="form-group">
-                    <label>Period B (Target)</label>
-                    <input type="month" id="compMonth2" onchange="comparePeriods()">
-                </div>
+                <div class="form-group"><label>Period A (Base)</label><input type="month" id="compMonth1" onchange="comparePeriods()"></div>
+                <div class="form-group"><label>Period B (Target)</label><input type="month" id="compMonth2" onchange="comparePeriods()"></div>
                 <button class="btn-info" onclick="comparePeriods()" style="width:100%;">Compare Data</button>
-                
                 <div id="comparisonResults" style="display:none; margin-top:20px;">
                     <h4 style="text-align:center; margin-bottom:10px;">Comparison Result</h4>
                     <div class="comparison-grid">
-                        <div class="comp-card">
-                            <span style="font-size:10px; color:var(--text-muted);">Income A</span><br>
-                            <strong id="compIncome1"></strong>
-                        </div>
-                        <div class="comp-card">
-                            <span style="font-size:10px; color:var(--text-muted);">Income B</span><br>
-                            <strong id="compIncome2"></strong>
-                            <div id="compIncomeDiff" class="comp-diff"></div>
-                        </div>
-                        <div class="comp-card">
-                            <span style="font-size:10px; color:var(--text-muted);">Students A</span><br>
-                            <strong id="compStudent1"></strong>
-                        </div>
-                        <div class="comp-card">
-                            <span style="font-size:10px; color:var(--text-muted);">Students B</span><br>
-                            <strong id="compStudent2"></strong>
-                            <div id="compStudentDiff" class="comp-diff"></div>
-                        </div>
+                        <div class="comp-card"><span style="font-size:10px; color:var(--text-muted);">Income A</span><br><strong id="compIncome1"></strong></div>
+                        <div class="comp-card"><span style="font-size:10px; color:var(--text-muted);">Income B</span><br><strong id="compIncome2"></strong><div id="compIncomeDiff" class="comp-diff"></div></div>
+                        <div class="comp-card"><span style="font-size:10px; color:var(--text-muted);">Students A</span><br><strong id="compStudent1"></strong></div>
+                        <div class="comp-card"><span style="font-size:10px; color:var(--text-muted);">Students B</span><br><strong id="compStudent2"></strong><div id="compStudentDiff" class="comp-diff"></div></div>
                     </div>
                 </div>
             </div>
@@ -490,50 +391,24 @@
         <div id="settings" class="tab-content">
              <h3>App Settings</h3>
             <div class="dashboard-grid">
-                <div class="dashboard-card">
-                    <label>App Theme</label>
-                    <button class="btn-secondary" onclick="toggleTheme()" id="themeToggleBtn" style="width:100%;">
-                        <i class="fas fa-moon"></i> Switch to Dark Mode
-                    </button>
-                </div>
-                
-                <div class="dashboard-card">
-                    <label>Institute Logo</label>
-                    <input type="file" id="instituteLogoInput" accept="image/*" onchange="saveInstituteLogo(this)">
-                    <img id="logoPreview" src="" style="max-height: 60px; margin-top:10px; display: none;">
-                    <button class="btn-danger" onclick="removeLogo()" id="removeLogoBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button>
-                </div>
-                <div class="dashboard-card">
-                    <label>Auth Signature</label>
-                    <input type="file" id="authSigInput" accept="image/*" onchange="saveAuthSignature(this)">
-                    <img id="authSigPreview" src="" style="max-height: 60px; margin-top:10px; display: none;">
-                    <button class="btn-danger" onclick="removeAuthSignature()" id="removeAuthSigBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button>
-                </div>
-                <div class="dashboard-card">
-                    <label>Update PIN</label>
-                    <div style="display:flex; gap:10px;">
-                        <input type="password" id="newAppPin" placeholder="New PIN" maxlength="4">
-                        <button class="btn-info" onclick="changeAppPin()">Save</button>
-                    </div>
-                </div>
-                <div class="dashboard-card" style="border-top-color: var(--danger);">
-    <label>Account Status</label>
-    <div style="margin-top: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="currentUserDisplay">Checking status...</div>
-    <button class="btn-danger" onclick="handleLogout()" style="width:100%;">
-        <i class="fas fa-sign-out-alt"></i> Logout
-    </button>
-</div>
+                <div class="dashboard-card"><label>App Theme</label><button class="btn-secondary" onclick="toggleTheme()" id="themeToggleBtn" style="width:100%;"><i class="fas fa-moon"></i> Switch to Dark Mode</button></div>
+                <div class="dashboard-card"><label>Institute Logo</label><input type="file" id="instituteLogoInput" accept="image/*" onchange="saveInstituteLogo(this)"><img id="logoPreview" src="" style="max-height: 60px; margin-top:10px; display: none;"><button class="btn-danger" onclick="removeLogo()" id="removeLogoBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button></div>
+                <div class="dashboard-card"><label>Auth Signature</label><input type="file" id="authSigInput" accept="image/*" onchange="saveAuthSignature(this)"><img id="authSigPreview" src="" style="max-height: 60px; margin-top:10px; display: none;"><button class="btn-danger" onclick="removeAuthSignature()" id="removeAuthSigBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button></div>
+                <div class="dashboard-card"><label>Update PIN</label><div style="display:flex; gap:10px;"><input type="password" id="newAppPin" placeholder="New PIN" maxlength="4"><button class="btn-info" onclick="changeAppPin()">Save</button></div></div>
+                <div class="dashboard-card" style="border-top-color: var(--danger);"><label>Account Status</label><div style="margin-top: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="currentUserDisplay">Checking status...</div><button class="btn-danger" onclick="handleLogout()" style="width:100%;"><i class="fas fa-sign-out-alt"></i> Logout</button></div>
                 <div class="dashboard-card">
                     <label>Backup Data</label>
-                    <button class="btn-primary btn-google" onclick="secureAction(exportData)" style="width:100%; margin-top:5px;"><i class="fab fa-google-drive"></i> Backup</button>
-                    <button class="btn-success" onclick="secureAction(exportToExcel)" style="width:100%; margin-top:10px; background: #1D6F42;">
-    <i class="fas fa-file-excel"></i> Export to Excel (Secure)
-</button>
+                    <button class="btn-primary btn-google" onclick="secureAction(exportData)" style="width:100%; margin-top:5px;"><i class="fab fa-google-drive"></i> Backup All Data</button>
+                    <button class="btn-success" onclick="secureAction(exportToExcel)" style="width:100%; margin-top:10px; background: #1D6F42;"><i class="fas fa-file-excel"></i> Export to Excel</button>
                     <hr style="margin: 15px 0; border-top: 1px solid var(--border-color);">
                     <label>Restore / Reset</label>
-                    <button class="btn-warning" onclick="secureAction(() => document.getElementById('importFile').click())" style="width:100%;"><i class="fas fa-file-upload"></i> Restore JSON</button>
+                    <button class="btn-warning" onclick="secureAction(() => document.getElementById('importFile').click())" style="width:100%;"><i class="fas fa-file-upload"></i> Restore Full JSON</button>
                     <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
-                    <button class="btn-danger" onclick="secureAction(resetApp)" style="width:100%; margin-top:10px;"><i class="fas fa-trash"></i> Factory Reset</button>
+                    <button class="btn-info" onclick="secureAction(() => document.getElementById('importSingleFile').click())" style="width:100%; margin-top:10px; background: #0ea5e9;"><i class="fas fa-user-plus"></i> Restore 1 Student (Single Backup)</button>
+                    <input type="file" id="importSingleFile" accept=".json" style="display: none;" onchange="importSingleStudentData(event)">
+                    <button class="btn-info" onclick="secureAction(() => document.getElementById('importSingleFromFull').click())" style="width:100%; margin-top:10px; background: #6366f1;"><i class="fas fa-user-shield"></i> Restore 1 Student (Full Backup)</button>
+                    <input type="file" id="importSingleFromFull" accept=".json" style="display: none;" onchange="importSingleStudentFromFullBackup(event)">
+                    <button class="btn-danger" onclick="secureAction(resetApp)" style="width:100%; margin-top:15px;"><i class="fas fa-trash"></i> Factory Reset</button>
                 </div>
             </div>
         </div>
@@ -560,236 +435,6 @@
         </div>
     </div>
 
-    <div id="studentDetailsModal" class="modal">
-        
-        <div class="modal-content">
-            <span class="close-button" onclick="closeModal('studentDetailsModal')">&times;</span>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <img id="modalStudentPhoto" src="" style="width:100px; height:100px; border-radius:50%; border:2px solid #000 !important; object-fit:cover;">
-                <h2 id="modalStudentName" style="margin:10px 0 5px 0;"></h2>
-                <span id="modalClass" style="color:var(--primary); font-weight:600;"></span>
-            </div>
-            
-            <button class="btn-info" onclick="shareQRCode(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 15px; background-color: #059669; border: none; padding: 10px; border-radius: 8px;">
-                <i class="fas fa-qrcode"></i> Show/Share QR Code
-            </button>
-
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; font-size: 14px; margin-bottom: 20px;">
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                    <div><strong>ID:</strong> <span id="modalSerialNo"></span></div>
-                    <div><strong>Fee:</strong> <span id="modalFeeAmount"></span></div>
-                    <div><strong>Day:</strong> <span id="modalDayTime"></span></div>
-                    <div><strong>Join:</strong> <span id="modalJoiningDate"></span></div>
-                </div>
-                <p><strong>Phone:</strong> <span id="modalPhone"></span></p>
-                <p><strong>Email:</strong> <span id="modalEmail"></span></p>
-                <p><strong>Guardian:</strong> <span id="modalGuardianName"></span></p>
-                <p><strong>Addr:</strong> <span id="modalAddress"></span></p>
-                <p><strong>DOB:</strong> <span id="modalDOB"></span></p>
-            </div>
-            
-            <button class="btn-info" id="btnViewSignature" style="width: 100%; margin-top: 10px; margin-bottom: 15px; background-color: #6366f1; border: none; padding: 10px; border-radius: 8px;">
-                <i class="fas fa-file-signature"></i> View Digital Signature
-            </button>
-
-            <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; background:var(--bg-input); padding:10px; border-radius:8px;">
-                <select id="detailsFilterYear" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
-                <select id="detailsFilterMonth" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
-            </div>
-            
-
-            <div style="margin-bottom:20px;">
-                <h4 style="margin:0 0 10px 0;">Status History</h4>
-                <ul id="modalStatusHistory" class="scrollable-list"></ul>
-            </div>
-            <div style="margin-bottom:20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                 <div>
-                    <h4 style="margin:0 0 5px 0;">Paid</h4>
-                    <ul id="modalPaidList" class="scrollable-list"></ul>
-                 </div>
-                 <div>
-                    <h4 style="margin:0 0 5px 0;">Attendance</h4>
-                    <div style="font-size:11px;">Present: <ul id="modalPresentList" class="scrollable-list" style="max-height:80px;"></ul></div>
-                    <div style="font-size:11px; color:red; margin-top:5px;">Absent: <ul id="modalAbsentList" class="scrollable-list" style="max-height:80px;"></ul></div>
-                 </div>
-            </div>
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--success); padding-bottom: 5px;">
-            <i class="fas fa-stopwatch" style="color: var(--success);"></i> Practice History
-        </h4>
-        <div style="max-height: 150px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-            <ul id="modalPracticeList" style="list-style: none; padding: 0; margin: 0;">
-                </ul>
-        </div>
-    </div>
-            
-    <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--info); padding-bottom: 5px;">
-            <i class="fas fa-book-open" style="color: var(--info);"></i> Study Materials
-        </h4>
-        <button class="btn-info" onclick="openAddMaterialModal(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 10px; background: #0ea5e9;">
-            <i class="fas fa-plus-circle"></i> Add Note/Video/PDF Link
-        </button>
-        <div style="max-height: 120px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-            <ul id="modalStudyMaterialsList" style="list-style: none; padding: 0; margin: 0;"></ul>
-        </div>
-    </div>
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
-        <i class="fas fa-sticky-note" style="color: var(--warning);"></i> Class Notes History
-    </h4>
-    
-    <input type="text" id="noteSearchInput" placeholder="Search by Date or Note content..." 
-           onkeyup="filterStudentNotes()" 
-           style="padding: 8px; font-size: 12px; margin-bottom: 10px;">
-
-    <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px;">
-        <ul id="modalNotesList" style="list-style: none; padding: 0; margin: 0;">
-            </ul>
-    </div>
-    <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
-        <i class="fas fa-bullhorn" style="color: var(--warning);"></i> Personal Notice
-    </h4>
-    <div id="currentNoticeDisplay" style="font-size:12px; margin-bottom:10px; color: var(--text-main); font-weight:600;"></div>
-    <textarea id="personalNoticeInput" rows="2" placeholder="Write notice for this student..." style="width:100%; border-radius:8px; border:1px solid var(--border-color); padding:8px; font-size:12px; background: var(--bg-card); color: var(--text-main); box-sizing: border-box;"></textarea>
-    <div style="display:flex; gap:10px; margin-top:10px;">
-        <button class="btn-success" onclick="savePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Save Notice</button>
-        <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
-    </div>
-</div>
-</div>
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px;">
-                <label>Generate Documents</label>
-                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
-                    <input type="date" id="idCardIssueDate">
-                    <input type="date" id="idCardEndDate">
-                </div>
-                
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-info" onclick="generateIDCard()" style="flex:1;">ID Card</button>
-                    <button class="btn-primary" id="exportPdfBtn" style="flex:1;">Profile PDF</button>
-                </div>
-                <button class="btn-welcome" id="generateWelcomeBtn" onclick="generateWelcomeNote(currentlyViewingStudentId)" style="width:100%; margin-top:10px;">
-                    <i class="fas fa-file-pdf"></i> Welcome Note (Bangla)
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <div id="bulkMsgModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeModal('bulkMsgModal')">&times;</span>
-            <h2>Send Notice</h2>
-            <div class="form-group">
-                <label>Select Target</label>
-                <select id="bulkMsgFilter">
-                    <option value="All">All Active Students</option>
-                    <option value="Sunday">Sunday Batch</option>
-                    <option value="Monday">Monday Batch</option>
-                    <option value="Tuesday">Tuesday Batch</option>
-                    <option value="Wednesday">Wednesday Batch</option>
-                    <option value="Thursday">Thursday Batch</option>
-                    <option value="Friday">Friday Batch</option>
-                    <option value="Saturday">Saturday Batch</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label>Message</label>
-                <textarea id="bulkMsgText" rows="4" placeholder="Write your notice here..."></textarea>
-            </div>
-            <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="sendBulkMsg('sms')"><i class="fas fa-sms"></i> Send via SMS (Bulk)</button>
-            <button class="btn-whatsapp" style="width:100%;" onclick="sendBulkMsg('wa')"><i class="fab fa-whatsapp"></i> WhatsApp List (Individual)</button>
-            <div id="waBulkList" style="margin-top:10px; display:none; max-height:200px; overflow-y:auto; background:var(--bg-input); padding:10px; border-radius:8px;"></div>
-        </div>
-    </div>
-
-    <div id="qrScannerModal" class="modal" style="z-index: 2500;">
-        <div class="modal-content" style="text-align: center;">
-            <span class="close-button" onclick="closeQRScanner()">&times;</span>
-            <h3>Scan QR Code</h3>
-            <p style="font-size:12px; color:var(--text-muted);">Place student's QR code in frame to mark attendance</p>
-            <div id="qr-reader-box" style="width:100%; max-width:400px; margin: 0 auto; border-radius: 12px; overflow:hidden;"></div>
-        </div>
-    </div>
-
-    <div id="statusChangeModal" class="modal">
-        <div class="modal-content" style="max-width: 400px;">
-            <span class="close-button" onclick="closeModal('statusChangeModal')">&times;</span>
-            <h2 id="statusChangeTitle"></h2>
-            <input type="hidden" id="statusChangeStudentId"><input type="hidden" id="statusChangeToActive">
-            <div class="form-group"><label>Date:</label><input type="date" id="statusDate"></div>
-            <div class="form-group"><label>Note:</label><textarea id="statusNote" rows="3"></textarea></div>
-            <button class="btn-primary" onclick="saveStatusChange()" style="width:100%;">Confirm</button>
-        </div>
-    </div>
-
-    <div id="editStudentModal" class="modal">
-        <div class="modal-content">
-            <span class="close-button" onclick="closeModal('editStudentModal')">&times;</span>
-            <h2>Edit Student</h2>
-            <input type="hidden" id="editStudentId">
-            <input type="file" id="editStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
-            <input type="file" id="editStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
-            <div style="text-align: center; margin-bottom: 15px;">
-    <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
-        <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
-        <div style="position: absolute; bottom: 0; background: rgba(0,0,0,0.5); width: 100%; color: white; font-size: 10px;">EDIT</div>
-    </div>
-    
-    <button type="button" onclick="removeEditPhoto()" style="margin-top: 5px; background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
-        <i class="fas fa-trash"></i> Remove Photo
-    </button>
-</div>
-<div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
-    <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
-    <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
-</div>
-            <div class="form-grid">
-                <div class="form-group"><label>Name</label><input type="text" id="editStudentName"></div>
-                <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
-                <div class="form-group"><label>Day</label><select id="editStudentDay"><option value="">Select</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
-                <div class="form-group"><label>Time</label><input type="time" id="editStudentTime"></div>
-                <div class="form-group"><label>Fee</label><input type="number" id="editStudentFee"></div>
-                <div class="form-group"><label>Phone</label><input type="tel" id="editPhone"></div>
-                <div class="form-group"><label>Guardian</label><input type="text" id="editGuardianName"></div>
-                <div class="form-group"><label>Email</label><input type="email" id="editStudentEmail"></div>
-                <div class="form-group"><label>Addr</label><input type="text" id="editAddress"></div>
-                <div class="form-group"><label>DOB</label><input type="date" id="editStudentDOB"></div>
-            </div>
-            
-            <div style="margin-top: 10px; text-align: center;">
-                <label style="display:block; margin-bottom:5px;">Signature</label>
-                <button class="btn-info" onclick="openSignatureModal()" style="width: 100%; background: #6366f1;">
-                    <i class="fas fa-pen-nib"></i> Update Signature
-                </button>
-            </div>
-
-            <button class="btn-primary" onclick="saveStudentChanges()" style="width:100%; margin-top:15px;">Update</button>
-        </div>
-    </div>
-
-    <div id="feeModal" class="modal">
-        <div class="modal-content" style="max-width: 400px;">
-            <span class="close-button" onclick="closeModal('feeModal')">&times;</span>
-            <h2 id="feeModalTitle"></h2>
-            <input type="hidden" id="feeStudentId"><input type="hidden" id="feeRecordMonth">
-            
-            <div id="payTypeContainer" class="form-group" style="display: none; background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--primary);">
-                <label style="color: var(--primary); font-weight: 600; margin-bottom: 5px;">Payment Option</label>
-                <select id="payTypeSelect" onchange="updateFeeAmountBasedOnType()" style="border-color: var(--primary); font-weight: bold; background: var(--bg-input); color: var(--text-main);">
-                    <option value="single">Pay Oldest Month Only</option>
-                    <option value="all">Pay All Due Months Together</option>
-                </select>
-            </div>
-
-            <div class="form-group"><label>Amount</label><input type="number" id="feeAmount" style="font-size: 20px; font-weight: bold; color: var(--success);"></div>
-            <div class="form-group"><label>Mode</label><select id="paymentMode"><option value="Cash">Cash</option><option value="Online">Online/UPI</option></select></div>
-            <div class="form-group"><label>Txn ID</label><input type="text" id="transactionId" placeholder="Optional"></div>
-            <div class="form-group"><label>Date</label><input type="date" id="feeDate"></div>
-            <button class="btn-success" onclick="saveFee()" style="width:100%; font-size: 16px;">Save Payment</button>
-        </div>
-    </div>
-    <script src="script.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
