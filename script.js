@@ -80,6 +80,51 @@
             }
         }
 
+// 🟢 Past Inactive Periods Calculation & Beautiful UI Function
+function getPastInactivePeriodsHtml(student) {
+    if (!student.status || !student.status.history || student.status.history.length === 0) return '';
+
+    const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let currentInactiveStart = null;
+    let pastInactiveHtml = '';
+
+    for (let i = 0; i < historyAsc.length; i++) {
+        if (historyAsc[i].status === 'Inactive' && !currentInactiveStart) {
+            currentInactiveStart = historyAsc[i].date;
+        } else if (historyAsc[i].status === 'Active' && currentInactiveStart) {
+            
+            const startDate = new Date(currentInactiveStart);
+            const endDate = new Date(historyAsc[i].date);
+
+            let y = endDate.getFullYear() - startDate.getFullYear();
+            let m = endDate.getMonth() - startDate.getMonth();
+            let d = endDate.getDate() - startDate.getDate();
+
+            if (d < 0) { m--; const lm = new Date(endDate.getFullYear(), endDate.getMonth(), 0); d += lm.getDate(); }
+            if (m < 0) { y--; m += 12; }
+
+            let dur = [];
+            if (y > 0) dur.push(y + ' Yrs');
+            if (m > 0) dur.push(m + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('0 Days');
+
+            const startStr = startDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
+            const endStr = endDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
+
+            // 🟢 থিম অনুযায়ী ডাইনামিক কালার এবং সুন্দর ফুল-উইথ (Full-width) ডিজাইন
+            pastInactiveHtml += `
+                <div style="margin-top: 12px; font-size: 13px; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px; border-left: 4px solid var(--danger); box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
+                    <span style="color: var(--danger); font-weight: 700;"><i class="fas fa-history"></i> Past Inactive:</span> 
+                    <span style="font-weight: 500;">${startStr} to ${endStr}</span> 
+                    <span style="color: var(--text-muted); font-size: 11px; font-weight: 600;">(${dur.join(', ')})</span>
+                </div>`;
+
+            currentInactiveStart = null; 
+        }
+    }
+    return pastInactiveHtml;
+}
         // --- 6. App Logic & Initialization ---
         
         if ('serviceWorker' in navigator) { 
@@ -434,8 +479,8 @@ if (studentViewId && managerUid) {
                                             <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
                                             <div class="scroller-box" style="font-size: 14px; color: #475569;">
                                                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                                </div>
+    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+</div>
                                                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
                                                     <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
                                                 </div>
@@ -458,10 +503,15 @@ if (studentViewId && managerUid) {
                                         </div></div>
 
                                         <div id="m-att" class="modal-portal"><div class="modal-content-portal">
-                                            <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
-                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
-                                            <div class="scroller-box">${attHtml}</div>
-                                        </div></div>
+    <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
+    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
+    
+    <div style="margin-bottom: 15px;">
+        ${getPastInactivePeriodsHtml(s)}
+    </div>
+    
+    <div class="scroller-box">${attHtml}</div>
+</div></div>
 
                                         <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
                                             <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
@@ -490,7 +540,7 @@ if (studentViewId && managerUid) {
     setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
 
                             } else {
-                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p>><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
                             }
                         } else {
                             document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
@@ -2285,6 +2335,65 @@ function exportStudentDetailsAsPDF(studentId) {
     addInfo("Class:", student.class);
     addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE}/-`);
     addInfo("Joined:", new Date(student.joining_date).toLocaleDateString('en-IN'));
+    // 🟢 PDF Inactive Details Logic Start
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // ১. যদি বর্তমানে Inactive থাকে
+        if (sortedHistory[0].status === 'Inactive') {
+            const inactiveDate = new Date(sortedHistory[0].date);
+            const today = new Date();
+            
+            let yr = today.getFullYear() - inactiveDate.getFullYear();
+            let mn = today.getMonth() - inactiveDate.getMonth();
+            let d = today.getDate() - inactiveDate.getDate();
+            if (d < 0) { mn--; const lm = new Date(today.getFullYear(), today.getMonth(), 0); d += lm.getDate(); }
+            if (mn < 0) { yr--; mn += 12; }
+            
+            let dur = [];
+            if (yr > 0) dur.push(yr + ' Yrs');
+            if (mn > 0) dur.push(mn + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('Today');
+            
+            doc.setTextColor(220, 38, 38); // লাল রঙ
+            doc.setFont("helvetica", "bold");
+            doc.text("Status:", leftMargin, y);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Inactive From ${inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'})} (Duration: ${dur.join(', ')})`, leftMargin + 35, y);
+            doc.setTextColor(0); // আবার কালো রঙে ফেরত
+            y += lineHeight;
+        } 
+        // ২. যদি অতীতে Inactive ছিল কিন্তু এখন Active
+        else if (sortedHistory[0].status === 'Active' && sortedHistory.length > 1 && sortedHistory[1].status === 'Inactive') {
+            const reactivatedDate = new Date(sortedHistory[0].date);
+            const inactiveDate = new Date(sortedHistory[1].date);
+            
+            let yr = reactivatedDate.getFullYear() - inactiveDate.getFullYear();
+            let mn = reactivatedDate.getMonth() - inactiveDate.getMonth();
+            let d = reactivatedDate.getDate() - inactiveDate.getDate();
+            if (d < 0) { mn--; const lm = new Date(reactivatedDate.getFullYear(), reactivatedDate.getMonth(), 0); d += lm.getDate(); }
+            if (mn < 0) { yr--; mn += 12; }
+            
+            let dur = [];
+            if (yr > 0) dur.push(yr + ' Yrs');
+            if (mn > 0) dur.push(mn + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('0 Days');
+            
+            const startStr = inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
+            const endStr = reactivatedDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
+
+            doc.setTextColor(180, 83, 9); // হলুদ/কমলা রঙ
+            doc.setFont("helvetica", "bold");
+            doc.text("Past Inactive:", leftMargin, y);
+            doc.setFont("helvetica", "normal");
+            doc.text(`${startStr} to ${endStr} (${dur.join(', ')})`, leftMargin + 35, y);
+            doc.setTextColor(0); // আবার কালো রঙে ফেরত
+            y += lineHeight;
+        }
+    }
+    // 🟢 PDF Inactive Details Logic End
     y += 5;
 
     doc.setFontSize(12);
@@ -2821,6 +2930,7 @@ function loadStudentsList(showAll = false) {
             <td class="action-buttons">
                 <button class="${isActive ? 'btn-info' : 'btn-success'}" onclick="openStatusChangeModal(${student.id}, ${!isActive})">${statusBtnText}</button> 
                 <button class="btn-warning" onclick="openEditStudentModal(${student.id})">Edit</button>
+                <button class="btn-danger" onclick="initiateDeleteStudent(${student.id})" title="Delete Permanently"><i class="fas fa-trash"></i></button>
             </td>`;
         
         if(isActive) { 
@@ -3770,7 +3880,57 @@ function showStudentDetails(studentId) {
     }
     document.getElementById('modalDOB').innerHTML = dobDisplay; 
     
-    document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN'); 
+document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN');
+
+    // 🟢 Inactive Calculation Logic শুরু
+    const inactiveBox = document.getElementById('modalInactiveStatusBox');
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // যদি স্টুডেন্ট বর্তমানে Inactive থাকে
+        if (sortedHistory[0].status === 'Inactive') {
+            const inactiveDate = new Date(sortedHistory[0].date);
+            const today = new Date();
+            
+            let y = today.getFullYear() - inactiveDate.getFullYear();
+            let m = today.getMonth() - inactiveDate.getMonth();
+            let d = today.getDate() - inactiveDate.getDate();
+            
+            if (d < 0) { 
+                m--; 
+                const lm = new Date(today.getFullYear(), today.getMonth(), 0); 
+                d += lm.getDate(); 
+            }
+            if (m < 0) { 
+                y--; 
+                m += 12; 
+            }
+            
+            let dur = [];
+            if (y > 0) dur.push(y + ' Yrs');
+            if (m > 0) dur.push(m + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('Today');
+            
+            const formattedInactiveDate = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+            
+            // বক্সে লেখাগুলো সেট করা
+            inactiveBox.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:600; color:#e11d48;"><i class="fas fa-user-slash"></i> Inactive From:</span> 
+                    <div style="text-align:right;">
+                        <span style="color:#be123c; font-weight:700;">${formattedInactiveDate}</span><br>
+                        <span style="font-size:11px; color:#f43f5e; font-weight:600;">(Duration: ${dur.join(', ')})</span>
+                    </div>
+                </div>`;
+            inactiveBox.style.display = 'block'; // বক্সটি দৃশ্যমান করা
+        } else {
+            inactiveBox.style.display = 'none'; // Active হলে বক্সটি লুকিয়ে ফেলা
+        }
+    } else {
+        inactiveBox.style.display = 'none'; // কোনো রেকর্ড না থাকলে লুকিয়ে ফেলা
+    }
+    // 🟢 Inactive Calculation Logic শেষ
     
     const modalImg = document.getElementById('modalStudentPhoto'); 
     if(student.photo) { modalImg.src = student.photo; modalImg.style.display = 'inline-block'; } 
@@ -3804,10 +3964,38 @@ function showStudentDetails(studentId) {
         };
     }
     
-    const historyList = document.getElementById('modalStatusHistory'); historyList.innerHTML = ''; 
+    const historyList = document.getElementById('modalStatusHistory'); 
+
+    // 🟢 NEW: Past Inactive Box (Status History হেডিং এবং লিস্টের ঠিক মাঝখানে)
+    let pastInactiveContainer = document.getElementById('modalPastInactiveBox');
+    if (!pastInactiveContainer) {
+        pastInactiveContainer = document.createElement('div');
+        pastInactiveContainer.id = 'modalPastInactiveBox';
+        historyList.parentNode.insertBefore(pastInactiveContainer, historyList);
+    }
+    pastInactiveContainer.innerHTML = getPastInactivePeriodsHtml(student);
+    pastInactiveContainer.style.marginBottom = "12px"; // একটু গ্যাপ দেওয়ার জন্য
+
+    historyList.innerHTML = ''; 
+    historyList.innerHTML = ''; 
     if (student.status.history && student.status.history.length > 0) { 
-        student.status.history.forEach(entry => { const color = entry.status === 'Active' ? 'green' : 'red'; historyList.innerHTML += `<li><strong style="color:${color};">${entry.status}</strong> on ${new Date(entry.date).toLocaleDateString('en-IN')}<br><em style="font-size:0.9em;color:var(--text-muted);">Note: ${entry.note || 'No note'}</em></li>`; }); 
-    } else { historyList.innerHTML = '<li>No history found.</li>'; } 
+        student.status.history.forEach((entry, index) => { 
+            const color = entry.status === 'Active' ? 'green' : 'red'; 
+            historyList.innerHTML += `
+                <li style="display:flex; justify-content:space-between; align-items:center; padding: 5px 0;">
+                    <div>
+                        <strong style="color:${color};">${entry.status}</strong> on ${new Date(entry.date).toLocaleDateString('en-IN')}<br>
+                        <em style="font-size:0.9em;color:var(--text-muted);">Note: ${entry.note || 'No note'}</em>
+                    </div>
+                    <div style="display:flex; gap: 8px;">
+                        <button onclick="editStatusHistory(${student.id}, ${index})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteStatusHistory(${student.id}, ${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </li>`; 
+        }); 
+    } else { 
+        historyList.innerHTML = '<li style="padding: 5px 0;">No history found.</li>'; 
+    } 
     
     const yearSelect = document.getElementById('detailsFilterYear'); const monthSelect = document.getElementById('detailsFilterMonth'); yearSelect.innerHTML = ''; monthSelect.innerHTML = '';
     const currentYear = new Date().getFullYear(); const joinYear = new Date(student.joining_date).getFullYear();
@@ -5220,5 +5408,521 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
 
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Updated successfully!', showConfirmButton: false, timer: 1500 });
         renderPracticeLogTeacher(studentId);
+    }
+};
+// ==========================================
+// 🟢 STATUS HISTORY EDIT & DELETE LOGIC
+// ==========================================
+
+window.editStatusHistory = async function(studentId, index) {
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.status.history || !student.status.history[index]) return;
+
+    const entry = student.status.history[index];
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Edit Status History',
+        html: `
+            <label style="font-size:12px; text-align:left; display:block; width:85%; margin: 0 auto;">Status</label>
+            <select id="edit-status-type" class="swal2-select" style="width: 85%; margin-top: 0; margin-bottom: 10px;">
+                <option value="Active" ${entry.status === 'Active' ? 'selected' : ''}>Active</option>
+                <option value="Inactive" ${entry.status === 'Inactive' ? 'selected' : ''}>Inactive</option>
+            </select>
+            
+            <label style="font-size:12px; text-align:left; display:block; width:85%; margin: 0 auto;">Date</label>
+            <input id="edit-status-date" type="date" class="swal2-input" value="${entry.date}" style="width: 85%; margin-top: 0; margin-bottom: 10px;">
+            
+            <label style="font-size:12px; text-align:left; display:block; width:85%; margin: 0 auto;">Note</label>
+            <input id="edit-status-note" type="text" class="swal2-input" value="${entry.note || ''}" placeholder="Reason/Note" style="width: 85%; margin-top: 0;">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Save Changes',
+        confirmButtonColor: 'var(--success)',
+        preConfirm: () => {
+            const status = document.getElementById('edit-status-type').value;
+            const date = document.getElementById('edit-status-date').value;
+            const note = document.getElementById('edit-status-note').value.trim();
+            if (!date) {
+                Swal.showValidationMessage('Please select a date');
+            }
+            return { status, date, note };
+        }
+    });
+
+    if (formValues) {
+        student.status.history[index] = {
+            status: formValues.status,
+            date: formValues.date,
+            note: formValues.note
+        };
+
+        // Date অনুযায়ী হিস্ট্রি সর্ট করা এবং লেটেস্ট স্ট্যাটাস অনুযায়ী মেইন স্ট্যাটাস আপডেট করা
+        student.status.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+        student.status.isActive = student.status.history.length > 0 ? (student.status.history[0].status === 'Active') : true;
+
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const managerUid = urlParams.get('manager');
+            const targetUid = managerUid ? managerUid : DOC_ID;
+            
+            await db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+                status: student.status
+            });
+        } catch(e) { console.log("Will sync later", e); }
+
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Status updated!', showConfirmButton: false, timer: 1500 });
+        showStudentDetails(studentId); // Modal রিফ্রেশ
+        loadAllData(); // Dashboard ও List রিফ্রেশ
+    }
+};
+
+window.deleteStatusHistory = async function(studentId, index) {
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.status.history || !student.status.history[index]) return;
+
+    Swal.fire({
+        title: 'Delete History?',
+        text: "Are you sure you want to remove this record?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Delete'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            student.status.history.splice(index, 1);
+
+            // Date অনুযায়ী হিস্ট্রি সর্ট করা এবং লেটেস্ট স্ট্যাটাস অনুযায়ী মেইন স্ট্যাটাস আপডেট করা
+            student.status.history.sort((a, b) => new Date(b.date) - new Date(a.date));
+            student.status.isActive = student.status.history.length > 0 ? (student.status.history[0].status === 'Active') : true;
+
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const managerUid = urlParams.get('manager');
+                const targetUid = managerUid ? managerUid : DOC_ID;
+                
+                await db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+                    status: student.status
+                });
+            } catch(e) { console.log("Will sync later", e); }
+
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully!', showConfirmButton: false, timer: 1500 });
+            showStudentDetails(studentId); // Modal রিফ্রেশ
+            loadAllData(); // Dashboard ও List রিফ্রেশ
+        }
+    });
+};
+// ==========================================
+// 🟢 SECURE PERMANENT DELETE LOGIC
+// ==========================================
+
+window.initiateDeleteStudent = function(studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    // প্রথম কনফার্মেশন
+    Swal.fire({
+        title: `Delete ${student.name}?`,
+        text: "This will remove all profile, attendance, and fee records.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, proceed',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            
+            // দ্বিতীয় কনফার্মেশন (ফাইনাল ওয়ার্নিং)
+            Swal.fire({
+                title: 'Are you ABSOLUTELY sure?',
+                html: `<span style="color:red; font-weight:bold;">This action CANNOT be undone!</span><br>All data will be lost forever.`,
+                icon: 'error',
+                showCancelButton: true,
+                confirmButtonColor: '#ef4444',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'I am sure, DELETE',
+                cancelButtonText: 'Cancel'
+            }).then((result2) => {
+                if (result2.isConfirmed) {
+                    
+                    // পিন কোড চাওয়ার জন্য আপনার তৈরি করা secureAction কল করা হলো
+                    secureAction(() => executePermanentDelete(studentId));
+                    
+                }
+            });
+        }
+    });
+};
+
+window.executePermanentDelete = async function(studentId) {
+    Swal.fire({ 
+        title: 'Deleting...', 
+        text: 'Removing student data from database.',
+        allowOutsideClick: false, 
+        didOpen: () => { Swal.showLoading(); } 
+    });
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const managerUid = urlParams.get('manager');
+        const targetUid = managerUid ? managerUid : DOC_ID;
+
+        // ১. লোকাল স্টুডেন্ট লিস্ট (Array) থেকে মুছে ফেলা
+        const studentIndex = students.findIndex(s => s.id === studentId);
+        if(studentIndex > -1) {
+            students.splice(studentIndex, 1);
+        }
+
+        // ২. ফায়ারবেস ডেটাবেস থেকে স্টুডেন্ট ডকুমেন্ট ডিলিট করা
+        await db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).delete();
+
+        // ৩. লোকাল Attendance এবং Fees থেকে ডেটা মুছে ফেলা এবং ফায়ারবেস আপডেট রেডি করা
+        const updates = {};
+        
+        for (let date in attendance) {
+            if (attendance[date][studentId]) {
+                delete attendance[date][studentId];
+                updates[`attendance.${date}.${studentId}`] = firebase.firestore.FieldValue.delete();
+            }
+        }
+
+        for (let month in fees) {
+            if (fees[month][studentId]) {
+                delete fees[month][studentId];
+                updates[`fees.${month}.${studentId}`] = firebase.firestore.FieldValue.delete();
+            }
+        }
+
+        // ফায়ারবেসের মেইন ডকুমেন্ট আপডেট করা (Attendance & Fees মুছতে)
+        if (Object.keys(updates).length > 0) {
+            await db.collection(COLLECTION_NAME).doc(targetUid).update(updates);
+        }
+
+        // ৪. ডেটাবেস রিফ্রেশ করা এবং UI আপডেট করা
+        loadAllData(); // এটি টেবিল, ড্যাশবোর্ড সবকিছু রিফ্রেশ করে দেবে
+
+        Swal.fire('Deleted!', 'Student data has been completely removed.', 'success');
+
+    } catch (error) {
+        console.error("Error deleting student:", error);
+        Swal.fire('Error', 'Failed to delete student data. Check your internet connection.', 'error');
+    }
+};
+
+// ==========================================================
+// 🟢 RESTORE SINGLE STUDENT FROM FULL BACKUP LOGIC
+// ==========================================================
+
+window.importSingleStudentFromFullBackup = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = ''; // ইনপুট রিসেট করা
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const json = e.target.result;
+            const backupData = JSON.parse(json);
+
+            // চেক করা হচ্ছে এটি ফুল ব্যাকআপ ফাইল কিনা
+            if (!backupData || !backupData.students || !Array.isArray(backupData.students)) {
+                Swal.fire('Error', 'Invalid Full Backup file.', 'error');
+                return;
+            }
+
+            // স্টুডেন্টদের নাম অ্যালফাবেটিক্যালি সাজানো
+            const sortedStudents = backupData.students.sort((a,b) => a.name.localeCompare(b.name));
+            
+            // ড্রপডাউন লিস্ট তৈরি
+            let optionsHtml = '<select id="single-restore-select" class="swal2-select" style="width: 90%; font-size: 14px;">';
+            optionsHtml += '<option value="">-- Select a student to restore --</option>';
+            
+            sortedStudents.forEach(s => {
+                optionsHtml += `<option value="${s.id}">${s.name} (ID: ${s.serial_no})</option>`;
+            });
+            optionsHtml += '</select>';
+
+            // স্টুডেন্ট সিলেক্ট করার পপআপ
+            const { value: selectedId, isConfirmed } = await Swal.fire({
+                title: 'Select Student',
+                html: `<p style="font-size:13px; color:var(--text-muted);">Choose which student's data you want to extract from this Full Backup:</p>${optionsHtml}`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonText: 'Restore Student',
+                confirmButtonColor: 'var(--success)',
+                preConfirm: () => {
+                    const val = document.getElementById('single-restore-select').value;
+                    if (!val) Swal.showValidationMessage('Please select a student from the list');
+                    return val;
+                }
+            });
+
+            if (isConfirmed && selectedId) {
+                executeSingleRestoreFromFullBackup(backupData, parseInt(selectedId));
+            }
+        } catch (err) {
+            console.error("Single Restore Error:", err);
+            Swal.fire('Error', 'Failed to read or parse the backup file.', 'error');
+        }
+    };
+    reader.readAsText(file);
+};
+
+window.executeSingleRestoreFromFullBackup = async function(backupData, studentId) {
+    Swal.fire({ 
+        title: 'Restoring...', 
+        text: 'Extracting student data from full backup...',
+        allowOutsideClick: false, 
+        didOpen: () => { Swal.showLoading(); } 
+    });
+
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetUid = urlParams.get('manager') || DOC_ID;
+
+        // ১. ব্যাকআপ থেকে স্টুডেন্ট প্রোফাইল বের করা
+        const studentToRestore = backupData.students.find(s => s.id === studentId);
+        if (!studentToRestore) throw new Error("Student not found in backup");
+
+        // ২. লোকাল অ্যারেতে আপডেট করা
+        const existingIndex = students.findIndex(s => s.id === studentId);
+        if (existingIndex > -1) {
+            students[existingIndex] = studentToRestore;
+        } else {
+            students.push(studentToRestore);
+        }
+
+        // ৩. ফায়ারবেসে স্টুডেন্ট প্রোফাইল সেভ করা
+        await db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).set(studentToRestore);
+
+        // ৪. ফুল ব্যাকআপের Attendance থেকে শুধু এই স্টুডেন্টের ডেটা ফিল্টার করা
+        let needsDbSync = false;
+        if (backupData.attendance) {
+            Object.keys(backupData.attendance).forEach(date => {
+                if (backupData.attendance[date][studentId]) {
+                    if (!attendance[date]) attendance[date] = {};
+                    attendance[date][studentId] = backupData.attendance[date][studentId];
+                    needsDbSync = true;
+                }
+            });
+        }
+
+        // ৫. ফুল ব্যাকআপের Fees থেকে শুধু এই স্টুডেন্টের ডেটা ফিল্টার করা
+        if (backupData.fees) {
+            Object.keys(backupData.fees).forEach(month => {
+                if (backupData.fees[month][studentId]) {
+                    if (!fees[month]) fees[month] = {};
+                    fees[month][studentId] = backupData.fees[month][studentId];
+                    needsDbSync = true;
+                }
+            });
+        }
+
+        // ৬. মেইন ডেটাবেসে Attendance ও Fees সিঙ্ক করা
+        if (needsDbSync) {
+            const updates = {};
+            if (backupData.attendance) updates.attendance = attendance;
+            if (backupData.fees) updates.fees = fees;
+            await db.collection(COLLECTION_NAME).doc(targetUid).update(updates);
+        }
+
+        // ৭. UI রিফ্রেশ
+        loadAllData(); 
+        
+        Swal.fire({
+            title: 'Welcome Back!',
+            text: `${studentToRestore.name}'s profile, fees, and attendance have been perfectly restored from the full backup.`,
+            icon: 'success',
+            confirmButtonColor: 'var(--primary)'
+        });
+
+    } catch(e) {
+        console.error(e);
+        Swal.fire('Error', 'Failed to restore student. Check your connection.', 'error');
+    }
+};
+// ==========================================
+// 🟢 SINGLE STUDENT BACKUP & RESTORE LOGIC
+// ==========================================
+
+// --- ১. ব্যাকআপ নেওয়ার ফাংশন ---
+window.exportSingleStudent = async function(studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    Swal.fire({
+        title: 'Preparing Backup...',
+        text: `Gathering ALL data for ${student.name}`,
+        allowOutsideClick: false,
+        didOpen: () => { Swal.showLoading(); }
+    });
+
+    try {
+        const singleBackup = {
+            isSingleStudentBackup: true,
+            student: student,
+            attendance: {},
+            fees: {}
+        };
+
+        // এই স্টুডেন্টের সমস্ত অ্যাটেন্ডেন্স খুঁজে বের করা
+        Object.keys(attendance).forEach(date => {
+            if (attendance[date] && attendance[date][studentId]) {
+                if (!singleBackup.attendance[date]) singleBackup.attendance[date] = {};
+                singleBackup.attendance[date][studentId] = attendance[date][studentId];
+            }
+        });
+
+        // এই স্টুডেন্টের সমস্ত ফিস পেমেন্ট খুঁজে বের করা
+        Object.keys(fees).forEach(month => {
+            if (fees[month] && fees[month][studentId]) {
+                if (!singleBackup.fees[month]) singleBackup.fees[month] = {};
+                singleBackup.fees[month][studentId] = fees[month][studentId];
+            }
+        });
+
+        // ফাইল তৈরি ও ডাউনলোড
+        const jsonStr = JSON.stringify(singleBackup, null, 2);
+        const safeName = student.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        const fileName = `StudentBackup_${safeName}_${new Date().toISOString().split('T')[0]}.json`;
+
+        if (window.showSaveFilePicker) {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: fileName,
+                types: [{ description: 'JSON Backup File', accept: { 'application/json': ['.json'] } }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(jsonStr);
+            await writable.close();
+        } else {
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        Swal.fire('Success!', `${student.name}'s complete data has been backed up.`, 'success');
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error(err);
+            Swal.fire('Error', 'Failed to save backup.', 'error');
+        }
+    }
+};
+
+// --- ২. রিস্টোর করার ফাংশন ---
+window.importSingleStudentData = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = ''; // Input রিসেট করা
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const json = e.target.result;
+            const backupData = JSON.parse(json);
+
+            // চেক করা হচ্ছে ফাইলটি সঠিক সিঙ্গেল স্টুডেন্ট ব্যাকআপ কিনা
+            if (!backupData || !backupData.isSingleStudentBackup || !backupData.student) {
+                Swal.fire('Error', 'Invalid Single Student Backup file.', 'error');
+                return;
+            }
+
+            const studentToRestore = backupData.student;
+
+            Swal.fire({
+                title: `Restore ${studentToRestore.name}?`,
+                text: "This will restore the student's profile, attendance, and fee history completely.",
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'Yes, Restore Now'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    executeSingleRestore(backupData);
+                }
+            });
+
+        } catch (err) {
+            console.error("Restore Error:", err);
+            Swal.fire('Error', 'Failed to read the backup file.', 'error');
+        }
+    };
+    reader.readAsText(file);
+};
+
+// --- ৩. রিস্টোর এক্সিকিউট করা ---
+window.executeSingleRestore = async function(backupData) {
+    Swal.fire({ 
+        title: 'Restoring Data...', 
+        text: 'Please wait...',
+        allowOutsideClick: false, 
+        didOpen: () => { Swal.showLoading(); } 
+    });
+
+    try {
+        const studentToRestore = backupData.student;
+        const studentId = studentToRestore.id;
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetUid = urlParams.get('manager') || DOC_ID;
+
+        // ১. লোকাল স্টুডেন্ট লিস্টে আপডেট বা অ্যাড করা
+        const existingIndex = students.findIndex(s => s.id === studentId);
+        if (existingIndex > -1) {
+            students[existingIndex] = studentToRestore;
+        } else {
+            students.push(studentToRestore);
+        }
+
+        // ফায়ারবেসে স্টুডেন্ট প্রোফাইল সেভ করা
+        await db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).set(studentToRestore);
+
+        // ২. অ্যাটেন্ডেন্স লোকাল ডেটায় মার্জ করা
+        let needsDbSync = false;
+        if (backupData.attendance) {
+            Object.keys(backupData.attendance).forEach(date => {
+                if (backupData.attendance[date][studentId]) {
+                    if (!attendance[date]) attendance[date] = {};
+                    attendance[date][studentId] = backupData.attendance[date][studentId];
+                    needsDbSync = true;
+                }
+            });
+        }
+
+        // ৩. ফিস (Fees) লোকাল ডেটায় মার্জ করা
+        if (backupData.fees) {
+            Object.keys(backupData.fees).forEach(month => {
+                if (backupData.fees[month][studentId]) {
+                    if (!fees[month]) fees[month] = {};
+                    fees[month][studentId] = backupData.fees[month][studentId];
+                    needsDbSync = true;
+                }
+            });
+        }
+
+        // ৪. ফায়ারবেসের মূল ডকুমেন্টে অ্যাটেন্ডেন্স ও ফিস সেভ করা
+        if (needsDbSync) {
+            const updates = {};
+            if (backupData.attendance) updates.attendance = attendance;
+            if (backupData.fees) updates.fees = fees;
+            await db.collection(COLLECTION_NAME).doc(targetUid).update(updates);
+        }
+
+        // ৫. পুরো অ্যাপ রিফ্রেশ করা যাতে ডেটাগুলো টেবিলে চলে আসে
+        loadAllData(); 
+
+        Swal.fire('Restored!', `${studentToRestore.name}'s total data has been successfully restored.`, 'success');
+
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error', 'Failed to restore student completely. Check internet connection.', 'error');
     }
 };
