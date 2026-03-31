@@ -80,51 +80,6 @@
             }
         }
 
-// 🟢 Past Inactive Periods Calculation & Beautiful UI Function
-function getPastInactivePeriodsHtml(student) {
-    if (!student.status || !student.status.history || student.status.history.length === 0) return '';
-
-    const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
-    let currentInactiveStart = null;
-    let pastInactiveHtml = '';
-
-    for (let i = 0; i < historyAsc.length; i++) {
-        if (historyAsc[i].status === 'Inactive' && !currentInactiveStart) {
-            currentInactiveStart = historyAsc[i].date;
-        } else if (historyAsc[i].status === 'Active' && currentInactiveStart) {
-            
-            const startDate = new Date(currentInactiveStart);
-            const endDate = new Date(historyAsc[i].date);
-
-            let y = endDate.getFullYear() - startDate.getFullYear();
-            let m = endDate.getMonth() - startDate.getMonth();
-            let d = endDate.getDate() - startDate.getDate();
-
-            if (d < 0) { m--; const lm = new Date(endDate.getFullYear(), endDate.getMonth(), 0); d += lm.getDate(); }
-            if (m < 0) { y--; m += 12; }
-
-            let dur = [];
-            if (y > 0) dur.push(y + ' Yrs');
-            if (m > 0) dur.push(m + ' Mths');
-            if (d > 0) dur.push(d + ' Days');
-            if (dur.length === 0) dur.push('0 Days');
-
-            const startStr = startDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
-            const endStr = endDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
-
-            // 🟢 থিম অনুযায়ী ডাইনামিক কালার এবং সুন্দর ফুল-উইথ (Full-width) ডিজাইন
-            pastInactiveHtml += `
-                <div style="margin-top: 12px; font-size: 13px; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px; border-left: 4px solid var(--danger); box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
-                    <span style="color: var(--danger); font-weight: 700;"><i class="fas fa-history"></i> Past Inactive:</span> 
-                    <span style="font-weight: 500;">${startStr} to ${endStr}</span> 
-                    <span style="color: var(--text-muted); font-size: 11px; font-weight: 600;">(${dur.join(', ')})</span>
-                </div>`;
-
-            currentInactiveStart = null; 
-        }
-    }
-    return pastInactiveHtml;
-}
         // --- 6. App Logic & Initialization ---
         
         if ('serviceWorker' in navigator) { 
@@ -479,8 +434,8 @@ if (studentViewId && managerUid) {
                                             <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
                                             <div class="scroller-box" style="font-size: 14px; color: #475569;">
                                                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
-</div>
+                                                    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+                                                </div>
                                                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
                                                     <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
                                                 </div>
@@ -503,15 +458,10 @@ if (studentViewId && managerUid) {
                                         </div></div>
 
                                         <div id="m-att" class="modal-portal"><div class="modal-content-portal">
-    <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
-    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
-    
-    <div style="margin-bottom: 15px;">
-        ${getPastInactivePeriodsHtml(s)}
-    </div>
-    
-    <div class="scroller-box">${attHtml}</div>
-</div></div>
+                                            <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
+                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
+                                            <div class="scroller-box">${attHtml}</div>
+                                        </div></div>
 
                                         <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
                                             <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
@@ -540,7 +490,7 @@ if (studentViewId && managerUid) {
     setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
 
                             } else {
-                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p>><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
                             }
                         } else {
                             document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
@@ -2335,65 +2285,6 @@ function exportStudentDetailsAsPDF(studentId) {
     addInfo("Class:", student.class);
     addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE}/-`);
     addInfo("Joined:", new Date(student.joining_date).toLocaleDateString('en-IN'));
-    // 🟢 PDF Inactive Details Logic Start
-    if (student.status && student.status.history && student.status.history.length > 0) {
-        const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        // ১. যদি বর্তমানে Inactive থাকে
-        if (sortedHistory[0].status === 'Inactive') {
-            const inactiveDate = new Date(sortedHistory[0].date);
-            const today = new Date();
-            
-            let yr = today.getFullYear() - inactiveDate.getFullYear();
-            let mn = today.getMonth() - inactiveDate.getMonth();
-            let d = today.getDate() - inactiveDate.getDate();
-            if (d < 0) { mn--; const lm = new Date(today.getFullYear(), today.getMonth(), 0); d += lm.getDate(); }
-            if (mn < 0) { yr--; mn += 12; }
-            
-            let dur = [];
-            if (yr > 0) dur.push(yr + ' Yrs');
-            if (mn > 0) dur.push(mn + ' Mths');
-            if (d > 0) dur.push(d + ' Days');
-            if (dur.length === 0) dur.push('Today');
-            
-            doc.setTextColor(220, 38, 38); // লাল রঙ
-            doc.setFont("helvetica", "bold");
-            doc.text("Status:", leftMargin, y);
-            doc.setFont("helvetica", "normal");
-            doc.text(`Inactive From ${inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'})} (Duration: ${dur.join(', ')})`, leftMargin + 35, y);
-            doc.setTextColor(0); // আবার কালো রঙে ফেরত
-            y += lineHeight;
-        } 
-        // ২. যদি অতীতে Inactive ছিল কিন্তু এখন Active
-        else if (sortedHistory[0].status === 'Active' && sortedHistory.length > 1 && sortedHistory[1].status === 'Inactive') {
-            const reactivatedDate = new Date(sortedHistory[0].date);
-            const inactiveDate = new Date(sortedHistory[1].date);
-            
-            let yr = reactivatedDate.getFullYear() - inactiveDate.getFullYear();
-            let mn = reactivatedDate.getMonth() - inactiveDate.getMonth();
-            let d = reactivatedDate.getDate() - inactiveDate.getDate();
-            if (d < 0) { mn--; const lm = new Date(reactivatedDate.getFullYear(), reactivatedDate.getMonth(), 0); d += lm.getDate(); }
-            if (mn < 0) { yr--; mn += 12; }
-            
-            let dur = [];
-            if (yr > 0) dur.push(yr + ' Yrs');
-            if (mn > 0) dur.push(mn + ' Mths');
-            if (d > 0) dur.push(d + ' Days');
-            if (dur.length === 0) dur.push('0 Days');
-            
-            const startStr = inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
-            const endStr = reactivatedDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
-
-            doc.setTextColor(180, 83, 9); // হলুদ/কমলা রঙ
-            doc.setFont("helvetica", "bold");
-            doc.text("Past Inactive:", leftMargin, y);
-            doc.setFont("helvetica", "normal");
-            doc.text(`${startStr} to ${endStr} (${dur.join(', ')})`, leftMargin + 35, y);
-            doc.setTextColor(0); // আবার কালো রঙে ফেরত
-            y += lineHeight;
-        }
-    }
-    // 🟢 PDF Inactive Details Logic End
     y += 5;
 
     doc.setFontSize(12);
@@ -2930,7 +2821,6 @@ function loadStudentsList(showAll = false) {
             <td class="action-buttons">
                 <button class="${isActive ? 'btn-info' : 'btn-success'}" onclick="openStatusChangeModal(${student.id}, ${!isActive})">${statusBtnText}</button> 
                 <button class="btn-warning" onclick="openEditStudentModal(${student.id})">Edit</button>
-                <button class="btn-danger" onclick="initiateDeleteStudent(${student.id})" title="Delete Permanently"><i class="fas fa-trash"></i></button>
             </td>`;
         
         if(isActive) { 
@@ -3880,57 +3770,7 @@ function showStudentDetails(studentId) {
     }
     document.getElementById('modalDOB').innerHTML = dobDisplay; 
     
-document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN');
-
-    // 🟢 Inactive Calculation Logic শুরু
-    const inactiveBox = document.getElementById('modalInactiveStatusBox');
-    if (student.status && student.status.history && student.status.history.length > 0) {
-        const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
-        
-        // যদি স্টুডেন্ট বর্তমানে Inactive থাকে
-        if (sortedHistory[0].status === 'Inactive') {
-            const inactiveDate = new Date(sortedHistory[0].date);
-            const today = new Date();
-            
-            let y = today.getFullYear() - inactiveDate.getFullYear();
-            let m = today.getMonth() - inactiveDate.getMonth();
-            let d = today.getDate() - inactiveDate.getDate();
-            
-            if (d < 0) { 
-                m--; 
-                const lm = new Date(today.getFullYear(), today.getMonth(), 0); 
-                d += lm.getDate(); 
-            }
-            if (m < 0) { 
-                y--; 
-                m += 12; 
-            }
-            
-            let dur = [];
-            if (y > 0) dur.push(y + ' Yrs');
-            if (m > 0) dur.push(m + ' Mths');
-            if (d > 0) dur.push(d + ' Days');
-            if (dur.length === 0) dur.push('Today');
-            
-            const formattedInactiveDate = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-            
-            // বক্সে লেখাগুলো সেট করা
-            inactiveBox.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-weight:600; color:#e11d48;"><i class="fas fa-user-slash"></i> Inactive From:</span> 
-                    <div style="text-align:right;">
-                        <span style="color:#be123c; font-weight:700;">${formattedInactiveDate}</span><br>
-                        <span style="font-size:11px; color:#f43f5e; font-weight:600;">(Duration: ${dur.join(', ')})</span>
-                    </div>
-                </div>`;
-            inactiveBox.style.display = 'block'; // বক্সটি দৃশ্যমান করা
-        } else {
-            inactiveBox.style.display = 'none'; // Active হলে বক্সটি লুকিয়ে ফেলা
-        }
-    } else {
-        inactiveBox.style.display = 'none'; // কোনো রেকর্ড না থাকলে লুকিয়ে ফেলা
-    }
-    // 🟢 Inactive Calculation Logic শেষ
+    document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN'); 
     
     const modalImg = document.getElementById('modalStudentPhoto'); 
     if(student.photo) { modalImg.src = student.photo; modalImg.style.display = 'inline-block'; } 
@@ -3964,38 +3804,10 @@ document.getElementById('modalJoiningDate').textContent = new Date(student.joini
         };
     }
     
-    const historyList = document.getElementById('modalStatusHistory'); 
-
-    // 🟢 NEW: Past Inactive Box (Status History হেডিং এবং লিস্টের ঠিক মাঝখানে)
-    let pastInactiveContainer = document.getElementById('modalPastInactiveBox');
-    if (!pastInactiveContainer) {
-        pastInactiveContainer = document.createElement('div');
-        pastInactiveContainer.id = 'modalPastInactiveBox';
-        historyList.parentNode.insertBefore(pastInactiveContainer, historyList);
-    }
-    pastInactiveContainer.innerHTML = getPastInactivePeriodsHtml(student);
-    pastInactiveContainer.style.marginBottom = "12px"; // একটু গ্যাপ দেওয়ার জন্য
-
-    historyList.innerHTML = ''; 
-    historyList.innerHTML = ''; 
+    const historyList = document.getElementById('modalStatusHistory'); historyList.innerHTML = ''; 
     if (student.status.history && student.status.history.length > 0) { 
-        student.status.history.forEach((entry, index) => { 
-            const color = entry.status === 'Active' ? 'green' : 'red'; 
-            historyList.innerHTML += `
-                <li style="display:flex; justify-content:space-between; align-items:center; padding: 5px 0;">
-                    <div>
-                        <strong style="color:${color};">${entry.status}</strong> on ${new Date(entry.date).toLocaleDateString('en-IN')}<br>
-                        <em style="font-size:0.9em;color:var(--text-muted);">Note: ${entry.note || 'No note'}</em>
-                    </div>
-                    <div style="display:flex; gap: 8px;">
-                        <button onclick="editStatusHistory(${student.id}, ${index})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deleteStatusHistory(${student.id}, ${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
-                    </div>
-                </li>`; 
-        }); 
-    } else { 
-        historyList.innerHTML = '<li style="padding: 5px 0;">No history found.</li>'; 
-    } 
+        student.status.history.forEach(entry => { const color = entry.status === 'Active' ? 'green' : 'red'; historyList.innerHTML += `<li><strong style="color:${color};">${entry.status}</strong> on ${new Date(entry.date).toLocaleDateString('en-IN')}<br><em style="font-size:0.9em;color:var(--text-muted);">Note: ${entry.note || 'No note'}</em></li>`; }); 
+    } else { historyList.innerHTML = '<li>No history found.</li>'; } 
     
     const yearSelect = document.getElementById('detailsFilterYear'); const monthSelect = document.getElementById('detailsFilterMonth'); yearSelect.innerHTML = ''; monthSelect.innerHTML = '';
     const currentYear = new Date().getFullYear(); const joinYear = new Date(student.joining_date).getFullYear();
@@ -5244,6 +5056,172 @@ window.renderPracticeHistoryPortal = function(student) {
     `;
 
     if (!student.practice_log || student.practice_log.length === 0) {
+        container.innerHTML = statsHtml + '<div style="text-align:center; color:#94a3b8; font-size:12px; padding-top: 10px;">No practice logged yet.</div>';
+        return;
+    }
+
+    let listHtml = '<div style="max-height: 150px; overflow-y: auto;">';
+    student.practice_log.slice(0, 10).forEach(log => { 
+        listHtml += `
+            <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #10b981; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <strong style="color: #065f46; font-size: 13px;">${log.topic}</strong><br>
+                    <span style="font-size: 11px; color: #166534;">📅 ${log.date} (${log.day}) 🕒 ${log.time}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">${log.minutes} mins</div>
+                    <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px;"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+    });
+    listHtml += '</div>';
+
+    container.innerHTML = statsHtml + listHtml;
+};
+
+window.renderPracticeLogTeacher = function(studentId) {
+    const student = students.find(s => s.id === studentId);
+    const container = document.getElementById('modalPracticeList');
+    if (!container || !student) return;
+
+    // 🟢 Insert Dynamic Stats Block for Teacher
+    let statsContainer = document.getElementById('teacherPracticeStatsObj');
+    if (!statsContainer) {
+        statsContainer = document.createElement('div');
+        statsContainer.id = 'teacherPracticeStatsObj';
+        container.parentElement.parentElement.insertBefore(statsContainer, container.parentElement);
+    }
+
+    const stats = getPracticeStats(student);
+    statsContainer.innerHTML = `
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
+            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Today</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--primary);">${formatPracticeTime(stats.today)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Week</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--warning);">${formatPracticeTime(stats.week)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Month</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--danger);">${formatPracticeTime(stats.month)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Year</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--info);">${formatPracticeTime(stats.year)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Lifetime</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--success);">${formatPracticeTime(stats.lifetime)}</div>
+            </div>
+            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Daily Avg</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--pink);">${formatPracticeTime(stats.avg)}</div>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = '';
+    if (student.practice_log && student.practice_log.length > 0) {
+        student.practice_log.forEach(log => {
+            container.innerHTML += `
+                <li style="padding: 8px 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong style="color: var(--success); font-size: 13px;">${log.topic}</strong><br>
+                        <span style="font-size: 10px; color: var(--text-muted);"><i class="fas fa-clock"></i> ${log.date} | ${log.day} | ${log.time}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="font-size: 12px; font-weight: bold; color: var(--text-main); background: var(--bg-body); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color);">${log.minutes} mins</div>
+                        <button onclick="editPracticeLogTeacher(${student.id}, ${log.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:14px;"><i class="fas fa-edit"></i></button>
+                        <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'teacher')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-trash"></i></button>
+                    </div>
+                </li>`;
+        });
+    } else {
+        container.innerHTML = '<li style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 12px;">No practice records found.</li>';
+    }
+};
+
+window.deletePracticeLog = function(studentId, logId, context) {
+    Swal.fire({
+        title: 'Delete Practice Log?',
+        text: "Are you sure?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Delete'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const managerUid = urlParams.get('manager');
+            const isStudentPortal = !!managerUid;
+            const targetUid = managerUid ? managerUid : DOC_ID;
+
+            let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
+            if (studentIndex === -1) return;
+            let studentData = students[studentIndex];
+
+            studentData.practice_log = studentData.practice_log.filter(log => log.id !== logId);
+
+            // 🟢 1. Instant UI Update
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully!', showConfirmButton: false, timer: 1500 });
+            if (context === 'student') renderPracticeHistoryPortal(studentData);
+            else renderPracticeLogTeacher(studentId);
+
+            // 🟢 2. Background Save
+            if (!isStudentPortal) {
+                students[studentIndex] = studentData;
+                //dbSet('students', students).catch(e => {});
+            }
+            db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+                practice_log: studentData.practice_log
+            }).catch(e => console.log("Delete sync failed.", e));
+        }
+    });
+};
+
+window.editPracticeLogTeacher = async function(studentId, logId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const log = student.practice_log.find(l => l.id === logId);
+    if (!log) return;
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Edit Practice Log',
+        html: `
+            <input id="edit-prac-mins" type="number" class="swal2-input" value="${log.minutes}" placeholder="Minutes" style="width: 85%;">
+            <input id="edit-prac-topic" type="text" class="swal2-input" value="${log.topic}" placeholder="Topic (Optional)" style="width: 85%; margin-top: 10px;">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Save Changes',
+        confirmButtonColor: 'var(--success)',
+        preConfirm: () => {
+            const mins = document.getElementById('edit-prac-mins').value;
+            let topic = document.getElementById('edit-prac-topic').value.trim();
+            if (!topic) topic = "Regular Practice";
+            if (!mins || mins <= 0) Swal.showValidationMessage('Please enter valid minutes');
+            return { minutes: parseInt(mins), topic: topic };
+        }
+    });
+
+    if (formValues) {
+        log.minutes = formValues.minutes;
+        log.topic = formValues.topic;
+
+        try {
+            //await dbSet('students', students);
+            await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(studentId)).update({
+                practice_log: student.practice_log
+            });
+        } catch(e) { console.log("Will sync later."); }
+
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Updated successfully!', showConfirmButton: false, timer: 1500 });
+        renderPracticeLogTeacher(studentId);
+    }
+};g.length === 0) {
         container.innerHTML = statsHtml + '<div style="text-align:center; color:#94a3b8; font-size:12px; padding-top: 10px;">No practice logged yet.</div>';
         return;
     }
