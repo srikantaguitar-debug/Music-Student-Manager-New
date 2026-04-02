@@ -1,213 +1,264 @@
-        // --- 2. Firebase Config ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
-            authDomain: "student-management-syste-6a036.firebaseapp.com",
-            projectId: "student-management-syste-6a036",
-            storageBucket: "student-management-syste-6a036.firebasestorage.app",
-            messagingSenderId: "198959369817",
-            appId: "1:198959369817:web:f24dfd15b9d3d897d9eb48"
+// --- 2. Firebase Config ---
+const firebaseConfig = {
+    apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
+    authDomain: "student-management-syste-6a036.firebaseapp.com",
+    projectId: "student-management-syste-6a036",
+    storageBucket: "student-management-syste-6a036.firebasestorage.app",
+    messagingSenderId: "198959369817",
+    appId: "1:198959369817:web:f24dfd15b9d3d897d9eb48"
+};
+
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// --- 3. ENABLE OFFLINE PERSISTENCE (Fast & Offline) ---
+if (!window.location.search.includes('student=')) {
+    db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log(err));
+}
+
+const COLLECTION_NAME = 'music_classes';
+let DOC_ID = 'main_data';
+
+// --- 4. Optimized Database Functions ---
+async function openDB() { return true; }
+
+async function dbGet(key) {
+    try {
+        const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
+        const doc = await docRef.get(); 
+        if (doc.exists) {
+            const data = doc.data();
+            return data[key] !== undefined ? data[key] : null;
+        }
+        return null;
+    } catch (error) {
+        console.log("Offline mode: Reading from cache...");
+        return null;
+    }
+}
+
+async function dbDelete(key) {
+    try {
+        const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
+        await docRef.update({ [key]: firebase.firestore.FieldValue.delete() });
+    } catch (error) { console.error("Delete Error:", error); }
+}
+
+async function dbClear() {
+    try { await db.collection(COLLECTION_NAME).doc(DOC_ID).delete(); }
+    catch (error) { console.error("Clear Error:", error); }
+}
+
+// --- 5. Data Migration (One time) ---
+async function syncOldDataToFirebase() {
+    const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
+    const doc = await docRef.get();
+    
+    if (doc.exists) {
+        console.log("Online data found. Skip migration.");
+        return;
+    }
+
+    const lsPin = localStorage.getItem('app_pin');
+    if (lsPin) {
+        Swal.fire({ title: 'Syncing...', text: 'Uploading local data...', didOpen: () => Swal.showLoading() });
+        
+        const dataToUpload = {};
+        if(localStorage.getItem('app_pin')) dataToUpload['app_pin'] = localStorage.getItem('app_pin');
+        if(localStorage.getItem('students')) dataToUpload['students'] = JSON.parse(localStorage.getItem('students'));
+        if(localStorage.getItem('attendance')) dataToUpload['attendance'] = JSON.parse(localStorage.getItem('attendance'));
+        if(localStorage.getItem('fees')) dataToUpload['fees'] = JSON.parse(localStorage.getItem('fees'));
+        if(localStorage.getItem('studentSerialCounter')) dataToUpload['studentSerialCounter'] = localStorage.getItem('studentSerialCounter');
+        if(localStorage.getItem('instituteLogo')) dataToUpload['instituteLogo'] = localStorage.getItem('instituteLogo');
+        if(localStorage.getItem('authorizedSignature')) dataToUpload['authorizedSignature'] = localStorage.getItem('authorizedSignature');
+
+        await docRef.set(dataToUpload, { merge: true });
+        Swal.fire('Success', 'Data synced!', 'success');
+    } else {
+        await dbSet('app_pin', '1234');
+    }
+}
+
+// 🟢 Past Inactive Periods Calculation & Beautiful UI Function
+function getPastInactivePeriodsHtml(student) {
+    if (!student.status || !student.status.history || student.status.history.length === 0) return '';
+
+    const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+    let currentInactiveStart = null;
+    let pastInactiveHtml = '';
+
+    for (let i = 0; i < historyAsc.length; i++) {
+        if (historyAsc[i].status === 'Inactive' && !currentInactiveStart) {
+            currentInactiveStart = historyAsc[i].date;
+        } else if (historyAsc[i].status === 'Active' && currentInactiveStart) {
+            
+            const startDate = new Date(currentInactiveStart);
+            const endDate = new Date(historyAsc[i].date);
+
+            let y = endDate.getFullYear() - startDate.getFullYear();
+            let m = endDate.getMonth() - startDate.getMonth();
+            let d = endDate.getDate() - startDate.getDate();
+
+            if (d < 0) { m--; const lm = new Date(endDate.getFullYear(), endDate.getMonth(), 0); d += lm.getDate(); }
+            if (m < 0) { y--; m += 12; }
+
+            let dur = [];
+            if (y > 0) dur.push(y + ' Yrs');
+            if (m > 0) dur.push(m + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('0 Days');
+
+            const startStr = startDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
+            const endStr = endDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
+
+            pastInactiveHtml += `
+                <div style="margin-top: 12px; font-size: 13px; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px; border-left: 4px solid var(--danger); box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
+                    <span style="color: var(--danger); font-weight: 700;"><i class="fas fa-history"></i> Past Inactive:</span> 
+                    <span style="font-weight: 500;">${startStr} to ${endStr}</span> 
+                    <span style="color: var(--text-muted); font-size: 11px; font-weight: 600;">(${dur.join(', ')})</span>
+                </div>`;
+
+            currentInactiveStart = null; 
+        }
+    }
+    return pastInactiveHtml;
+}
+
+// --- 6. App Logic & Initialization ---
+if ('serviceWorker' in navigator) { 
+    window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
+}
+
+let lastCheckedDate = new Date().toDateString();
+
+function startClock() {
+    setInterval(() => {
+        const now = new Date();
+        const options = { 
+            weekday: 'short',
+            day: 'numeric',  
+            month: 'short',  
+            year: 'numeric', 
+            hour: '2-digit', 
+            minute: '2-digit', 
+            second: '2-digit', 
+            hour12: true 
         };
 
-        const app = firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        document.getElementById('liveClock').textContent = now.toLocaleString('en-IN', options);
 
-        // --- 3. ENABLE OFFLINE PERSISTENCE (Fast & Offline) ---
-        // WhatsApp বা In-app ব্রাউজারের সমস্যার জন্য স্টুডেন্ট পোর্টালে অফলাইন ক্যাশে বন্ধ রাখা হলো
-        if (!window.location.search.includes('student=')) {
-            db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log(err));
+        if (now.toDateString() !== lastCheckedDate) {
+            lastCheckedDate = now.toDateString();
+            document.getElementById('attendanceDate').valueAsDate = now;
+            renderAttendance();
         }
+    }, 1000);
+}
 
-        const COLLECTION_NAME = 'music_classes';
-        let DOC_ID = 'main_data';
+const auth = firebase.auth();
 
-        // --- 4. Optimized Database Functions ---
-        async function openDB() { return true; }
-
-        async function dbGet(key) {
-            try {
-                const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
-                const doc = await docRef.get(); 
-                if (doc.exists) {
-                    const data = doc.data();
-                    return data[key] !== undefined ? data[key] : null;
-                }
-                return null;
-            } catch (error) {
-                console.log("Offline mode: Reading from cache...");
-                return null;
-            }
-        }
-
-        async function dbDelete(key) {
-            try {
-                const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
-                await docRef.update({ [key]: firebase.firestore.FieldValue.delete() });
-            } catch (error) { console.error("Delete Error:", error); }
-        }
-
-        async function dbClear() {
-            try { await db.collection(COLLECTION_NAME).doc(DOC_ID).delete(); }
-            catch (error) { console.error("Clear Error:", error); }
-        }
-
-        // --- 5. Data Migration (One time) ---
-        async function syncOldDataToFirebase() {
-            const docRef = db.collection(COLLECTION_NAME).doc(DOC_ID);
-            const doc = await docRef.get();
-            
-            if (doc.exists) {
-                console.log("Online data found. Skip migration.");
-                return;
-            }
-
-            const lsPin = localStorage.getItem('app_pin');
-            if (lsPin) {
-                Swal.fire({ title: 'Syncing...', text: 'Uploading local data...', didOpen: () => Swal.showLoading() });
-                
-                const dataToUpload = {};
-                if(localStorage.getItem('app_pin')) dataToUpload['app_pin'] = localStorage.getItem('app_pin');
-                if(localStorage.getItem('students')) dataToUpload['students'] = JSON.parse(localStorage.getItem('students'));
-                if(localStorage.getItem('attendance')) dataToUpload['attendance'] = JSON.parse(localStorage.getItem('attendance'));
-                if(localStorage.getItem('fees')) dataToUpload['fees'] = JSON.parse(localStorage.getItem('fees'));
-                if(localStorage.getItem('studentSerialCounter')) dataToUpload['studentSerialCounter'] = localStorage.getItem('studentSerialCounter');
-                if(localStorage.getItem('instituteLogo')) dataToUpload['instituteLogo'] = localStorage.getItem('instituteLogo');
-                if(localStorage.getItem('authorizedSignature')) dataToUpload['authorizedSignature'] = localStorage.getItem('authorizedSignature');
-
-                await docRef.set(dataToUpload, { merge: true });
-                Swal.fire('Success', 'Data synced!', 'success');
-            } else {
-                await dbSet('app_pin', '1234');
-            }
-        }
-
-        // --- 6. App Logic & Initialization ---
-        
-        if ('serviceWorker' in navigator) { 
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
-        }
-        
-        let lastCheckedDate = new Date().toDateString();
-
-        function startClock() {
-            setInterval(() => {
-                const now = new Date();
-                const options = { 
-                    weekday: 'short',
-                    day: 'numeric',  
-                    month: 'short',  
-                    year: 'numeric', 
-                    hour: '2-digit', 
-                    minute: '2-digit', 
-                    second: '2-digit', 
-                    hour12: true 
-                };
-
-                document.getElementById('liveClock').textContent = now.toLocaleString('en-IN', options);
-
-                if (now.toDateString() !== lastCheckedDate) {
-                    lastCheckedDate = now.toDateString();
-                    document.getElementById('attendanceDate').valueAsDate = now;
-                    renderAttendance();
-                }
-            }, 1000);
-        }
-
-        const auth = firebase.auth();
+// 🟢 নতুন ফাংশন: স্টুডেন্ট পোর্টাল থেকে সঠিকভাবে লগআউট করার জন্য
+window.studentPortalLogout = function(sId) {
+    localStorage.removeItem('verified_student_' + sId);
+    localStorage.removeItem('saved_student_id');
+    localStorage.removeItem('saved_manager_id');
+    window.location.href = window.location.pathname; 
+};
 
 document.addEventListener('DOMContentLoaded', async () => {
-            loadTheme();
+    loadTheme();
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const studentViewId = urlParams.get('student');
-            const managerUid = urlParams.get('manager');
+    const urlParams = new URLSearchParams(window.location.search);
+    let studentViewId = urlParams.get('student');
+    let managerUid = urlParams.get('manager');
 
-if (studentViewId && managerUid) {
-    // 🟢 Manager-এর সবকিছু সাথে সাথে রিমুভ করে দেওয়া হচ্ছে যাতে ব্যাকগ্রাউন্ডে কিছু না দেখায়
-    document.body.innerHTML = ''; 
-    document.body.style.background = '#f8fafc';
+    // --- 🟢 Chrome Shortcut Fix শুরু ---
+    if (!studentViewId || !managerUid) {
+        const savedStudent = localStorage.getItem('saved_student_id');
+        const savedManager = localStorage.getItem('saved_manager_id');
+        if (savedStudent && savedManager) {
+            window.location.replace(`?student=${savedStudent}&manager=${savedManager}`);
+            return;
+        }
+    } else {
+        localStorage.setItem('saved_student_id', studentViewId);
+        localStorage.setItem('saved_manager_id', managerUid);
+    }
+    // --- 🟢 Chrome Shortcut Fix শেষ ---
 
-                async function renderStudentPortal() {
-                    document.body.innerHTML = '<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><i class="fas fa-spinner fa-spin fa-3x" style="color:#6366f1; margin-bottom:15px;"></i><h3 style="color:#1e293b; font-family:Poppins;">Loading Portal...</h3></div>';
+    if (studentViewId && managerUid) {
+        document.body.innerHTML = ''; 
+        document.body.style.background = '#f8fafc';
+
+        async function renderStudentPortal() {
+            document.body.innerHTML = '<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><i class="fas fa-spinner fa-spin fa-3x" style="color:#6366f1; margin-bottom:15px;"></i><h3 style="color:#1e293b; font-family:Poppins;">Loading Portal...</h3></div>';
+            
+            try {
+                const docRef = db.collection('music_classes').doc(managerUid);
+                const [studentDoc, mainDoc] = await Promise.all([
+                    docRef.collection('students').doc(studentViewId).get(),
+                    docRef.get()
+                ]);
+
+                if(studentDoc.exists && mainDoc.exists) {
+                    const s = studentDoc.data();
+                    const globalData = mainDoc.data();
+                    const globalAtt = globalData.attendance || {};
+                    const globalFees = globalData.fees || {};
                     
-                    try {
-                        const docRef = db.collection('music_classes').doc(managerUid);
-                        const [studentDoc, mainDoc] = await Promise.all([
-                            docRef.collection('students').doc(studentViewId).get(),
-                            docRef.get()
-                        ]);
+                    if (s.allow_profile_view !== false) {
+                        // ১. Personal Notice
+                        let noticeHtml = '';
+                        if (s.personal_notice && s.personal_notice.trim() !== '') {
+                            noticeHtml = `
+                            <div style="background: linear-gradient(90deg, #fffbeb, #fef3c7); padding: 12px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-bell fa-shake" style="color: #d97706;"></i>
+                                <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
+                            </div>`;
+                        }
 
-                        if(studentDoc.exists && mainDoc.exists) {
-                            const s = studentDoc.data();
-                            const globalData = mainDoc.data();
-                            const globalAtt = globalData.attendance || {};
-                            const globalFees = globalData.fees || {};
-                            
-                            if (s.allow_profile_view !== false) {
-                                
-                                // ১. Personal Notice
-                                let noticeHtml = '';
-                                if (s.personal_notice && s.personal_notice.trim() !== '') {
-                                    noticeHtml = `
-                                    <div style="background: linear-gradient(90deg, #fffbeb, #fef3c7); padding: 12px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                                        <i class="fas fa-bell fa-shake" style="color: #d97706;"></i>
-                                        <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
-                                    </div>`;
-                                }
+                        // ২. Attendance Data
+                        let attRecords = [];
+                        Object.keys(globalAtt).forEach(date => { if(globalAtt[date][studentViewId]) attRecords.push({ date, data: globalAtt[date][studentViewId] }); });
+                        attRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
+                        
+                        let validAttRecords = attRecords.filter(rec => {
+                            let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : (typeof rec.data === 'string' ? rec.data : null);
+                            let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note.trim() : '';
+                            return (status === 'present' || status === 'absent' || note !== '');
+                        });
 
-// ২. Attendance Data (ফাঁকা এন্ট্রি হাইড করার লজিক)
-                                let attRecords = [];
-                                Object.keys(globalAtt).forEach(date => { if(globalAtt[date][studentViewId]) attRecords.push({ date, data: globalAtt[date][studentViewId] }); });
-                                attRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
-                                
-                                // 🟢 NEW: শুধুমাত্র আসল ডেটা (Present/Absent বা Note থাকলে) ফিল্টার করা হচ্ছে
-                                let validAttRecords = attRecords.filter(rec => {
-                                    let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : (typeof rec.data === 'string' ? rec.data : null);
-                                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note.trim() : '';
-                                    
-                                    // যদি status বা note-এর যেকোনো একটি থাকে, তবেই লিস্টে দেখাবে
-                                    return (status === 'present' || status === 'absent' || note !== '');
-                                });
+                        let attHtml = validAttRecords.length > 0 ? validAttRecords.map(rec => {
+                            let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
+                            let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
+                            let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
 
-                                let attHtml = validAttRecords.length > 0 ? validAttRecords.map(rec => {
-                                    let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
-                                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
-                                    let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
+                            let clr = status === 'present' ? '#16a34a' : (status === 'absent' ? '#dc2626' : '#f59e0b');
+                            const d = new Date(rec.date);
+                            const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+                            const formattedDate = d.toLocaleDateString('en-IN');
 
-                                    // কালার লজিক
-                                    let clr = status === 'present' ? '#16a34a' : (status === 'absent' ? '#dc2626' : '#f59e0b');
+                            let timeDisplay = time ? formatTime12H(time) : '';
+                            let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
+                            let noteDisplay = note ? `<br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>` : '';
 
-                                    // Date & Time ফরম্যাট
-                                    const d = new Date(rec.date);
-                                    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
-                                    const formattedDate = d.toLocaleDateString('en-IN');
+                            return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                                <div>
+                                    <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}
+                                    ${noteDisplay}
+                                </div>
+                                <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
+                            </div>`;
+                        }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
 
-                                    let timeDisplay = time ? formatTime12H(time) : '';
-                                    let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
-                                    
-                                    let noteDisplay = note ? `<br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>` : '';
-
-                                    return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                                        <div>
-                                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}
-                                            ${noteDisplay}
-                                        </div>
-                                        <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
-                                    </div>`;
-                                }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
-
-// ৩. Payment Data
+                        // ৩. Payment Data
                         let feeRecords = [];
                         Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
                         feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
                         
                         let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
-                            // ট্রানজ্যাকশন আইডি থাকলে দেখাবে
                             let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:#047857; font-weight:600; display:inline-block; margin-top:6px; background:#d1fae5; padding:4px 8px; border-radius:6px; border:1px dashed #34d399;"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
-                            
-                            // পেমেন্টের তারিখ ফরম্যাট করা (যেমন: 15 Oct, 2023)
                             let payDate = rec.data.date ? new Date(rec.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
-                            
-                            // মাসের নাম ফরম্যাট করা
                             let monthName = new Date(rec.month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' });
                             
                             return `
@@ -223,705 +274,753 @@ if (studentViewId && managerUid) {
                             </div>`;
                         }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
 
-// ৪. Due Data (Fixed for Standalone Portal View)
-                                let dueHtml = '';
-                                let dueMonthsList = [];
-                                const portalNow = new Date();
-                                const portalToday = portalNow.getDate();
-                                const portalDUE_DATE = 10; // মাসের ১০ তারিখের পর ডিউ দেখাবে
+                        // ৪. Due Data
+                        let dueHtml = '';
+                        let dueMonthsList = [];
+                        const portalNow = new Date();
+                        const portalToday = portalNow.getDate();
+                        const portalDUE_DATE = 10;
+                        
+                        let iterDate = new Date(s.joining_date);
+                        if (!isNaN(iterDate.getTime())) {
+                            iterDate.setDate(1);
+                            while (iterDate <= portalNow) {
+                                const y = iterDate.getFullYear();
+                                const m = iterDate.getMonth() + 1;
+                                const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
                                 
-                                let iterDate = new Date(s.joining_date);
-                                if (!isNaN(iterDate.getTime())) {
-                                    iterDate.setDate(1);
-                                    while (iterDate <= portalNow) {
-                                        const y = iterDate.getFullYear();
-                                        const m = iterDate.getMonth() + 1;
-                                        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
-                                        
-                                        // ১. চেক করা হচ্ছে মাসটি ডিউ হয়েছে কিনা
-                                        let isPastDue = false;
-                                        if (y < portalNow.getFullYear()) isPastDue = true;
-                                        else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
-                                        else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
+                                let isPastDue = false;
+                                if (y < portalNow.getFullYear()) isPastDue = true;
+                                else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
+                                else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
 
-                                        // ২. চেক করা হচ্ছে স্টুডেন্ট ওই মাসে অ্যাক্টিভ ছিল কিনা
-                                        let wasActive = false;
-                                        const monthEnd = new Date(y, m, 0, 23, 59, 59);
-                                        const joinDate = new Date(s.joining_date);
-                                        if (joinDate <= monthEnd) {
-                                            const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
-                                            let statusAtStart = 'Active'; 
-                                            for (let i = 0; i < history.length; i++) { 
-                                                if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
-                                            }
-                                            let changesInMonth = history.filter(h => { 
-                                                const d = new Date(h.date); 
-                                                return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
-                                            });
-                                            
-                                            if (changesInMonth.length === 0) {
-                                                wasActive = (statusAtStart === 'Active');
-                                            } else {
-                                                const lastChange = changesInMonth[changesInMonth.length - 1];
-                                                wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
-                                            }
-                                        }
-
-                                        // ৩. যদি ডিউ হয় এবং পেমেন্ট না করা থাকে
-                                        if (isPastDue && wasActive) {
-                                            if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
-                                                const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                                                dueMonthsList.push(formattedMonth);
-                                            }
-                                        }
-                                        iterDate.setMonth(iterDate.getMonth() + 1);
+                                let wasActive = false;
+                                const monthEnd = new Date(y, m, 0, 23, 59, 59);
+                                const joinDate = new Date(s.joining_date);
+                                if (joinDate <= monthEnd) {
+                                    const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+                                    let statusAtStart = 'Active'; 
+                                    for (let i = 0; i < history.length; i++) { 
+                                        if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
+                                    }
+                                    let changesInMonth = history.filter(h => { 
+                                        const d = new Date(h.date); 
+                                        return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
+                                    });
+                                    
+                                    if (changesInMonth.length === 0) {
+                                        wasActive = (statusAtStart === 'Active');
+                                    } else {
+                                        const lastChange = changesInMonth[changesInMonth.length - 1];
+                                        wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
                                     }
                                 }
 
-                                if(dueMonthsList.length > 0) {
-                                    const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
-                                    dueHtml = `
-                                    <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
-                                    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
-                                        <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                        </div>
-                                        <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
-                                        <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
-                                        <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
-                                    </div>`;
+                                if (isPastDue && wasActive) {
+                                    if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
+                                        const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                                        dueMonthsList.push(formattedMonth);
+                                    }
                                 }
-
-                                // ৫. Study Materials Data
-                                let materialsHtml = '';
-                                if (s.study_materials && s.study_materials.length > 0) {
-                                    materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
-                                        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
-                                        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
-                                            <div style="display:flex; align-items:center; gap:10px;">
-                                                <div style="font-size:20px;">${icon}</div>
-                                                <div>
-                                                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
-                                                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
-                                                </div>
-                                            </div>
-                                            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
-                                        </div>`;
-                                    }).join('');
-                                } else {
-                                    materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
-                                }
-
-                                // ৬. HTML Structure
-                                document.body.innerHTML = `
-                                    <style>
-                                        .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
-                                        .modal-content-portal { background:#fff; width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                                        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-                                        .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
-                                        .scroller-box::-webkit-scrollbar { width: 4px; }
-                                        .scroller-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-                                        .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:#94a3b8; background: #f1f5f9; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-                                    </style>
-                                    
-                                    <div style="background: #f4f7f6; min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px;">
-                                        <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
-                                            <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
-                                            <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
-                                        </div>
-
-                                        <div style="margin-top:-60px; padding:0 20px;">
-                                            <div style="text-align: center; margin-bottom: 25px;">
-                                                <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid #fff; object-fit:cover; background:#eee; box-shadow:0 8px 16px rgba(0,0,0,0.1);">
-                                                <h2 style="margin:10px 0 5px 0; color:#1e293b; font-size:20px; font-weight: 700;">${s.name}</h2>
-                                                <span style="background:#dcfce7; color:#166534; padding:4px 12px; border-radius:20px; font-size:12px; font-weight:600; border: 1px solid #bbf7d0;">Active Student</span>
-                                            </div>
-
-                                            ${noticeHtml}
-                                            <div style="margin-top: 25px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid #10b981;">
-    <h4 style="margin:0 0 15px 0; color:#334155; font-size:16px;">
-        <i class="fas fa-stopwatch" style="color:#10b981; margin-right:5px;"></i> Daily Practice Log
-    </h4>
-    
-    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
-        <span style="font-size: 13px; color: #64748b; font-weight: 600;"><i class="fas fa-clock"></i> Time:</span>
-        <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; color: #1e293b; background: white;">
-        <span style="font-size: 10px; color: #94a3b8;">(Optional)</span>
-    </div>
-
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <input type="number" id="practiceMinutes" placeholder="Mins (e.g. 45)" style="width: 35%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
-        <input type="text" id="practiceTopic" placeholder="Topic (e.g. C Major Scale)" style="width: 65%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
-    </div>
-    
-    <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);">
-        <i class="fas fa-check-circle"></i> Log Practice
-    </button>
-    <div id="practiceHistoryPortal" style="margin-top: 15px; max-height: 150px; overflow-y: auto;"></div>
-</div>
-
-                                            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px;">
-                                                <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                                    <div style="display:flex; align-items:center; gap:15px;">
-                                                        <div style="background:#eff6ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
-                                                        <span style="font-size:15px; font-weight:600; color:#334155;">Profile Details</span>
-                                                    </div>
-                                                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
-                                                </button>
-                                                
-                                                <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                                    <div style="display:flex; align-items:center; gap:15px;">
-                                                        <div style="background:#f3e8ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
-                                                        <span style="font-size:15px; font-weight:600; color:#334155;">Attendance History</span>
-                                                    </div>
-                                                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
-                                                </button>
-                                                
-                                                <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                                    <div style="display:flex; align-items:center; gap:15px;">
-                                                        <div style="background:#dcfce7; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
-                                                        <span style="font-size:15px; font-weight:600; color:#334155;">Payment History</span>
-                                                    </div>
-                                                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
-                                                </button>
-                                            </div>
-
-                                            ${dueHtml}
-
-                                            <div style="margin-top: 10px;">
-                                                <h4 style="margin:0 0 15px 5px; color:#334155; font-size:16px;"><i class="fas fa-book-open" style="color:#6366f1; margin-right:5px;"></i> My Study Materials</h4>
-                                                <div class="scroller-box" style="background:#fff; border-radius:16px; padding:15px; box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
-                                            </div>
-                                        </div>
-
-                     <div id="m-teacher" class="modal-portal"><div class="modal-content-portal">
-    <div class="close-btn" onclick="document.getElementById('m-teacher').style.display='none'">&times;</div>
-    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Teacher Details</h3>
-    <div style="text-align: center; padding: 15px 0;">
-        <div style="background:#eff6ff; width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:30px; margin: 0 auto 15px auto; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);">
-            <i class="fas fa-user-tie"></i>
-        </div>
-        <h2 style="margin: 0 0 5px 0; color: #1e293b;">Srikanta Banerjee</h2>
-        <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 600;">Owner & Instructor</p>
-        
-        <div style="margin-top: 20px; text-align: left; font-size: 14px; color: #334155; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1; line-height: 1.6;">
-            <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 16px; margin-top: 3px;"></i> 
-                <div>
-                    <strong>Address:</strong><br>
-                    <span style="color: #475569;">Moyna, Nabagram,<br>Purba Bardhaman</span>
-                </div>
-            </div>
-            <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                <i class="fas fa-phone-alt" style="color: #10b981; font-size: 16px; margin-top: 3px;"></i> 
-                <div>
-                    <strong>Contact:</strong><br>
-                    <span style="color: #475569;">7001471235 / 9475311199</span>
-                </div>
-            </div>
-            <div style="display: flex; align-items: flex-start; gap: 10px;">
-                <i class="fas fa-music" style="color: #8b5cf6; font-size: 16px; margin-top: 3px;"></i> 
-                <div>
-                    <strong>Classes:</strong><br>
-                    <span style="color: #475569;">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span>
-                </div>
-            </div>
-        </div>
-    </div>
-</div></div>                   
-                                        <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
-                                            <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
-                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
-                                            <div class="scroller-box" style="font-size: 14px; color: #475569;">
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                                </div>
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
-                                                </div>
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">Class:</span> <span style="color:#1e293b;">${s.class || 'N/A'}</span>
-                                                </div>
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:#10b981; font-weight:700;">₹${s.fee_amount || 500}</span>
-                                                </div>
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">Phone:</span> <span style="color:#1e293b;">${s.phone || 'N/A'}</span>
-                                                </div>
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                                                    <span style="font-weight:600;">DOB:</span> <span style="color:#1e293b;">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                                </div>
-                                                <div style="display:flex; justify-content:space-between; padding: 10px 0;">
-                                                    <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:#1e293b;">${s.address || 'N/A'}</span>
-                                                </div>
-                                            </div>
-                                        </div></div>
-
-                                        <div id="m-att" class="modal-portal"><div class="modal-content-portal">
-                                            <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
-                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
-                                            <div class="scroller-box">${attHtml}</div>
-                                        </div></div>
-
-                                        <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
-                                            <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
-                                            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Payment History</h3>
-                                            <div class="scroller-box">${paidHtml}</div>
-                                        </div></div>
-
-                                        <div style="position:fixed; bottom:0; left:0; width:100%; background:#fff; padding:15px 20px; display:flex; gap:12px; box-shadow:0 -10px 30px rgba(0,0,0,0.06); border-radius:24px 24px 0 0; box-sizing:border-box;">
-    
-    <button onclick="document.getElementById('m-teacher').style.display='flex'" style="width: 65px; height: 55px; flex-shrink: 0; background: #f1f5f9; border: none; border-radius: 16px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-        <i class="fas fa-user-tie" style="font-size: 24px; color: #334155;"></i>
-    </button>
-    
-    <button onclick="showHelpOptions()" style="flex: 1; height: 55px; background: #6366f1; color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-weight: 700; font-size: 16px; box-shadow: 0 6px 15px rgba(99,102,241,0.25); cursor: pointer;">
-        <i class="fas fa-headset" style="margin-right: 8px;"></i> Help
-    </button>
-    
-    <button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="flex: 1; height: 55px; background: #fff; color: #ef4444; border: 2px solid #fecaca; display: flex; align-items: center; justify-content: center; border-radius: 16px; font-weight: 700; font-size: 16px; cursor: pointer;">
-        Log Out
-    </button>
-
-</div>
-                                        </div></div>
-    `;
-    
-    setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
-
-                            } else {
-                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                                iterDate.setMonth(iterDate.getMonth() + 1);
                             }
+                        }
+
+                        if(dueMonthsList.length > 0) {
+                            const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
+                            dueHtml = `
+                            <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
+                            <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
+                                <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                                <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
+                                <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
+                                <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
+                            </div>`;
+                        }
+
+                        // ৫. Study Materials Data
+                        let materialsHtml = '';
+                        if (s.study_materials && s.study_materials.length > 0) {
+                            materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
+                                let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
+                                return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <div style="font-size:20px;">${icon}</div>
+                                        <div>
+                                            <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
+                                            <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+                                        </div>
+                                    </div>
+                                    <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
+                                </div>`;
+                            }).join('');
                         } else {
-                            document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="localStorage.removeItem('verified_student_${studentViewId}'); window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                            materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
                         }
-                    } catch(e) { 
-                        console.error(e); 
-                        document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Connection Error</h2><button onclick="window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Retry</button></div>`;
-                    }
-                }
 
-                if (localStorage.getItem(`verified_student_${studentViewId}`) === 'true') {
-                    renderStudentPortal();
-                } else {
-                    const vOverlay = document.createElement('div');
-                    vOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #4f46e5, #7c3aed); z-index:10000; display:flex; align-items:center; justify-content:center;";
-                    vOverlay.innerHTML = `
-                        <div style="background:#fff; padding:35px 25px; border-radius:24px; width:85%; max-width:350px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
-                            <div style="background:#eff6ff; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
-                                <i class="fas fa-user-graduate" style="color:#4f46e5; font-size:24px;"></i>
-                            </div>
-                            <h3 style="margin-bottom:5px; color:#1e293b; font-family:'Poppins', sans-serif;">Student Login</h3>
-                            <p style="font-size:13px; color:#64748b; margin-bottom:25px;">Verify your identity to continue</p>
+                        // 🟢 NEW: Active/Inactive Status Check for Portal
+                        const isStudentActive = isStudentCurrentlyActive(s);
+                        let badgeHtml = '';
+                        let inactiveDetailsHtml = '';
+                        let practiceLogFormHtml = '';
+
+                        if (isStudentActive) {
+                            badgeHtml = `<div style="margin-top: 8px;"><span style="background:#dcfce7; color:#166534; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #bbf7d0; display:inline-block;">Active Student</span></div>`;
                             
-                            <div style="text-align:left; margin-bottom:15px;">
-                                <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Phone Number</label>
-                                <input type="tel" id="v_phone" placeholder="e.g. 9876543210" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
+                            practiceLogFormHtml = `
+                            <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+                                <span style="font-size: 13px; color: #64748b; font-weight: 600;"><i class="fas fa-clock"></i> Time:</span>
+                                <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; color: #1e293b; background: white;">
+                                <span style="font-size: 10px; color: #94a3b8;">(Optional)</span>
                             </div>
-                            <div style="text-align:left; margin-bottom:25px;">
-                                <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Date of Birth</label>
-                                <input type="date" id="v_dob" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
+
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <input type="number" id="practiceMinutes" placeholder="Mins (e.g. 45)" style="width: 35%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
+                                <input type="text" id="practiceTopic" placeholder="Topic (e.g. C Major Scale)" style="width: 65%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
                             </div>
                             
-                            <button id="v_btn" style="width:100%; padding:14px; background:#4f46e5; color:#fff; border:none; border-radius:12px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(79, 70, 229, 0.3);">Access Portal <i class="fas fa-arrow-right" style="margin-left:5px;"></i></button>
-                            <p id="v_err" style="color:#ef4444; font-size:12px; margin-top:15px; display:none; background:#fef2f2; padding:8px; border-radius:8px;"></p>
-                        </div>`;
-                    document.body.appendChild(vOverlay);
-                    
-                    document.getElementById('v_btn').onclick = async function() {
-                        const ph = document.getElementById('v_phone').value.trim();
-                        const dob = document.getElementById('v_dob').value;
-                        const err = document.getElementById('v_err');
-                        const btn = document.getElementById('v_btn');
-                        
-                        if(!ph || !dob) { err.textContent = "Please fill all fields"; err.style.display='block'; return; }
-                        
-                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
-                        btn.disabled = true;
-                        
-                        try {
-                            const sDoc = await db.collection('music_classes').doc(managerUid).collection('students').doc(studentViewId).get();
-                            if(sDoc.exists && sDoc.data().phone === ph && sDoc.data().dob === dob) {
-                                localStorage.setItem(`verified_student_${studentViewId}`, 'true');
-                                vOverlay.remove();
-                                renderStudentPortal();
-                            } else { 
-                                err.textContent = "Incorrect details. Try again."; 
-                                err.style.display='block'; 
-                                btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
-                                btn.disabled = false;
+                            <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);">
+                                <i class="fas fa-check-circle"></i> Log Practice
+                            </button>`;
+                        } else {
+                            badgeHtml = `<div style="margin-top: 8px; display: block;"><span style="background:#fee2e2; color:#991b1b; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #fecaca; display:inline-block;">Inactive Student</span></div>`;
+                            
+                            let inactiveDateText = 'N/A';
+                            let durationText = '';
+                            if (s.status && s.status.history && s.status.history.length > 0) {
+                                const sortedHistory = [...s.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+                                if (sortedHistory[0].status === 'Inactive') {
+                                    const inactiveDate = new Date(sortedHistory[0].date);
+                                    inactiveDateText = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+                                    
+                                    const today = new Date();
+                                    let y = today.getFullYear() - inactiveDate.getFullYear();
+                                    let m = today.getMonth() - inactiveDate.getMonth();
+                                    let d = today.getDate() - inactiveDate.getDate();
+                                    
+                                    if (d < 0) { m--; const lm = new Date(today.getFullYear(), today.getMonth(), 0); d += lm.getDate(); }
+                                    if (m < 0) { y--; m += 12; }
+                                    
+                                    let dur = [];
+                                    if (y > 0) dur.push(y + ' Yrs');
+                                    if (m > 0) dur.push(m + ' Mths');
+                                    if (d > 0) dur.push(d + ' Days');
+                                    if (dur.length === 0) dur.push('Today');
+                                    durationText = `(Duration: ${dur.join(', ')})`;
+                                }
                             }
-                        } catch(e) {
-                            err.textContent = "Network error. Check internet."; 
-                            err.style.display='block';
-                            btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
-                            btn.disabled = false;
+                            inactiveDetailsHtml = `<div style="margin-top: 12px; font-size: 13px; color: #ef4444; font-weight: 600; background: #fef2f2; padding: 10px 20px; border-radius: 12px; display: inline-block; border: 1px dashed #fca5a5;">Inactive Since: ${inactiveDateText} <br> <span style="font-size:12px; color:#b91c1c;">${durationText}</span></div>`;
+                            
+                            practiceLogFormHtml = `
+                            <div style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px dashed #fca5a5; text-align: center; color: #dc2626;">
+                                <i class="fas fa-lock" style="font-size: 24px; margin-bottom: 8px;"></i>
+                                <div style="font-size: 13px; font-weight: 600;">Practice Logging is Disabled</div>
+                                <div style="font-size: 11px; margin-top: 4px;">You cannot log practice while your status is Inactive. Please contact your teacher to reactivate your profile.</div>
+                            </div>`;
                         }
-                    };
-                }
-                return; 
-            }
-            auth.onAuthStateChanged(async (user) => {
-                const loginOverlay = document.getElementById('loginOverlay');
-                const userDisplay = document.getElementById('currentUserDisplay');
 
-                if (user) {
-                    console.log("Logged in:", user.email);
-                    if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
-                    
-                    loginOverlay.style.display = 'none';
-                    DOC_ID = user.uid; 
+                        // ৬. HTML Structure
+                        document.body.innerHTML = `
+                            <style>
+                                .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
+                                .modal-content-portal { background:#fff; width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+                                @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+                                .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
+                                .scroller-box::-webkit-scrollbar { width: 4px; }
+                                .scroller-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+                                .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:#94a3b8; background: #f1f5f9; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+                            </style>
+                            
+                            <div style="background: #f4f7f6; min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px;">
+                                <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+                                    <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
+                                    <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
+                                </div>
 
-                    await syncOldDataToFirebase();
-                    await loadInstituteLogo();
-                    await loadAuthSignature();
+                                <div style="margin-top:-60px; padding:0 20px;">
+                                    <div style="text-align: center; margin-bottom: 25px;">
+                                        <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid #fff; object-fit:cover; background:#eee; box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                                        <h2 style="margin:10px 0 5px 0; color:#1e293b; font-size:20px; font-weight: 700;">${s.name}</h2>
+                                        ${badgeHtml}
+                                        ${inactiveDetailsHtml}
+                                    </div>
 
-                    secureAction(() => { 
-                        initApp(); 
-                        startClock(); 
-                    }, true);
+                                    ${noticeHtml}
+                                    <div style="margin-top: 25px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid #10b981;">
+                                        <h4 style="margin:0 0 15px 0; color:#334155; font-size:16px;">
+                                            <i class="fas fa-stopwatch" style="color:#10b981; margin-right:5px;"></i> Daily Practice Log
+                                        </h4>
+                                        ${practiceLogFormHtml}
+                                        <div id="practiceHistoryPortal" style="margin-top: 15px; max-height: 150px; overflow-y: auto;"></div>
+                                    </div>
 
+                                    <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px;">
+                                        <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                            <div style="display:flex; align-items:center; gap:15px;">
+                                                <div style="background:#eff6ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
+                                                <span style="font-size:15px; font-weight:600; color:#334155;">Profile Details</span>
+                                            </div>
+                                            <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                                        </button>
+                                        
+                                        <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                            <div style="display:flex; align-items:center; gap:15px;">
+                                                <div style="background:#f3e8ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
+                                                <span style="font-size:15px; font-weight:600; color:#334155;">Attendance History</span>
+                                            </div>
+                                            <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                                        </button>
+                                        
+                                        <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                                            <div style="display:flex; align-items:center; gap:15px;">
+                                                <div style="background:#dcfce7; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
+                                                <span style="font-size:15px; font-weight:600; color:#334155;">Payment History</span>
+                                            </div>
+                                            <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                                        </button>
+                                    </div>
+
+                                    ${dueHtml}
+
+                                    <div style="margin-top: 10px;">
+                                        <h4 style="margin:0 0 15px 5px; color:#334155; font-size:16px;"><i class="fas fa-book-open" style="color:#6366f1; margin-right:5px;"></i> My Study Materials</h4>
+                                        <div class="scroller-box" style="background:#fff; border-radius:16px; padding:15px; box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
+                                    </div>
+                                </div>
+
+                                <div id="m-teacher" class="modal-portal"><div class="modal-content-portal">
+                                    <div class="close-btn" onclick="document.getElementById('m-teacher').style.display='none'">&times;</div>
+                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Teacher Details</h3>
+                                    <div style="text-align: center; padding: 15px 0;">
+                                        <div style="background:#eff6ff; width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:30px; margin: 0 auto 15px auto; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);">
+                                            <i class="fas fa-user-tie"></i>
+                                        </div>
+                                        <h2 style="margin: 0 0 5px 0; color: #1e293b;">Srikanta Banerjee</h2>
+                                        <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 600;">Owner & Instructor</p>
+                                        
+                                        <div style="margin-top: 20px; text-align: left; font-size: 14px; color: #334155; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1; line-height: 1.6;">
+                                            <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                                                <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 16px; margin-top: 3px;"></i> 
+                                                <div>
+                                                    <strong>Address:</strong><br>
+                                                    <span style="color: #475569;">Moyna, Nabagram,<br>Purba Bardhaman</span>
+                                                </div>
+                                            </div>
+                                            <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                                                <i class="fas fa-phone-alt" style="color: #10b981; font-size: 16px; margin-top: 3px;"></i> 
+                                                <div>
+                                                    <strong>Contact:</strong><br>
+                                                    <span style="color: #475569;">7001471235 / 9475311199</span>
+                                                </div>
+                                            </div>
+                                            <div style="display: flex; align-items: flex-start; gap: 10px;">
+                                                <i class="fas fa-music" style="color: #8b5cf6; font-size: 16px; margin-top: 3px;"></i> 
+                                                <div>
+                                                    <strong>Classes:</strong><br>
+                                                    <span style="color: #475569;">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div></div>                   
+                                
+                                <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
+                                    <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
+                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
+                                    <div class="scroller-box" style="font-size: 14px; color: #475569;">
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                            <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                            <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                            <span style="font-weight:600;">Class:</span> <span style="color:#1e293b;">${s.class || 'N/A'}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                            <span style="font-weight:600;">Fee Amount:</span> <span style="color:#10b981; font-weight:700;">₹${s.fee_amount || 500}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                            <span style="font-weight:600;">Phone:</span> <span style="color:#1e293b;">${s.phone || 'N/A'}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
+                                            <span style="font-weight:600;">DOB:</span> <span style="color:#1e293b;">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
+                                        </div>
+                                        <div style="display:flex; justify-content:space-between; padding: 10px 0;">
+                                            <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:#1e293b;">${s.address || 'N/A'}</span>
+                                        </div>
+                                    </div>
+                                </div></div>
+
+                                <div id="m-att" class="modal-portal"><div class="modal-content-portal">
+                                    <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
+                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
+                                    <div style="margin-bottom: 15px;">
+                                        ${getPastInactivePeriodsHtml(s)}
+                                    </div>
+                                    <div class="scroller-box">${attHtml}</div>
+                                </div></div>
+
+                                <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
+                                    <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
+                                    <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Payment History</h3>
+                                    <div class="scroller-box">${paidHtml}</div>
+                                </div></div>
+
+                                <div style="position:fixed; bottom:0; left:0; width:100%; background:#fff; padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.06); border-radius:24px 24px 0 0; box-sizing:border-box;">
+                                    <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: #f1f5f9; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                                        <i class="fas fa-user-tie" style="font-size: 24px; color: #000000;"></i>
+                                    </button>
+                                    <button onclick="showStudentPortalQR('${studentViewId}')" style="flex: 1.2; height: 45px; background: #3b82f6; color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(59,130,246,0.3); cursor: pointer;">
+                                        QR Code
+                                    </button>
+                                    <button onclick="showHelpOptions()" style="flex: 1.2; height: 45px; background: #6366f1; color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(99,102,241,0.3); cursor: pointer;">
+                                        Help
+                                    </button>
+                                    <button onclick="studentPortalLogout('${studentViewId}')" style="flex:1; height: 45px; background: #fff; color: #ef4444; border: 2px solid #fecaca; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
+                                        Log Out
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        `;
+
+                        setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+
+                        document.body.style.userSelect = 'none';
+                        document.body.style.webkitUserSelect = 'none';
+                        document.body.style.webkitTouchCallout = 'none';
+                        document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+                        document.addEventListener('copy', function(e) { e.preventDefault(); });
+                        const allImages = document.querySelectorAll('img');
+                        allImages.forEach(img => { img.style.pointerEvents = 'none'; });
+                    } else {
+                        document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="studentPortalLogout('${studentViewId}')" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                    }
                 } else {
-                    console.log("No user.");
-                    loginOverlay.style.display = 'flex';
-                    document.getElementById('securityOverlay').style.display = 'none';
+                    document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="studentPortalLogout('${studentViewId}')" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
                 }
-            });
-        });
+            } catch(e) { 
+                console.error(e); 
+                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Connection Error</h2><button onclick="window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Retry</button></div>`;
+            }
+        }
 
+        if (localStorage.getItem(`verified_student_${studentViewId}`) === 'true') {
+            renderStudentPortal();
+        } else {
+            const vOverlay = document.createElement('div');
+            vOverlay.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:linear-gradient(135deg, #4f46e5, #7c3aed); z-index:10000; display:flex; align-items:center; justify-content:center;";
+            vOverlay.innerHTML = `
+                <div style="background:#fff; padding:35px 25px; border-radius:24px; width:85%; max-width:350px; text-align:center; box-shadow:0 20px 40px rgba(0,0,0,0.2);">
+                    <div style="background:#eff6ff; width:60px; height:60px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 15px auto;">
+                        <i class="fas fa-user-graduate" style="color:#4f46e5; font-size:24px;"></i>
+                    </div>
+                    <h3 style="margin-bottom:5px; color:#1e293b; font-family:'Poppins', sans-serif;">Student Login</h3>
+                    <p style="font-size:13px; color:#64748b; margin-bottom:25px;">Verify your identity to continue</p>
+                    
+                    <div style="text-align:left; margin-bottom:15px;">
+                        <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Phone Number</label>
+                        <input type="tel" id="v_phone" placeholder="e.g. 9876543210" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
+                    </div>
+                    <div style="text-align:left; margin-bottom:25px;">
+                        <label style="font-size:12px; font-weight:600; color:#475569; margin-left:5px;">Date of Birth</label>
+                        <input type="date" id="v_dob" style="width:100%; padding:12px; margin-top:5px; border:2px solid #e2e8f0; border-radius:12px; box-sizing:border-box; outline:none; font-weight:bold;">
+                    </div>
+                    
+                    <button id="v_btn" style="width:100%; padding:14px; background:#4f46e5; color:#fff; border:none; border-radius:12px; font-weight:bold; font-size:16px; cursor:pointer; box-shadow:0 4px 12px rgba(79, 70, 229, 0.3);">Access Portal <i class="fas fa-arrow-right" style="margin-left:5px;"></i></button>
+                    <p id="v_err" style="color:#ef4444; font-size:12px; margin-top:15px; display:none; background:#fef2f2; padding:8px; border-radius:8px;"></p>
+                </div>`;
+            document.body.appendChild(vOverlay);
+            
+            document.getElementById('v_btn').onclick = async function() {
+                const ph = document.getElementById('v_phone').value.trim();
+                const dob = document.getElementById('v_dob').value;
+                const err = document.getElementById('v_err');
+                const btn = document.getElementById('v_btn');
+                
+                if(!ph || !dob) { err.textContent = "Please fill all fields"; err.style.display='block'; return; }
+                
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+                btn.disabled = true;
+                
+                try {
+                    const sDoc = await db.collection('music_classes').doc(managerUid).collection('students').doc(studentViewId).get();
+                    if(sDoc.exists && sDoc.data().phone === ph && sDoc.data().dob === dob) {
+                        localStorage.setItem(`verified_student_${studentViewId}`, 'true');
+                        vOverlay.remove();
+                        renderStudentPortal();
+                    } else { 
+                        err.textContent = "Incorrect details. Try again."; 
+                        err.style.display='block'; 
+                        btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
+                        btn.disabled = false;
+                    }
+                } catch(e) {
+                    err.textContent = "Network error. Check internet."; 
+                    err.style.display='block';
+                    btn.innerHTML = 'Access Portal <i class="fas fa-arrow-right"></i>';
+                    btn.disabled = false;
+                }
+            };
+        }
+        return; 
+    }
+    
+    auth.onAuthStateChanged(async (user) => {
+        const loginOverlay = document.getElementById('loginOverlay');
+        const userDisplay = document.getElementById('currentUserDisplay');
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const isStudentPortal = urlParams.get('student') && urlParams.get('manager');
+
+        if (isStudentPortal) {
+            if(loginOverlay) loginOverlay.style.display = 'none';
+            return; 
+        }
+
+        if (user) {
+            console.log("Logged in:", user.email);
+            if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
+            
+            loginOverlay.style.display = 'none';
+            DOC_ID = user.uid; 
+
+            await syncOldDataToFirebase();
+            await loadInstituteLogo();
+            await loadAuthSignature();
+
+            secureAction(() => { 
+                initApp(); 
+                startClock(); 
+            }, true);
+
+        } else {
+            console.log("No user.");
+            loginOverlay.style.display = 'flex';
+            document.getElementById('securityOverlay').style.display = 'none';
+        }
+    });
+});
 
 window.showHelpOptions = function() {
-            Swal.fire({
-                title: 'Contact Teacher',
-                text: 'How would you like to connect?',
-                showConfirmButton: false,
-                showCloseButton: true,
-                html: `
-                    <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
-                        <a href="tel:7001471235" style="background:#3b82f6; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:15px;">
-                            <i class="fas fa-phone-alt"></i> Call Now
-                        </a>
-                        <a href="https://wa.me/917001471235" target="_blank" style="background:#25D366; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:15px;">
-                            <i class="fab fa-whatsapp"></i> WhatsApp
-                        </a>
-                        <a href="sms:7001471235" style="background:#f59e0b; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:15px;">
-                            <i class="fas fa-sms"></i> Send SMS
-                        </a>
-                    </div>
-                `
+    Swal.fire({
+        title: 'Contact Teacher',
+        text: 'How would you like to connect?',
+        showConfirmButton: false,
+        showCloseButton: true,
+        html: `
+            <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                <a href="tel:7001471235" style="background:#3b82f6; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:15px;">
+                    <i class="fas fa-phone-alt"></i> Call Now
+                </a>
+                <a href="https://wa.me/917001471235" target="_blank" style="background:#25D366; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:15px;">
+                    <i class="fab fa-whatsapp"></i> WhatsApp
+                </a>
+                <a href="sms:7001471235" style="background:#f59e0b; color:white; padding:12px; border-radius:8px; text-decoration:none; font-weight:bold; font-size:15px;">
+                    <i class="fas fa-sms"></i> Send SMS
+                </a>
+            </div>
+        `
+    });
+};
+
+function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const errorMsg = document.getElementById('loginError');
+
+    if (!email || !password) {
+        errorMsg.textContent = "Email and password required!";
+        errorMsg.style.display = 'block';
+        return;
+    }
+
+    const loginBtn = document.querySelector('#loginOverlay button');
+    const originalText = loginBtn.innerHTML;
+    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
+
+    auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {})
+        .catch((error) => {
+            console.error(error);
+            errorMsg.textContent = "Error: " + error.message;
+            errorMsg.style.display = 'block';
+            loginBtn.innerHTML = originalText;
+        });
+}
+
+function handleLogout() {
+    Swal.fire({
+        title: 'Logout?',
+        text: "You need internet to login again.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'Yes, Logout'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            auth.signOut().then(() => {
+                window.location.reload();
             });
-        };
-        function handleLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const errorMsg = document.getElementById('loginError');
-
-            if (!email || !password) {
-                errorMsg.textContent = "Email and password required!";
-                errorMsg.style.display = 'block';
-                return;
-            }
-
-            const loginBtn = document.querySelector('#loginOverlay button');
-            const originalText = loginBtn.innerHTML;
-            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking...';
-
-            auth.signInWithEmailAndPassword(email, password)
-                .then((userCredential) => {})
-                .catch((error) => {
-                    console.error(error);
-                    errorMsg.textContent = "Error: " + error.message;
-                    errorMsg.style.display = 'block';
-                    loginBtn.innerHTML = originalText;
-                });
         }
+    });
+}
 
-        function handleLogout() {
-            Swal.fire({
-                title: 'Logout?',
-                text: "You need internet to login again.",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#d33',
-                confirmButtonText: 'Yes, Logout'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    auth.signOut().then(() => {
-                        window.location.reload();
-                    });
-                }
-            });
-        }
+function toggleTheme() {
+    const body = document.body;
+    const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('app_theme', newTheme);
+    updateThemeButton(newTheme);
+}
 
-        function toggleTheme() {
-            const body = document.body;
-            const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            body.setAttribute('data-theme', newTheme);
-            localStorage.setItem('app_theme', newTheme);
-            updateThemeButton(newTheme);
-        }
+function loadTheme() {
+    const t = localStorage.getItem('app_theme') || 'light';
+    document.body.setAttribute('data-theme', t);
+    updateThemeButton(t);
+}
 
-        function loadTheme() {
-            const t = localStorage.getItem('app_theme') || 'light';
-            document.body.setAttribute('data-theme', t);
-            updateThemeButton(t);
-        }
+function updateThemeButton(theme) {
+    const btn = document.getElementById('themeToggleBtn');
+    if(btn) btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i> Switch to Light Mode' : '<i class="fas fa-moon"></i> Switch to Dark Mode';
+}
 
-        function updateThemeButton(theme) {
-            const btn = document.getElementById('themeToggleBtn');
-            if(btn) btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i> Switch to Light Mode' : '<i class="fas fa-moon"></i> Switch to Dark Mode';
-        }
+let isPhotoDeletedInEdit = false;
 
-        let isPhotoDeletedInEdit = false;
+function removeEditPhoto() {
+    document.getElementById('editPhotoPreview').src = 'https://via.placeholder.com/100?text=No+Photo';
+    currentEditPhotoBase64 = null; 
+    isPhotoDeletedInEdit = true;
+}
 
-        function removeEditPhoto() {
-            document.getElementById('editPhotoPreview').src = 'https://via.placeholder.com/100?text=No+Photo';
-            currentEditPhotoBase64 = null; 
-            isPhotoDeletedInEdit = true;
-        }
+async function loadStudentsFromSubCollection() {
+    try {
+        const snapshot = await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').get();
+        if (snapshot.empty) return [];
+        return snapshot.docs.map(doc => doc.data());
+    } catch (error) {
+        console.error("Error loading students:", error);
+        return [];
+    }
+}
 
-        async function loadStudentsFromSubCollection() {
-            try {
-                const snapshot = await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').get();
-                if (snapshot.empty) return [];
-                return snapshot.docs.map(doc => doc.data());
-            } catch (error) {
-                console.error("Error loading students:", error);
-                return [];
-            }
-        }
+async function initApp() { 
+    const now = new Date();
+    document.getElementById('attendanceDate').valueAsDate = now;
+    document.getElementById('attendanceTime').value = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+    
+    const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`; 
+    const prevDate = new Date(now.getFullYear(), now.getMonth(), 1); 
+    prevDate.setMonth(prevDate.getMonth() - 1); 
+    const prevMonthStr = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
 
-        async function initApp() { 
-            const now = new Date();
-            document.getElementById('attendanceDate').valueAsDate = now;
-            document.getElementById('attendanceTime').value = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
-            
-            const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`; 
-            const prevDate = new Date(now);
-            prevDate.setMonth(prevDate.getMonth() - 1);
-            const prevMonthStr = `${prevDate.getFullYear()}-${(prevDate.getMonth() + 1).toString().padStart(2, '0')}`;
+    document.getElementById('feeMonth').value = currentMonthStr; 
+    document.getElementById('reportMonth').value = currentMonthStr; 
+    document.getElementById('reportYear').value = now.getFullYear(); 
+    document.getElementById('idCardIssueDate').valueAsDate = now; 
+    document.getElementById('analyticsYear').value = now.getFullYear(); 
+    document.getElementById('compMonth1').value = prevMonthStr;
+    document.getElementById('compMonth2').value = currentMonthStr;
 
-            document.getElementById('feeMonth').value = currentMonthStr; 
-            document.getElementById('reportMonth').value = currentMonthStr; 
-            document.getElementById('reportYear').value = now.getFullYear(); 
-            document.getElementById('idCardIssueDate').valueAsDate = now; 
-            document.getElementById('analyticsYear').value = now.getFullYear(); 
-            document.getElementById('compMonth1').value = prevMonthStr;
-            document.getElementById('compMonth2').value = currentMonthStr;
+    toggleReportInputs(); 
 
-            toggleReportInputs(); 
+    try {
+        let loadedStudents = await loadStudentsFromSubCollection();
 
-            try {
-                let loadedStudents = await loadStudentsFromSubCollection();
-
-                if (loadedStudents.length === 0) {
-                    const legacyStudents = await dbGet('students');
-                    if (legacyStudents && Array.isArray(legacyStudents) && legacyStudents.length > 0) {
-                        console.log("Found legacy data, migrating...");
-                        loadedStudents = legacyStudents.map(migrateStudentData);
-                        
-                        loadedStudents.forEach(st => {
-                             db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(st.id)).set(st);
-                        });
-                    }
-                }
-
-                const [aData, fData, rData, scData, gmData] = await Promise.all([
-                    dbGet('attendance'),
-                    dbGet('fees'),
-                    dbGet('reminders'),
-                    dbGet('studentSerialCounter'),
-                    dbGet('globalMaterials')
-                ]);
-
-                students = loadedStudents || []; 
-                attendance = aData || {}; 
-                fees = fData || {}; 
-                reminders = rData || []; 
-                globalMaterials = gmData || [];
-                studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
+        if (loadedStudents.length === 0) {
+            const legacyStudents = await dbGet('students');
+            if (legacyStudents && Array.isArray(legacyStudents) && legacyStudents.length > 0) {
+                console.log("Found legacy data, migrating...");
+                loadedStudents = legacyStudents.map(migrateStudentData);
                 
-                loadAllData(); 
-            } catch(e) {
-                console.error("Init Error:", e);
-                if(!students) students = [];
-                if(!attendance) attendance = {};
+                loadedStudents.forEach(st => {
+                     db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(st.id)).set(st);
+                });
             }
-
-            document.getElementById('attendanceDate').addEventListener('change', renderAttendance); 
-            document.getElementById('feeMonth').addEventListener('change', renderFees); 
-            
-            comparePeriods(); 
-            updateYearlyChart();
         }
 
-        const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes"; 
-        const MY_NAME = "Srikanta Banerjee"; 
-        const DEFAULT_FEE = 500, DUE_DATE = 10; 
+        const [aData, fData, rData, scData, gmData] = await Promise.all([
+            dbGet('attendance'),
+            dbGet('fees'),
+            dbGet('reminders'),
+            dbGet('studentSerialCounter'),
+            dbGet('globalMaterials')
+        ]);
+
+        students = loadedStudents || []; 
+        attendance = aData || {}; 
+        fees = fData || {}; 
+        reminders = rData || []; 
+        globalMaterials = gmData || [];
+        studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
         
-        let students = [], attendance = {}, fees = {}, reminders = [], globalMaterials = [], studentSerialCounter = 1; 
-        let financeChartInstance = null; 
-        let instituteLogo = null; 
-        let authorizedSignature = null;
-        let analyticsChartInstance = null; 
-        let currentlyViewingStudentId = null; 
-        let currentStudentView = 'active'; 
-        let html5QrcodeScanner = null;
-        
-        let dismissedBirthdays = JSON.parse(localStorage.getItem('dismissedBirthdays')) || [];
-        // 🟢 NEW: Future Date Inactive Logic (Time Machine)
+        loadAllData(); 
+    } catch(e) {
+        console.error("Init Error:", e);
+        if(!students) students = [];
+        if(!attendance) attendance = {};
+    }
+
+    document.getElementById('attendanceDate').addEventListener('change', renderAttendance); 
+    document.getElementById('feeMonth').addEventListener('change', renderFees); 
+    
+    comparePeriods(); 
+    updateYearlyChart();
+}
+
+const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes"; 
+const MY_NAME = "Srikanta Banerjee"; 
+const DEFAULT_FEE = 500, DUE_DATE = 10; 
+
+let students = [], attendance = {}, fees = {}, reminders = [], globalMaterials = [], studentSerialCounter = 1; 
+let financeChartInstance = null; 
+let instituteLogo = null; 
+let authorizedSignature = null;
+let analyticsChartInstance = null; 
+let currentlyViewingStudentId = null; 
+let currentStudentView = 'active'; 
+let html5QrcodeScanner = null;
+
+let dismissedBirthdays = JSON.parse(localStorage.getItem('dismissedBirthdays')) || [];
+
 window.isStudentCurrentlyActive = function(student, targetDateStr = null) {
     if (!student) return false;
     if (!student.status || !student.status.history || student.status.history.length === 0) {
-        return isStudentCurrentlyActive(student) !== false;
+        return student.status?.isActive !== false;
     }
     
-    let targetDate = new Date(); // আজকের দিন
-    if (targetDateStr) targetDate = new Date(targetDateStr);
-    targetDate.setHours(23, 59, 59, 999); // দিনের শেষ মুহূর্ত পর্যন্ত চেক করবে
+    let targetTime = targetDateStr ? new Date(targetDateStr).getTime() : Date.now();
+    let joinTime = new Date(student.joining_date).getTime();
+    if (targetTime < joinTime) return false;
     
-    const joinDate = new Date(student.joining_date);
-    joinDate.setHours(0, 0, 0, 0);
-    if (targetDate < joinDate) return false;
-    
-    // হিস্ট্রিগুলো তারিখ অনুযায়ী সাজানো
-    const history = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
     let currentStatus = 'Active'; 
+    let latestHistoryTime = 0;
     
-    for (let i = 0; i < history.length; i++) {
-        const hDate = new Date(history[i].date);
-        hDate.setHours(0, 0, 0, 0);
-        
-        // যদি ইনঅ্যাক্টিভ করার তারিখ আজকে বা আজকের আগে হয়, তবেই স্ট্যাটাস বদলাবে
-        if (hDate <= targetDate) {
-            currentStatus = history[i].status; 
-        } else {
-            // ভবিষ্যতের তারিখ হলে লুপ ব্রেক হয়ে যাবে (ফলে আগের Active স্ট্যাটাসটাই থেকে যাবে)
-            break; 
+    for (let i = 0; i < student.status.history.length; i++) {
+        let hTime = new Date(student.status.history[i].date).getTime();
+        if (hTime <= targetTime && hTime >= latestHistoryTime) {
+            latestHistoryTime = hTime;
+            currentStatus = student.status.history[i].status; 
         }
     }
     return currentStatus === 'Active';
 };
-        
-        async function saveInstituteLogo(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 200; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const logoBase64 = canvas.toDataURL('image/jpeg', 0.8); await dbSet('instituteLogo', logoBase64); await loadInstituteLogo(); Swal.fire('Success', 'Logo saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
-        async function loadInstituteLogo() { instituteLogo = await dbGet('instituteLogo'); const img = document.getElementById('logoPreview'); const headerLogo = document.getElementById('headerLogo'); const btn = document.getElementById('removeLogoBtn'); if (instituteLogo) { img.src = instituteLogo; img.style.display = 'block'; btn.style.display = 'inline-block'; headerLogo.src = instituteLogo; headerLogo.style.display = 'block'; } else { img.style.display = 'none'; btn.style.display = 'none'; headerLogo.style.display = 'none'; } }
-        async function removeLogo() { await dbDelete('instituteLogo'); instituteLogo = null; await loadInstituteLogo(); }
-        async function saveAuthSignature(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 150; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const sigBase64 = canvas.toDataURL('image/png'); await dbSet('authorizedSignature', sigBase64); await loadAuthSignature(); Swal.fire('Success', 'Signature saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
-        async function loadAuthSignature() { authorizedSignature = await dbGet('authorizedSignature'); const img = document.getElementById('authSigPreview'); const btn = document.getElementById('removeAuthSigBtn'); if (authorizedSignature) { img.src = authorizedSignature; img.style.display = 'block'; btn.style.display = 'inline-block'; } else { img.style.display = 'none'; btn.style.display = 'none'; } }
-        async function removeAuthSignature() { await dbDelete('authorizedSignature'); authorizedSignature = null; await loadAuthSignature(); }
-        
-        /* SIGNATURE PAD LOGIC */
-        let signaturePad = null;
-        let isDrawing = false;
-        let currentStudentSignature = null;
-        let sigRotation = 0;
 
-        function openSignatureModal() {
-            const modal = document.getElementById('signatureModal');
-            modal.style.display = 'flex';
-            
-            const canvas = document.getElementById('sigCanvas');
-            const wrapper = document.getElementById('sigWrapper');
-            
-            canvas.width = wrapper.clientWidth - 40;
-            canvas.height = wrapper.clientHeight - 40;
-            
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.strokeStyle = "#000";
-            ctx.lineWidth = 3;
-            ctx.lineCap = "round";
+async function saveInstituteLogo(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 200; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const logoBase64 = canvas.toDataURL('image/jpeg', 0.8); await dbSet('instituteLogo', logoBase64); await loadInstituteLogo(); Swal.fire('Success', 'Logo saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
+async function loadInstituteLogo() { instituteLogo = await dbGet('instituteLogo'); const img = document.getElementById('logoPreview'); const headerLogo = document.getElementById('headerLogo'); const btn = document.getElementById('removeLogoBtn'); if (instituteLogo) { img.src = instituteLogo; img.style.display = 'block'; btn.style.display = 'inline-block'; headerLogo.src = instituteLogo; headerLogo.style.display = 'block'; } else { img.style.display = 'none'; btn.style.display = 'none'; headerLogo.style.display = 'none'; } }
+async function removeLogo() { await dbDelete('instituteLogo'); instituteLogo = null; await loadInstituteLogo(); }
+async function saveAuthSignature(input) { const file = input.files[0]; if (file) { const reader = new FileReader(); reader.onload = function(e) { const img = new Image(); img.onload = async function() { const canvas = document.createElement('canvas'); const ctx = canvas.getContext('2d'); const maxWidth = 150; const scaleSize = maxWidth / img.width; canvas.width = maxWidth; canvas.height = img.height * scaleSize; ctx.drawImage(img, 0, 0, canvas.width, canvas.height); const sigBase64 = canvas.toDataURL('image/png'); await dbSet('authorizedSignature', sigBase64); await loadAuthSignature(); Swal.fire('Success', 'Signature saved!', 'success'); }; img.src = e.target.result; }; reader.readAsDataURL(file); } }
+async function loadAuthSignature() { authorizedSignature = await dbGet('authorizedSignature'); const img = document.getElementById('authSigPreview'); const btn = document.getElementById('removeAuthSigBtn'); if (authorizedSignature) { img.src = authorizedSignature; img.style.display = 'block'; btn.style.display = 'inline-block'; } else { img.style.display = 'none'; btn.style.display = 'none'; } }
+async function removeAuthSignature() { await dbDelete('authorizedSignature'); authorizedSignature = null; await loadAuthSignature(); }
 
-            sigRotation = 0;
-            document.querySelector('.sig-canvas-box').style.transform = `rotate(0deg)`;
+/* SIGNATURE PAD LOGIC */
+let signaturePad = null;
+let isDrawing = false;
+let currentStudentSignature = null;
+let sigRotation = 0;
 
-            canvas.addEventListener('mousedown', startDraw);
-            canvas.addEventListener('mousemove', draw);
-            canvas.addEventListener('mouseup', stopDraw);
-            canvas.addEventListener('touchstart', startDraw, {passive: false});
-            canvas.addEventListener('touchmove', draw, {passive: false});
-            canvas.addEventListener('touchend', stopDraw);
-        }
+function openSignatureModal() {
+    const modal = document.getElementById('signatureModal');
+    modal.style.display = 'flex';
+    
+    const canvas = document.getElementById('sigCanvas');
+    const wrapper = document.getElementById('sigWrapper');
+    
+    canvas.width = wrapper.clientWidth - 40;
+    canvas.height = wrapper.clientHeight - 40;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 3;
+    ctx.lineCap = "round";
 
-        function closeSignatureModal() {
-            document.getElementById('signatureModal').style.display = 'none';
-        }
+    sigRotation = 0;
+    document.querySelector('.sig-canvas-box').style.transform = `rotate(0deg)`;
 
-        function startDraw(e) {
-            isDrawing = true;
-            draw(e);
-            e.preventDefault(); 
-        }
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('touchstart', startDraw, {passive: false});
+    canvas.addEventListener('touchmove', draw, {passive: false});
+    canvas.addEventListener('touchend', stopDraw);
+}
 
-        function draw(e) {
-            if (!isDrawing) return;
-            const canvas = document.getElementById('sigCanvas');
-            const ctx = canvas.getContext('2d');
-            const rect = canvas.getBoundingClientRect();
-            
-            let x, y;
-            if (e.type.includes('touch')) {
-                x = e.touches[0].clientX - rect.left;
-                y = e.touches[0].clientY - rect.top;
-            } else {
-                x = e.clientX - rect.left;
-                y = e.clientY - rect.top;
-            }
+function closeSignatureModal() {
+    document.getElementById('signatureModal').style.display = 'none';
+}
 
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            e.preventDefault();
-        }
+function startDraw(e) {
+    isDrawing = true;
+    draw(e);
+    e.preventDefault(); 
+}
 
-        function stopDraw() {
-            isDrawing = false;
-            const canvas = document.getElementById('sigCanvas');
-            const ctx = canvas.getContext('2d');
-            ctx.beginPath();
-        }
+function draw(e) {
+    if (!isDrawing) return;
+    const canvas = document.getElementById('sigCanvas');
+    const ctx = canvas.getContext('2d');
+    const rect = canvas.getBoundingClientRect();
+    
+    let x, y;
+    if (e.type.includes('touch')) {
+        x = e.touches[0].clientX - rect.left;
+        y = e.touches[0].clientY - rect.top;
+    } else {
+        x = e.clientX - rect.left;
+        y = e.clientY - rect.top;
+    }
 
-        function clearSignature() {
-            const canvas = document.getElementById('sigCanvas');
-            const ctx = canvas.getContext('2d');
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    e.preventDefault();
+}
 
-        function rotateSignaturePad() {
-            sigRotation = (sigRotation + 90) % 360;
-            document.querySelector('.sig-canvas-box').style.transform = `rotate(${sigRotation}deg)`;
-        }
+function stopDraw() {
+    isDrawing = false;
+    const canvas = document.getElementById('sigCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.beginPath();
+}
 
-        function saveSignature() {
-            const canvas = document.getElementById('sigCanvas');
-            currentStudentSignature = canvas.toDataURL('image/png');
-            document.getElementById('signatureStatus').style.display = 'block';
-            closeSignatureModal();
-            Swal.fire('Saved', 'Signature captured successfully.', 'success');
-        }
+function clearSignature() {
+    const canvas = document.getElementById('sigCanvas');
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
 
-        function getFeeCalculationStartDate(student) { return new Date(student.joining_date); }
-        
-        // 🟢 NEW: নির্দিষ্ট তারিখে স্টুডেন্ট অ্যাক্টিভ ছিল কিনা তা চেক করার ফাংশন
+function saveSignature() {
+    const canvas = document.getElementById('sigCanvas');
+    currentStudentSignature = canvas.toDataURL('image/png');
+    document.getElementById('signatureStatus').style.display = 'block';
+    closeSignatureModal();
+    Swal.fire('Saved', 'Signature captured successfully.', 'success');
+}
+
+function getFeeCalculationStartDate(student) { return new Date(student.joining_date); }
+
 function isStudentActiveOnDate(student, targetDateStr) {
     if (!targetDateStr) return isStudentCurrentlyActive(student) !== false;
     
     const targetDate = new Date(targetDateStr);
-    targetDate.setHours(23, 59, 59, 999); // দিনের শেষ সময় পর্যন্ত চেক
+    targetDate.setHours(23, 59, 59, 999); 
     
     const joinDate = new Date(student.joining_date);
     joinDate.setHours(0, 0, 0, 0);
 
-    if (targetDate < joinDate) return false; // জয়েন করার আগের ডেট হলে দেখাবে না
+    if (targetDate < joinDate) return false; 
 
     if (!student.status || !student.status.history || student.status.history.length === 0) {
         return isStudentCurrentlyActive(student) !== false;
     }
 
-    // ইতিহাস (History) ডেট অনুযায়ী সাজিয়ে চেক করা
     const history = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
     let currentStatus = 'Active'; 
 
@@ -929,109 +1028,121 @@ function isStudentActiveOnDate(student, targetDateStr) {
         const hDate = new Date(history[i].date);
         hDate.setHours(0, 0, 0, 0);
         if (hDate <= targetDate) {
-            currentStatus = history[i].status; // টার্গেট ডেটের আগে কোনো পরিবর্তন হলে স্ট্যাটাস আপডেট হবে
+            currentStatus = history[i].status; 
         } else {
-            break; // ভবিষ্যতের ইভেন্ট বাদ দেওয়া হলো
+            break; 
         }
     }
     return currentStatus === 'Active';
 }
-        function wasStudentActiveDuringMonth(student, monthStr) {
-            const [year, month] = monthStr.split('-').map(Number);
-            const monthStart = new Date(year, month - 1, 1);
-            const monthEnd = new Date(year, month, 0, 23, 59, 59);
-            const joinDate = new Date(student.joining_date);
-            if (joinDate > monthEnd) return false;
-            
-            const history = (student.status.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
-            
-            let statusAtStart = 'Active'; 
-            for (let i = 0; i < history.length; i++) { 
-                if (new Date(history[i].date) < monthStart) { 
-                    statusAtStart = history[i].status; 
-                } 
-            }
-            
-            let changesInMonth = history.filter(h => { 
-                const d = new Date(h.date); 
-                return d >= monthStart && d <= monthEnd; 
-            });
-            
-            if (changesInMonth.length === 0) { return statusAtStart === 'Active'; }
-            
-            const lastChangeInMonth = changesInMonth[changesInMonth.length - 1];
-            const changeDate = new Date(lastChangeInMonth.date);
-            
-            if (lastChangeInMonth.status === 'Inactive') { 
-                return changeDate.getDate() > 10; 
-            } else { 
-                return true; 
-            }
-        }
 
-        function checkGlobalDues(studentId) { 
-            const s = students.find(x => x.id === studentId); 
-            if (!s) return false; 
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonthIndex = now.getMonth();
-            const today = now.getDate();
-            let iterDate = new Date(s.joining_date);
-            if(isNaN(iterDate.getTime())) return false;
-            iterDate.setDate(1);
-            while (iterDate <= now) { 
-                const y = iterDate.getFullYear(); 
-                const m = iterDate.getMonth() + 1; 
-                const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
-                if (wasStudentActiveDuringMonth(s, monthStr)) { 
-                    if (y < currentYear || (y === currentYear && m - 1 < currentMonthIndex)) { 
-                        if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
-                    } else if (y === currentYear && m - 1 === currentMonthIndex && today > DUE_DATE) { 
-                        if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
-                    } 
-                } 
-                iterDate.setMonth(iterDate.getMonth() + 1); 
-            } 
-            return false; 
-        }
+function wasStudentActiveDuringMonth(student, monthStr) {
+    const [year, month] = monthStr.split('-').map(Number);
+    const monthStart = new Date(year, month - 1, 1).getTime();
+    const monthEnd = new Date(year, month, 0, 23, 59, 59).getTime();
+    const joinDate = new Date(student.joining_date).getTime();
+    
+    if (joinDate > monthEnd) return false;
+    if (!student.status || !student.status.history || student.status.history.length === 0) {
+        return student.status?.isActive !== false;
+    }
 
-        function getDueMonthsList(studentId) { 
-            const s = students.find(x => x.id === studentId); 
-            if (!s) return []; 
-            const dueMonths = []; 
-            const now = new Date(); 
-            let iterDate = new Date(s.joining_date);
-            if(isNaN(iterDate.getTime())) return [];
-            iterDate.setDate(1);
-            while (iterDate <= now) { 
-                const y = iterDate.getFullYear(); 
-                const m = iterDate.getMonth() + 1; 
-                const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
-                if (wasStudentActiveDuringMonth(s, monthStr) && isMonthDue(monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
-                    dueMonths.push(formatMonthYear(monthStr)); 
-                } 
-                iterDate.setMonth(iterDate.getMonth() + 1); 
-            } 
-            return dueMonths; 
-        }
+    let statusAtStart = 'Active'; 
+    let latestBeforeStart = 0;
+    let changesInMonth = [];
 
-        function getDueMsg(student, month) { 
-            const feePerMonth = student.fee_amount || DEFAULT_FEE; 
-            const cls = student.class || 'Music'; 
-            const dueMonthsArray = getDueMonthsList(student.id);
-
-            if (dueMonthsArray.length > 1) {
-                const totalDueAmount = dueMonthsArray.length * feePerMonth;
-                const monthsStr = dueMonthsArray.join(", ");
-                return `Dear ${student.name},\n\nThis is a friendly reminder that your total fee of ₹${totalDueAmount} for the months of [${monthsStr}] for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
-            } else if (dueMonthsArray.length === 1) {
-                return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${dueMonthsArray[0]} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
-            } else {
-                const monthName = formatMonthYear(month); 
-                return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${monthName} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
-            }
-        }
+    for (let i = 0; i < student.status.history.length; i++) { 
+        let hTime = new Date(student.status.history[i].date).getTime();
         
+        if (hTime < monthStart && hTime >= latestBeforeStart) { 
+            latestBeforeStart = hTime;
+            statusAtStart = student.status.history[i].status; 
+        } else if (hTime >= monthStart && hTime <= monthEnd) {
+            changesInMonth.push({ time: hTime, status: student.status.history[i].status, dateObj: student.status.history[i].date });
+        }
+    }
+    
+    if (changesInMonth.length === 0) { 
+        return statusAtStart === 'Active'; 
+    }
+    
+    let lastChange = changesInMonth[0];
+    for(let i = 1; i < changesInMonth.length; i++){
+        if(changesInMonth[i].time > lastChange.time) {
+            lastChange = changesInMonth[i];
+        }
+    }
+    
+    if (lastChange.status === 'Inactive') { 
+        return new Date(lastChange.dateObj).getDate() > 10; 
+    } else { 
+        return true; 
+    }
+}
+
+function checkGlobalDues(studentId) { 
+    const s = students.find(x => x.id === studentId); 
+    if (!s) return false; 
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonthIndex = now.getMonth();
+    const today = now.getDate();
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return false;
+    iterDate.setDate(1);
+    while (iterDate <= now) { 
+        const y = iterDate.getFullYear(); 
+        const m = iterDate.getMonth() + 1; 
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+        if (wasStudentActiveDuringMonth(s, monthStr)) { 
+            if (y < currentYear || (y === currentYear && m - 1 < currentMonthIndex)) { 
+                if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
+            } else if (y === currentYear && m - 1 === currentMonthIndex && today > DUE_DATE) { 
+                if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
+            } 
+        } 
+        iterDate.setMonth(iterDate.getMonth() + 1); 
+    } 
+    return false; 
+}
+
+function getDueMonthsList(studentId) { 
+    const s = students.find(x => x.id === studentId); 
+    if (!s) return []; 
+    const dueMonths = []; 
+    const now = new Date(); 
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return [];
+    iterDate.setDate(1);
+    while (iterDate <= now) { 
+        const y = iterDate.getFullYear(); 
+        const m = iterDate.getMonth() + 1; 
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+        if (wasStudentActiveDuringMonth(s, monthStr) && isMonthDue(monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
+            dueMonths.push(formatMonthYear(monthStr)); 
+        } 
+        iterDate.setMonth(iterDate.getMonth() + 1); 
+    } 
+    return dueMonths; 
+}
+
+function getDueMsg(student, month) { 
+    const feePerMonth = student.fee_amount || DEFAULT_FEE; 
+    const cls = student.class || 'Music'; 
+    const dueMonthsArray = getDueMonthsList(student.id);
+
+    if (dueMonthsArray.length > 1) {
+        const totalDueAmount = dueMonthsArray.length * feePerMonth;
+        const monthsStr = dueMonthsArray.join(", ");
+        return `Dear ${student.name},\n\nThis is a friendly reminder that your total fee of ₹${totalDueAmount} for the months of [${monthsStr}] for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
+    } else if (dueMonthsArray.length === 1) {
+        return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${dueMonthsArray[0]} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
+    } else {
+        const monthName = formatMonthYear(month); 
+        return `Dear ${student.name},\n\nThis is a friendly reminder that your fee of ₹${feePerMonth} for ${monthName} for your ${cls} class is due.\n\nPlease pay as soon as possible. Thank you.\n\nFrom ${MY_NAME}\n(${INSTITUTE_NAME})`;
+    }
+}
+
 function getPaidMsg(student, monthsStr, amount, txnId) { 
     const cls = student.class || 'Music'; 
     const monthArray = monthsStr.split(',');
@@ -1042,7 +1153,7 @@ function getPaidMsg(student, monthsStr, amount, txnId) {
     msg += `\n\nThank you.`; 
     return msg; 
 }
-        
+
 function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) { 
     const student = students.find(s => s.id === studentId); 
     if(!student) return; 
@@ -1067,8 +1178,22 @@ function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) {
         window.open(`mailto:${student.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msgBody)}`, '_self'); 
     } 
 }
-        function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
-        
+
+function sendBirthdayWish(type, studentId) { 
+    const student = students.find(s => s.id === studentId); 
+    if(!student) return; 
+    const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; 
+    if(type === 'wa') { 
+        let cleanPhone = student.phone.replace(/[^0-9]/g, ''); 
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); 
+    } else if (type === 'sms') { 
+        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); 
+    } else if (type === 'mail') { 
+        window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); 
+    } 
+}
+
 function dismissBirthday(studentId) {
     const currentYear = new Date().getFullYear();
     const uniqueKey = `${studentId}_${currentYear}`; 
@@ -1080,31 +1205,22 @@ function dismissBirthday(studentId) {
         renderDashboard();
         
         const Toast = Swal.mixin({
-            toast: true,
-            position: 'top-end',
-            showConfirmButton: false,
-            timer: 2000,
-            timerProgressBar: true
+            toast: true, position: 'top-end', showConfirmButton: false, timer: 2000, timerProgressBar: true
         });
-        Toast.fire({
-            icon: 'success',
-            title: 'Birthday dismissed'
-        });
+        Toast.fire({ icon: 'success', title: 'Birthday dismissed' });
     }
 }
 
-        let pendingAction = null, pinInput = "";
-        function secureAction(callback, isInit = false) { pendingAction = callback; pinInput = ""; updatePinDots(); document.querySelector('.close-pin').style.display = isInit ? 'none' : 'block'; document.getElementById('securityOverlay').style.display = 'flex'; }
-        function closePinScreen() { 
-    if (!students || students.length === 0) {
-        return; 
-    }
+let pendingAction = null, pinInput = "";
+function secureAction(callback, isInit = false) { pendingAction = callback; pinInput = ""; updatePinDots(); document.querySelector('.close-pin').style.display = isInit ? 'none' : 'block'; document.getElementById('securityOverlay').style.display = 'flex'; }
+function closePinScreen() { 
+    if (!students || students.length === 0) { return; }
     document.getElementById('securityOverlay').style.display = 'none'; 
     pendingAction = null; 
     pinInput = ""; 
 }
-        function pressPin(key) { if (key === 'C') pinInput = ""; else if (pinInput.length < 4) pinInput += key; updatePinDots(); }
-        function updatePinDots() { document.querySelectorAll('.pin-dot').forEach((dot, index) => { index < pinInput.length ? dot.classList.add('filled') : dot.classList.remove('filled'); }); }
+function pressPin(key) { if (key === 'C') pinInput = ""; else if (pinInput.length < 4) pinInput += key; updatePinDots(); }
+function updatePinDots() { document.querySelectorAll('.pin-dot').forEach((dot, index) => { index < pinInput.length ? dot.classList.add('filled') : dot.classList.remove('filled'); }); }
         
 async function submitPin() {
     let currentPin = localStorage.getItem('app_pin');
@@ -1404,10 +1520,7 @@ async function addStudent() {
 
         students.push(newStudent); 
         
-        await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(newStudent.id)).set(newStudent);
-        
-        await dbSet('studentSerialCounter', studentSerialCounter);
-        
+        // 🟢 ম্যাজিক: 'await' সরিয়ে দিয়ে সরাসরি UI আপডেট করা হলো
         document.getElementById('studentName').value = ''; 
         document.getElementById('studentClass').value = ''; 
         document.getElementById('studentFee').value = ''; 
@@ -1447,6 +1560,10 @@ async function addStudent() {
             showCloseButton: true,
             allowOutsideClick: false 
         });
+
+        // 🟢 ব্যাকগ্রাউন্ডে নীরবে ডেটাবেসে আপলোড হবে
+        db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(newStudent.id)).set(newStudent).catch(e => console.log(e));
+        dbSet('studentSerialCounter', studentSerialCounter).catch(e => console.log(e));
     } 
 }
 
@@ -2285,6 +2402,65 @@ function exportStudentDetailsAsPDF(studentId) {
     addInfo("Class:", student.class);
     addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE}/-`);
     addInfo("Joined:", new Date(student.joining_date).toLocaleDateString('en-IN'));
+    // 🟢 PDF Inactive Details Logic Start
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // ১. যদি বর্তমানে Inactive থাকে
+        if (sortedHistory[0].status === 'Inactive') {
+            const inactiveDate = new Date(sortedHistory[0].date);
+            const today = new Date();
+            
+            let yr = today.getFullYear() - inactiveDate.getFullYear();
+            let mn = today.getMonth() - inactiveDate.getMonth();
+            let d = today.getDate() - inactiveDate.getDate();
+            if (d < 0) { mn--; const lm = new Date(today.getFullYear(), today.getMonth(), 0); d += lm.getDate(); }
+            if (mn < 0) { yr--; mn += 12; }
+            
+            let dur = [];
+            if (yr > 0) dur.push(yr + ' Yrs');
+            if (mn > 0) dur.push(mn + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('Today');
+            
+            doc.setTextColor(220, 38, 38); // লাল রঙ
+            doc.setFont("helvetica", "bold");
+            doc.text("Status:", leftMargin, y);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Inactive From ${inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'})} (Duration: ${dur.join(', ')})`, leftMargin + 35, y);
+            doc.setTextColor(0); // আবার কালো রঙে ফেরত
+            y += lineHeight;
+        } 
+        // ২. যদি অতীতে Inactive ছিল কিন্তু এখন Active
+        else if (sortedHistory[0].status === 'Active' && sortedHistory.length > 1 && sortedHistory[1].status === 'Inactive') {
+            const reactivatedDate = new Date(sortedHistory[0].date);
+            const inactiveDate = new Date(sortedHistory[1].date);
+            
+            let yr = reactivatedDate.getFullYear() - inactiveDate.getFullYear();
+            let mn = reactivatedDate.getMonth() - inactiveDate.getMonth();
+            let d = reactivatedDate.getDate() - inactiveDate.getDate();
+            if (d < 0) { mn--; const lm = new Date(reactivatedDate.getFullYear(), reactivatedDate.getMonth(), 0); d += lm.getDate(); }
+            if (mn < 0) { yr--; mn += 12; }
+            
+            let dur = [];
+            if (yr > 0) dur.push(yr + ' Yrs');
+            if (mn > 0) dur.push(mn + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('0 Days');
+            
+            const startStr = inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
+            const endStr = reactivatedDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
+
+            doc.setTextColor(180, 83, 9); // হলুদ/কমলা রঙ
+            doc.setFont("helvetica", "bold");
+            doc.text("Past Inactive:", leftMargin, y);
+            doc.setFont("helvetica", "normal");
+            doc.text(`${startStr} to ${endStr} (${dur.join(', ')})`, leftMargin + 35, y);
+            doc.setTextColor(0); // আবার কালো রঙে ফেরত
+            y += lineHeight;
+        }
+    }
+    // 🟢 PDF Inactive Details Logic End
     y += 5;
 
     doc.setFontSize(12);
@@ -2781,7 +2957,10 @@ let studentDisplayLimit = 20; // একবারে ২০ জন দেখা�
 function loadStudentsList(showAll = false) { 
     const activeList = document.getElementById('activeStudentsList');
     const inactiveList = document.getElementById('inactiveStudentsList');
-    activeList.innerHTML = ''; inactiveList.innerHTML = '';
+    
+    // 🟢 নতুন: স্ট্রিং ভেরিয়েবল তৈরি করা হলো, যেখানে আমরা পুরো HTML জমিয়ে রাখব
+    let activeHtml = ''; 
+    let inactiveHtml = ''; 
     
     let activeCount = 0;
     let inactiveCount = 0;
@@ -2789,7 +2968,6 @@ function loadStudentsList(showAll = false) {
     students.forEach(student => { 
         const isActive = isStudentCurrentlyActive(student);
         
-        // Lazy load logic (সার্চ করলে সবাইকে দেখাবে, নাহলে লিমিট অনুযায়ী দেখাবে)
         if (!showAll) {
             if (isActive && activeCount >= studentDisplayLimit) return;
             if (!isActive && inactiveCount >= studentDisplayLimit) return;
@@ -2804,35 +2982,43 @@ function loadStudentsList(showAll = false) {
         
         let timeDisplay = ''; 
         if(student.class_time) { 
-            const [h, m] = student.class_time.split(':'); const ampm = h >= 12 ? 'PM' : 'AM'; const h12 = h % 12 || 12; timeDisplay = `${h12}:${m} ${ampm}`; 
+            const [h, m] = student.class_time.split(':'); 
+            const ampm = h >= 12 ? 'PM' : 'AM'; 
+            const h12 = h % 12 || 12; 
+            timeDisplay = `${h12}:${m} ${ampm}`; 
         } 
         const dayTimeStr = (student.class_day || student.class_time) ? `<br><span class="student-time-sub">${student.class_day || ''} ${timeDisplay}</span>` : ''; 
         
-        const row = document.createElement('tr');
-        if (rowClass) row.className = rowClass;
-        
-        row.innerHTML = `
-            <td>${student.serial_no}</td>
-            <td>${getStudentHtml(student)}</td>
-            <td>${student.class || 'N/A'}${dayTimeStr}</td>
-            <td>₹${student.fee_amount || DEFAULT_FEE}</td>
-            <td style="min-width: 160px;">${getAllContactButtons(student)}</td>
-            <td>${isActive ? 'Active' : 'Inactive'}</td>
-            <td class="action-buttons">
-                <button class="${isActive ? 'btn-info' : 'btn-success'}" onclick="openStatusChangeModal(${student.id}, ${!isActive})">${statusBtnText}</button> 
-                <button class="btn-warning" onclick="openEditStudentModal(${student.id})">Edit</button>
-            </td>`;
+        // 🟢 নতুন: সরাসরি DOM এ append না করে String-এ row তৈরি করা হচ্ছে
+        const rowString = `
+            <tr class="${rowClass}">
+                <td>${student.serial_no}</td>
+                <td>${getStudentHtml(student)}</td>
+                <td>${student.class || 'N/A'}${dayTimeStr}</td>
+                <td>₹${student.fee_amount || DEFAULT_FEE}</td>
+                <td style="min-width: 160px;">${getAllContactButtons(student)}</td>
+                <td>${isActive ? 'Active' : 'Inactive'}</td>
+                <td class="action-buttons">
+                    <button class="${isActive ? 'btn-info' : 'btn-success'}" onclick="openStatusChangeModal(${student.id}, ${!isActive})">${statusBtnText}</button> 
+                    <button class="btn-warning" onclick="openEditStudentModal(${student.id})">Edit</button>
+                    <button class="btn-danger" onclick="initiateDeleteStudent(${student.id})" title="Delete Permanently"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>`;
         
         if(isActive) { 
-            activeList.appendChild(row); 
+            activeHtml += rowString; // 🟢 String-এ জমিয়ে রাখা হচ্ছে
             activeCount++;
         } else { 
-            inactiveList.appendChild(row); 
+            inactiveHtml += rowString; // 🟢 String-এ জমিয়ে রাখা হচ্ছে
             inactiveCount++;
         }
     }); 
 
-    // Add "Load More" button 
+    // 🟢 নতুন: লুপ শেষ হওয়ার পর একবারে DOM-এ পুশ করা হচ্ছে (এটি সুপার ফাস্ট!)
+    activeList.innerHTML = activeHtml;
+    inactiveList.innerHTML = inactiveHtml;
+
+    // Load More বাটন যুক্ত করা (আপনার আগের লজিক)
     if (!showAll) {
         const activeTotal = students.filter(s => isStudentCurrentlyActive(s)).length;
         const inactiveTotal = students.filter(s => !isStudentCurrentlyActive(s)).length;
@@ -2900,14 +3086,16 @@ async function saveFee() {
 
     const amountPerMonth = monthsToPay.length > 0 ? (amount / monthsToPay.length) : amount;
 
+    // ১. লোকাল মেমরিতে আপডেট করা হলো
     monthsToPay.forEach(m => {
         if (!fees[m]) fees[m] = {}; 
         fees[m][studentId] = { status: 'paid', amount: amountPerMonth, date, mode: mode, transactionId: txnId, receiptNo: receiptNo }; 
     });
 
-    await saveData(); 
+    // 🟢 ২. ম্যাজিক শুরু: সাথে সাথে স্ক্রিন আপডেট করে দেওয়া হচ্ছে (কোনো Wait নেই)
     closeModal('feeModal'); 
-    renderFees();
+    renderFees(); // ফিস টেবিল চোখের পলকে আপডেট হবে
+    renderDashboard(); // ড্যাশবোর্ডের হিসাব সাথে সাথে মিলে যাবে
     
     const joinedMonths = monthsToPay.join(',');
     
@@ -2925,17 +3113,23 @@ async function saveFee() {
         confirmButtonColor: '#d33',
         allowOutsideClick: false 
     }); 
-    loadAllData(); 
+
+    // 🟢 ৩. ব্যাকগ্রাউন্ডে ডেটাবেসে সেভ হবে (কোনো 'await' নেই, তাই অ্যাপ স্লো হবে না)
+    saveData().catch(e => console.log("Background sync error:", e)); 
 }
 
+// ৩ নম্বর রিপ্লেসমেন্ট: ফিস ট্যাব ফাস্ট করার জন্য
 function renderFees() { 
-    const selectedMonth = document.getElementById('feeMonth').value, tableBody = document.querySelector('#feeTable tbody'); 
-    tableBody.innerHTML = ''; 
-    if (!selectedMonth) return; 
+    const selectedMonth = document.getElementById('feeMonth').value;
+    const tableBody = document.querySelector('#feeTable tbody'); 
+    if (!selectedMonth) { tableBody.innerHTML = ''; return; } 
     
     let totalCollected = 0, totalDueAmount = 0, dueCount = 0, collectedCount = 0; 
     const monthIsDue = isMonthDue(selectedMonth); 
     
+    // 🟢 নতুন লজিক: Table Row গুলো String-এ জমানো হচ্ছে
+    let tableHtml = '';
+
     students.forEach(student => { 
         const wasActive = wasStudentActiveDuringMonth(student, selectedMonth); 
         if (!wasActive) return; 
@@ -2960,16 +3154,15 @@ function renderFees() {
         
         if (hasGlobalDue) rowClass += ' has-dues-alert'; 
         
-        const row = document.createElement('tr'); 
-        row.className = rowClass; 
-        
         let actionButtons = isPaid ? 
             `<button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)">Edit</button><button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>` 
             : `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')">Record Payment</button>` + (monthIsDue ? getContactButtons(student.id, selectedMonth) : ''); 
         
-        row.innerHTML = `<td>${getStudentHtml(student)}</td><td>${statusText}</td><td class="action-buttons">${actionButtons}</td>`; 
-        tableBody.appendChild(row); 
+        tableHtml += `<tr class="${rowClass}"><td>${getStudentHtml(student)}</td><td>${statusText}</td><td class="action-buttons">${actionButtons}</td></tr>`; 
     }); 
+    
+    // 🟢 লুপ শেষ, এবার একবারে স্ক্রিনে দেখানো হলো
+    tableBody.innerHTML = tableHtml;
     
     document.getElementById('feeSummary').innerHTML = `
         <div onclick="showFeeBreakdown('collected')">
@@ -3176,11 +3369,11 @@ async function generateIDCard() {
     } else { doc.save(fileName); } 
 }
 
+// ২ নম্বর রিপ্লেসমেন্ট: অ্যাটেন্ডেন্স ট্যাব ফাস্ট করার জন্য
 function renderAttendance() { 
     const dateInput = document.getElementById('attendanceDate').value;
     const tableBody = document.querySelector('#attendanceTable tbody'); 
-    tableBody.innerHTML = ''; 
-    if (!dateInput) return; 
+    if (!dateInput) { tableBody.innerHTML = ''; return; } 
 
     const selectedDate = new Date(dateInput);
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -3193,15 +3386,12 @@ function renderAttendance() {
     }
 
     let totalActive = 0, presentCount = 0, absentCount = 0;
-
-    // 🟢 FIX: বর্তমান স্ট্যাটাসের বদলে, ওই নির্দিষ্ট ডেটের স্ট্যাটাস চেক করে লিস্ট করা হলো
     const activeStudents = students.filter(s => isStudentCurrentlyActive(s, dateInput));
 
     activeStudents.sort((a, b) => {
         const getScore = (student) => {
             const entry = attendance[dateInput]?.[student.id];
             const status = (typeof entry === 'object' && entry !== null) ? entry.status : entry;
-            
             if (status === 'present') return 4; 
             if (status === 'absent') return 3;  
             if (student.class_day === currentDayName) return 2; 
@@ -3209,6 +3399,9 @@ function renderAttendance() {
         };
         return getScore(b) - getScore(a); 
     });
+
+    // 🟢 নতুন লজিক: Table Row গুলো String-এ জমানো হচ্ছে
+    let tableHtml = '';
 
     activeStudents.forEach(student => { 
         totalActive++; 
@@ -3227,27 +3420,28 @@ function renderAttendance() {
         const highlightStyle = isToday ? 'border: 1px solid var(--primary); background: rgba(79, 70, 229, 0.05);' : '';
 
         const noteBtnColor = note ? 'btn-warning' : 'btn-secondary';
-        const row = document.createElement('tr');
-        if (highlightStyle) row.style.cssText = highlightStyle;
+        let rowClass = checkGlobalDues(student.id) ? 'has-dues-alert' : '';
         
-        if (checkGlobalDues(student.id)) row.classList.add('has-dues-alert'); 
-        
-        row.innerHTML = `
-            <td>
-                ${getStudentHtml(student)}
-                <div style="font-size:11px; color:#d97706; margin-top:2px; margin-left:55px;">
-                    ${note ? '📝 ' + note : ''}
-                </div>
-            </td>
-            <td class="${statusClass}">${statusText}</td>
-            <td class="action-buttons">
-                <button class="btn-success" onclick="markAttendance(${student.id}, 'present')">P</button>
-                <button class="btn-danger" onclick="markAttendance(${student.id}, 'absent')">A</button>
-                <button class="${noteBtnColor}" onclick="addAttendanceNote(${student.id})" title="Edit Note"><i class="fas fa-pencil-alt"></i></button>
-                <button class="btn-secondary" onclick="markAttendance(${student.id}, 'clear')">X</button>
-            </td>`;
-        tableBody.appendChild(row);
+        tableHtml += `
+            <tr style="${highlightStyle}" class="${rowClass}">
+                <td>
+                    ${getStudentHtml(student)}
+                    <div style="font-size:11px; color:#d97706; margin-top:2px; margin-left:55px;">
+                        ${note ? '📝 ' + note : ''}
+                    </div>
+                </td>
+                <td class="${statusClass}">${statusText}</td>
+                <td class="action-buttons">
+                    <button class="btn-success" onclick="markAttendance(${student.id}, 'present')">P</button>
+                    <button class="btn-danger" onclick="markAttendance(${student.id}, 'absent')">A</button>
+                    <button class="${noteBtnColor}" onclick="addAttendanceNote(${student.id})" title="Edit Note"><i class="fas fa-pencil-alt"></i></button>
+                    <button class="btn-secondary" onclick="markAttendance(${student.id}, 'clear')">X</button>
+                </td>
+            </tr>`;
     }); 
+
+    // 🟢 লুপ শেষ, এবার একবারে স্ক্রিনে দেখানো হলো
+    tableBody.innerHTML = tableHtml;
 
     if(document.getElementById('attTotalCount')) document.getElementById('attTotalCount').textContent = totalActive;
     if(document.getElementById('attPresentCount')) document.getElementById('attPresentCount').textContent = presentCount;
@@ -3388,7 +3582,7 @@ async function addAttendanceNote(studentId) {
             
             <div id="note-duplicate-warning" style="display:none; color:#b45309; background:#fef3c7; border:1px solid #fcd34d; padding:8px 10px; border-radius:6px; font-size:12px; margin-top:8px; text-align:left;"></div>
             
-            <button type="button" class="btn-info" onclick="openMaterialSelectorForStudent(${studentId})" style="width:100%; margin-top:15px; background-color: #0ea5e9; border-radius: 8px; padding: 10px; font-size: 14px; border: none; color: white; cursor: pointer;">
+            <button type="button" class="btn-info" onclick="saveTempNoteAndOpenMaterial(${studentId}, '${date}')" style="width:100%; margin-top:15px; background-color: #0ea5e9; border-radius: 8px; padding: 10px; font-size: 14px; border: none; color: white; cursor: pointer;">
                 <i class="fas fa-book-open"></i> Send Study Material
             </button>
         `,
@@ -3447,6 +3641,28 @@ async function addAttendanceNote(studentId) {
 }
 
 // 🟢 নির্দিষ্ট স্টুডেন্টকে Material পাঠানোর ফাংশন
+// 🟢 NEW: Material ওপেন করার আগে নোট সেভ করে রাখার ফাংশন
+window.saveTempNoteAndOpenMaterial = function(studentId, date) {
+    const noteElement = document.getElementById('swal-custom-note');
+    if (noteElement) {
+        const typedNote = noteElement.value; // টাইপ করা লেখাটা ধরে নিলাম
+        
+        // লোকাল মেমরিতে সাথে সাথে সেভ করে দিলাম
+        if (!attendance[date]) attendance[date] = {};
+        const currentEntry = attendance[date][studentId] || {};
+        
+        attendance[date][studentId] = {
+            ...currentEntry,
+            note: typedNote
+        };
+        
+        // ব্যাকগ্রাউন্ডে ডাটাবেসে সেভ করার কমান্ড দিয়ে রাখলাম
+        saveData().catch(e => console.log("Temp note saved locally."));
+    }
+    
+    // এবার Material সিলেক্ট করার পপআপটা খুলবে
+    openMaterialSelectorForStudent(studentId);
+};
 window.openMaterialSelectorForStudent = async function(studentId) {
     const student = students.find(s => s.id === studentId);
     if(!student) return;
@@ -3600,145 +3816,208 @@ function getDueMonthsRawList(studentId) {
     return dueMonthsRaw; 
 }
 
-function updateFeeAmountBasedOnType() {
-    const select = document.getElementById('payTypeSelect');
-    const amountInput = document.getElementById('feeAmount');
-    const title = document.getElementById('feeModalTitle');
-    if (select.value === 'all') {
-        amountInput.value = select.dataset.allAmount;
-        title.textContent = `Record Fee (All Pending Dues)`;
-    } else {
-        amountInput.value = select.dataset.singleAmount;
-        const rawDues = JSON.parse(select.dataset.dues || '[]');
-        if(rawDues.length > 0) {
-            title.textContent = `Record Fee (${formatMonthYear(rawDues[0])})`;
+window.changeMonthCount = function(delta) {
+        let input = document.getElementById('feeMonthCount');
+        let current = parseInt(input.value) || 1;
+        current += delta;
+        if(current < 1) current = 1;
+        if(current > 12) current = 12; // একসাথে সর্বোচ্চ ১২ মাস
+        input.value = current;
+        updateMultiFeeAmount();
+    };
+
+    window.updateMultiFeeAmount = function() {
+        const studentId = parseInt(document.getElementById('feeStudentId').value);
+        const student = students.find(s => s.id === studentId);
+        if(!student) return;
+        
+        let count = parseInt(document.getElementById('feeMonthCount').value) || 1;
+        document.getElementById('feeAmount').value = count * (student.fee_amount || DEFAULT_FEE);
+        
+        const startMonth = document.getElementById('feeRecordMonth').value; 
+        const displaySpan = document.getElementById('multiMonthDisplay');
+        
+        let monthsArr = [];
+        let [y, m] = startMonth.split('-').map(Number);
+        for(let i=0; i<count; i++) {
+            let iterM = m + i;
+            let iterY = y;
+            if(iterM > 12) {
+                iterY += Math.floor((iterM - 1) / 12);
+                iterM = ((iterM - 1) % 12) + 1;
+            }
+            monthsArr.push(`${iterY}-${iterM.toString().padStart(2,'0')}`);
         }
-    }
-}
-
-function openFeeModal(studentId, month, isEdit = false) { 
-    const modal = document.getElementById('feeModal');
-    const amountInput = document.getElementById('feeAmount');
-    const dateInput = document.getElementById('feeDate'); 
-    const txnInput = document.getElementById('transactionId'); 
-    const payTypeContainer = document.getElementById('payTypeContainer');
-    const payTypeSelect = document.getElementById('payTypeSelect');
-    
-    let targetMonth = month;
-    const student = students.find(s => s.id === studentId); 
-    if(!student) return;
-
-    document.getElementById('feeStudentId').value = studentId; 
-
-    if (!isEdit) {
-        const dueMonthsRaw = getDueMonthsRawList(studentId);
-        if (dueMonthsRaw.length > 1) {
-            payTypeContainer.style.display = 'block';
-            payTypeSelect.value = 'single';
-            targetMonth = dueMonthsRaw[0]; 
-            payTypeSelect.dataset.dues = JSON.stringify(dueMonthsRaw);
-            payTypeSelect.dataset.singleAmount = student.fee_amount || DEFAULT_FEE;
-            payTypeSelect.dataset.allAmount = dueMonthsRaw.length * (student.fee_amount || DEFAULT_FEE);
+        
+        if(count === 1) {
+            displaySpan.innerHTML = `Paying for: <b>${formatMonthYear(monthsArr[0])}</b>`;
         } else {
-            payTypeContainer.style.display = 'none';
-            if(dueMonthsRaw.length === 1) targetMonth = dueMonthsRaw[0];
+            displaySpan.innerHTML = `Paying for <b>${count} Months</b>:<br> <span style="color:var(--primary);">${formatMonthYear(monthsArr[0])} to ${formatMonthYear(monthsArr[monthsArr.length-1])}</span>`;
         }
-    } else {
-        payTypeContainer.style.display = 'none';
+        
+        document.getElementById('feeRecordMonth').dataset.bulkMonths = JSON.stringify(monthsArr);
+    };
+
+let currentAdvanceCount = 0;
+
+    function openFeeModal(studentId, currentMonth, isEdit = false) { 
+        const modal = document.getElementById('feeModal');
+        const student = students.find(s => s.id === studentId); 
+        if(!student) return;
+
+        document.getElementById('feeStudentId').value = studentId; 
+        document.getElementById('feeDate').valueAsDate = new Date();
+        document.getElementById('transactionId').value = '';
+
+        const listContainer = document.getElementById('dueMonthsCheckboxList');
+        listContainer.innerHTML = '';
+
+        // বর্তমান মাসের স্ট্রিং বের করা
+        const now = new Date();
+        const realCurrentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
+        const targetMonthStr = currentMonth;
+
+        if (isEdit) {
+            document.getElementById('feeModalTitle').textContent = `Edit Fee`;
+            document.getElementById('monthSelectionGroup').style.display = 'none';
+            const record = fees[currentMonth]?.[studentId];
+            document.getElementById('feeAmount').value = record ? record.amount : student.fee_amount;
+            document.getElementById('feeAmount').readOnly = false;
+            document.getElementById('paymentSummaryDisplay').innerHTML = `Editing for: <b>${formatMonthYear(currentMonth)}</b>`;
+            document.getElementById('feeModal').dataset.finalMonths = JSON.stringify([currentMonth]);
+        } else {
+            document.getElementById('feeModalTitle').textContent = `Record Payment`;
+            document.getElementById('monthSelectionGroup').style.display = 'block';
+            document.getElementById('feeAmount').readOnly = true;
+
+            let iterDate = new Date(student.joining_date);
+            iterDate.setDate(1);
+            
+            let targetDate = new Date(targetMonthStr + '-01');
+            let realCurrentDate = new Date(realCurrentMonthStr + '-01');
+            let upperLimitDate = targetDate > realCurrentDate ? targetDate : realCurrentDate;
+            
+            let foundDuesOrAdvance = false;
+            
+            while (iterDate <= upperLimitDate) {
+                const mStr = `${iterDate.getFullYear()}-${(iterDate.getMonth() + 1).toString().padStart(2, '0')}`;
+                
+                if (wasStudentActiveDuringMonth(student, mStr) && fees[mStr]?.[studentId]?.status !== 'paid') {
+                    foundDuesOrAdvance = true;
+                    
+                    const isDue = isMonthDue(mStr);
+                    const isCurrent = mStr === realCurrentMonthStr;
+                    const isAdvance = new Date(mStr + '-01') > realCurrentDate;
+                    
+                    // 🟢 থিম সাপোর্টেড কালার লজিক (ডার্ক মোড ফিক্সড)
+                    let badgeLabel = '';
+                    let textColor = 'var(--text-main)';
+                    let rowBgColor = 'var(--bg-input)';
+                    let borderColor = 'var(--border-color)';
+                    
+                    // Due বা Current Month হলে শুধু টেক্সট এবং ব্যাজ লাল হবে, ব্যাকগ্রাউন্ড থিমের কালারেই থাকবে
+                    if(isDue && !isCurrent) {
+                        badgeLabel = '<span style="font-size:10px; color:#fff; background:var(--danger); padding:2px 6px; border-radius:4px; margin-left:5px;">DUE</span>';
+                        textColor = 'var(--danger)'; 
+                    } else if(isCurrent) {
+                        badgeLabel = '<span style="font-size:10px; color:#fff; background:var(--danger); padding:2px 6px; border-radius:4px; margin-left:5px;">CURRENT</span>';
+                        textColor = 'var(--danger)';
+                    } else if(isAdvance) {
+                        badgeLabel = '<span style="font-size:10px; color:var(--info); background:rgba(59, 130, 246, 0.1); padding:2px 6px; border-radius:4px; margin-left:5px;">ADVANCE</span>';
+                        textColor = 'var(--info)';
+                    }
+
+                    listContainer.innerHTML += `
+                        <label style="display:flex; align-items:center; justify-content:space-between; background:${rowBgColor}; padding:8px 10px; border-radius:6px; cursor:pointer; border:1px solid ${borderColor}; margin-bottom: 4px;">
+                            <div style="font-size:13px; font-weight:700; color:${textColor}; display:flex; align-items:center;">
+                                ${formatMonthYear(mStr)} ${badgeLabel}
+                            </div>
+                            <input type="checkbox" class="fee-month-checkbox" value="${mStr}" 
+                                onchange="updateFeeCalculations()" 
+                                style="width:16px; height:16px; cursor:pointer; accent-color: #10b981;" 
+                                checked>
+                        </label>
+                    `;
+                }
+                iterDate.setMonth(iterDate.getMonth() + 1);
+            }
+
+            if(!foundDuesOrAdvance) {
+                listContainer.innerHTML = '<p style="font-size:12px; color:gray; text-align:center; margin:10px 0;">No pending dues or advance available.</p>';
+            }
+            updateFeeCalculations();
+        }
+        modal.style.display = 'flex'; 
     }
 
-    document.getElementById('feeRecordMonth').value = targetMonth; 
-    
-    if (isEdit) { 
-        const record = fees[targetMonth]?.[studentId]; 
-        document.getElementById('feeModalTitle').textContent = `Edit Fee (${formatMonthYear(targetMonth)})`; 
-        amountInput.value = record ? record.amount : (student.fee_amount || DEFAULT_FEE); 
-        txnInput.value = record ? (record.transactionId || '') : ''; 
-    } else { 
-        document.getElementById('feeModalTitle').textContent = `Record Fee (${formatMonthYear(targetMonth)})`; 
-        amountInput.value = payTypeContainer.style.display === 'block' && payTypeSelect.value === 'all' 
-                          ? payTypeSelect.dataset.allAmount 
-                          : (student.fee_amount || DEFAULT_FEE); 
-        txnInput.value = ''; 
-    } 
-    
-    dateInput.valueAsDate = new Date(); 
-    modal.style.display = 'flex'; 
-}
-function openEditStudentModal(id) { 
-    const student = students.find(s => s.id === parseInt(id)); 
-    if(!student) return; 
+    window.updateFeeCalculations = function() {
+        const studentId = parseInt(document.getElementById('feeStudentId').value);
+        const student = students.find(s => s.id === studentId);
+        if(!student) return;
 
-    isPhotoDeletedInEdit = false;
+        const monthlyFee = student.fee_amount || DEFAULT_FEE;
+        
+        let selectedMonths = [];
+        const checkboxes = document.querySelectorAll('.fee-month-checkbox:checked');
+        checkboxes.forEach(cb => selectedMonths.push(cb.value));
 
-    document.getElementById('editStudentId').value = student.id; 
-    document.getElementById('editStudentName').value = student.name || ''; 
-    document.getElementById('editStudentClass').value = student.class || ''; 
-    document.getElementById('editStudentDay').value = student.class_day || ''; 
-    document.getElementById('editStudentTime').value = student.class_time || ''; 
-    document.getElementById('editStudentFee').value = student.fee_amount || ''; 
-    document.getElementById('editPhone').value = student.phone || ''; 
-    document.getElementById('editGuardianName').value = student.guardian || ''; 
-    document.getElementById('editStudentEmail').value = student.email || ''; 
-    document.getElementById('editAddress').value = student.address || ''; 
-    document.getElementById('editStudentDOB').value = student.dob || ""; 
-    
-    // 🟢 NEW: Set Toggle Value
-    document.getElementById('editAllowProfile').checked = student.allow_profile_view !== false;
-    
-    currentEditPhotoBase64 = null; 
-    
-    const previewImg = document.getElementById('editPhotoPreview');
-    if(student.photo) { previewImg.src = student.photo; } 
-    else { previewImg.src = 'https://via.placeholder.com/100?text=No+Photo'; } 
-    
-    document.getElementById('editStudentModal').style.display = 'flex'; 
-}
+        selectedMonths.sort((a, b) => new Date(a + '-01') - new Date(b + '-01'));
 
-async function saveStudentChanges() { 
-    const id = parseInt(document.getElementById('editStudentId').value);
-    
-    const studentIndex = students.findIndex(s => s.id === id);
-    if (studentIndex === -1) return;
-    
-    const student = students[studentIndex];
+        document.getElementById('feeAmount').value = selectedMonths.length * monthlyFee;
+        document.getElementById('feeModal').dataset.finalMonths = JSON.stringify(selectedMonths);
 
-    student.name = document.getElementById('editStudentName').value.trim(); 
-    if(!student.name) { Swal.fire('Error','Name required.', 'error'); return; } 
+        const summary = document.getElementById('paymentSummaryDisplay');
+        if(selectedMonths.length > 0) {
+            summary.innerHTML = `Paying for <b>${selectedMonths.length} Months</b>:<br><span style="color:var(--text-main); font-weight:500;">${selectedMonths.map(m => formatMonthYear(m)).join(', ')}</span>`;
+        } else {
+            summary.innerHTML = "<span style='color:var(--danger);'>Please select at least one month.</span>";
+        }
+    };
 
-    student.class = document.getElementById('editStudentClass').value;
-    student.class_day = document.getElementById('editStudentDay').value;
-    student.class_time = document.getElementById('editStudentTime').value;
-    student.fee_amount = parseFloat(document.getElementById('editStudentFee').value);
-    student.phone = document.getElementById('editPhone').value;
-    student.guardian = document.getElementById('editGuardianName').value;
-    student.email = document.getElementById('editStudentEmail').value;
-    student.address = document.getElementById('editAddress').value;
-    student.dob = document.getElementById('editStudentDOB').value;
-    
-    // 🟢 NEW: Get Toggle Value
-    student.allow_profile_view = document.getElementById('editAllowProfile').checked;
-    
-    // 🟢 NEW: Sync Portal Data (Attendance & Fees) for the Student View
-    let studentAtt = [];
-    Object.keys(attendance).forEach(date => { if (attendance[date]?.[id]) studentAtt.push({ date, data: attendance[date][id] }); });
-    let studentFees = [];
-    Object.keys(fees).forEach(month => { if (fees[month]?.[id]) studentFees.push({ month, data: fees[month][id] }); });
-    student.portal_data = { attendance: studentAtt, fees: studentFees };
-    
-    if(currentEditPhotoBase64) { student.photo = currentEditPhotoBase64; } 
-    else if (isPhotoDeletedInEdit) { student.photo = null; }
-    
-    if(currentStudentSignature) { student.student_signature = currentStudentSignature; }
+    async function saveFee() { 
+        const studentId = parseInt(document.getElementById('feeStudentId').value); 
+        const amount = parseFloat(document.getElementById('feeAmount').value); 
+        const date = document.getElementById('feeDate').value; 
+        const mode = document.getElementById('paymentMode').value; 
+        const txnId = document.getElementById('transactionId').value.trim(); 
+        const finalMonths = JSON.parse(document.getElementById('feeModal').dataset.finalMonths || '[]');
 
-    students[studentIndex] = student;
+        if (finalMonths.length === 0) { Swal.fire('Alert','Select at least one month.', 'warning'); return; }
+        if (isNaN(amount) || amount <= 0) { Swal.fire('Error','Amount required.', 'error'); return; } 
+        if (!date) { Swal.fire('Error','Payment date required.', 'error'); return; } 
+        
+        let receiptNo = Date.now().toString().slice(-6); 
+        const amountPerMonth = amount / finalMonths.length;
 
-    await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(id)).set(student);
-    
-    closeModal('editStudentModal'); 
-    loadAllData(); 
-    Swal.fire('Saved', 'Details updated successfully.', 'success'); 
-}
+        finalMonths.forEach(m => {
+            if (!fees[m]) fees[m] = {}; 
+            fees[m][studentId] = { status: 'paid', amount: amountPerMonth, date, mode, transactionId: txnId, receiptNo }; 
+        });
+
+        closeModal('feeModal'); 
+        renderFees(); 
+        renderDashboard(); 
+        
+        const joinedMonths = finalMonths.join(',');
+        
+        // 🟢 NEW: Payment Success Popup with WhatsApp, SMS, and Receipt sharing options
+        Swal.fire({ 
+            title: 'Payment Saved!', 
+            html: `<p style="font-size:14px; margin-bottom:15px;">Payment of ₹${amount} recorded successfully.</p>
+                   <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+                       <button class="btn-like btn-receipt" onclick="generatePaymentReceipt(${studentId}, '${joinedMonths}')"><i class="fas fa-file-pdf"></i> Receipt</button>
+                       <button class="btn-like btn-whatsapp" onclick="sendMsg('wa', ${studentId}, '${joinedMonths}', ${amount}, false)"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                       <button class="btn-like btn-sms" onclick="sendMsg('sms', ${studentId}, '${joinedMonths}', ${amount}, false)"><i class="fas fa-sms"></i> SMS</button>
+                   </div>
+                   <p style="font-size:11px; color:var(--text-muted); margin-top:12px;">* Click Receipt to generate PDF & share directly to WhatsApp.</p>`, 
+            icon: 'success',
+            confirmButtonText: 'Done / Close',
+            confirmButtonColor: '#d33',
+            allowOutsideClick: false
+        }); 
+
+        saveData().catch(e => console.log("Offline sync pending")); 
+    }
 
 function showStudentDetails(studentId) { 
     const student = students.find(s => s.id === studentId); 
@@ -3770,7 +4049,57 @@ function showStudentDetails(studentId) {
     }
     document.getElementById('modalDOB').innerHTML = dobDisplay; 
     
-    document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN'); 
+document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN');
+
+    // 🟢 Inactive Calculation Logic শুরু
+    const inactiveBox = document.getElementById('modalInactiveStatusBox');
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+        
+        // যদি স্টুডেন্ট বর্তমানে Inactive থাকে
+        if (sortedHistory[0].status === 'Inactive') {
+            const inactiveDate = new Date(sortedHistory[0].date);
+            const today = new Date();
+            
+            let y = today.getFullYear() - inactiveDate.getFullYear();
+            let m = today.getMonth() - inactiveDate.getMonth();
+            let d = today.getDate() - inactiveDate.getDate();
+            
+            if (d < 0) { 
+                m--; 
+                const lm = new Date(today.getFullYear(), today.getMonth(), 0); 
+                d += lm.getDate(); 
+            }
+            if (m < 0) { 
+                y--; 
+                m += 12; 
+            }
+            
+            let dur = [];
+            if (y > 0) dur.push(y + ' Yrs');
+            if (m > 0) dur.push(m + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('Today');
+            
+            const formattedInactiveDate = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+            
+            // বক্সে লেখাগুলো সেট করা
+            inactiveBox.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:600; color:#e11d48;"><i class="fas fa-user-slash"></i> Inactive From:</span> 
+                    <div style="text-align:right;">
+                        <span style="color:#be123c; font-weight:700;">${formattedInactiveDate}</span><br>
+                        <span style="font-size:11px; color:#f43f5e; font-weight:600;">(Duration: ${dur.join(', ')})</span>
+                    </div>
+                </div>`;
+            inactiveBox.style.display = 'block'; // বক্সটি দৃশ্যমান করা
+        } else {
+            inactiveBox.style.display = 'none'; // Active হলে বক্সটি লুকিয়ে ফেলা
+        }
+    } else {
+        inactiveBox.style.display = 'none'; // কোনো রেকর্ড না থাকলে লুকিয়ে ফেলা
+    }
+    // 🟢 Inactive Calculation Logic শেষ
     
     const modalImg = document.getElementById('modalStudentPhoto'); 
     if(student.photo) { modalImg.src = student.photo; modalImg.style.display = 'inline-block'; } 
@@ -3804,10 +4133,38 @@ function showStudentDetails(studentId) {
         };
     }
     
-    const historyList = document.getElementById('modalStatusHistory'); historyList.innerHTML = ''; 
+    const historyList = document.getElementById('modalStatusHistory'); 
+
+    // 🟢 NEW: Past Inactive Box (Status History হেডিং এবং লিস্টের ঠিক মাঝখানে)
+    let pastInactiveContainer = document.getElementById('modalPastInactiveBox');
+    if (!pastInactiveContainer) {
+        pastInactiveContainer = document.createElement('div');
+        pastInactiveContainer.id = 'modalPastInactiveBox';
+        historyList.parentNode.insertBefore(pastInactiveContainer, historyList);
+    }
+    pastInactiveContainer.innerHTML = getPastInactivePeriodsHtml(student);
+    pastInactiveContainer.style.marginBottom = "12px"; // একটু গ্যাপ দেওয়ার জন্য
+
+    historyList.innerHTML = ''; 
+    historyList.innerHTML = ''; 
     if (student.status.history && student.status.history.length > 0) { 
-        student.status.history.forEach(entry => { const color = entry.status === 'Active' ? 'green' : 'red'; historyList.innerHTML += `<li><strong style="color:${color};">${entry.status}</strong> on ${new Date(entry.date).toLocaleDateString('en-IN')}<br><em style="font-size:0.9em;color:var(--text-muted);">Note: ${entry.note || 'No note'}</em></li>`; }); 
-    } else { historyList.innerHTML = '<li>No history found.</li>'; } 
+        student.status.history.forEach((entry, index) => { 
+            const color = entry.status === 'Active' ? 'green' : 'red'; 
+            historyList.innerHTML += `
+                <li style="display:flex; justify-content:space-between; align-items:center; padding: 5px 0;">
+                    <div>
+                        <strong style="color:${color};">${entry.status}</strong> on ${new Date(entry.date).toLocaleDateString('en-IN')}<br>
+                        <em style="font-size:0.9em;color:var(--text-muted);">Note: ${entry.note || 'No note'}</em>
+                    </div>
+                    <div style="display:flex; gap: 8px;">
+                        <button onclick="editStatusHistory(${student.id}, ${index})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteStatusHistory(${student.id}, ${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </li>`; 
+        }); 
+    } else { 
+        historyList.innerHTML = '<li style="padding: 5px 0;">No history found.</li>'; 
+    } 
     
     const yearSelect = document.getElementById('detailsFilterYear'); const monthSelect = document.getElementById('detailsFilterMonth'); yearSelect.innerHTML = ''; monthSelect.innerHTML = '';
     const currentYear = new Date().getFullYear(); const joinYear = new Date(student.joining_date).getFullYear();
@@ -4855,7 +5212,6 @@ function getPracticeStats(student) {
     const now = new Date();
     now.setHours(0, 0, 0, 0);
     
-    // Week start calculation (Monday)
     const dayOfWeek = now.getDay();
     const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
     const weekStart = new Date(now);
@@ -4878,27 +5234,60 @@ function getPracticeStats(student) {
         if (logDate >= yearStart && logDate <= now) stats.year += mins;
     });
 
-    // First practice entry date ber korar notun logic
     let firstPracticeDate = new Date(now);
-    if (logs.length > 0) {
-        let earliestTime = now.getTime();
-        logs.forEach(log => {
-            const logDateObj = parseINDate(log.date);
-            logDateObj.setHours(0, 0, 0, 0);
-            if (logDateObj.getTime() < earliestTime) {
-                earliestTime = logDateObj.getTime();
-            }
-        });
-        firstPracticeDate = new Date(earliestTime);
-    } else {
-        firstPracticeDate = new Date(student.joining_date || now);
-    }
+    let earliestTime = now.getTime();
+    logs.forEach(log => {
+        const logDateObj = parseINDate(log.date);
+        logDateObj.setHours(0, 0, 0, 0);
+        if (logDateObj.getTime() < earliestTime) {
+            earliestTime = logDateObj.getTime();
+        }
+    });
+    firstPracticeDate = new Date(earliestTime);
     firstPracticeDate.setHours(0, 0, 0, 0);
 
-    let daysSinceStart = Math.floor((now - firstPracticeDate) / (1000 * 60 * 60 * 24)) + 1;
-    if (daysSinceStart < 1) daysSinceStart = 1;
+    // 🟢 মোট কতদিন হয়েছে প্র্যাকটিস শুরু করার পর
+    let totalDaysSinceStart = Math.floor((now - firstPracticeDate) / (1000 * 60 * 60 * 24)) + 1;
+
+    // 🟢 NEW: Inactive থাকা দিনগুলোর হিসাব করা এবং তা বাদ দেওয়া
+    let totalInactiveDays = 0;
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+        let inactiveStart = null;
+        
+        for (let i = 0; i < historyAsc.length; i++) {
+            const hDate = new Date(historyAsc[i].date);
+            hDate.setHours(0, 0, 0, 0);
+            
+            if (historyAsc[i].status === 'Inactive' && !inactiveStart) {
+                inactiveStart = hDate;
+            } else if (historyAsc[i].status === 'Active' && inactiveStart) {
+                // Inactive থেকে আবার Active হলে মাঝের দিনগুলো গোনা হচ্ছে
+                let start = inactiveStart > firstPracticeDate ? inactiveStart : firstPracticeDate;
+                let end = hDate > now ? now : hDate;
+                
+                if (start < end) {
+                    totalInactiveDays += Math.floor((end - start) / (1000 * 60 * 60 * 24));
+                }
+                inactiveStart = null; 
+            }
+        }
+        
+        // যদি বর্তমানেও সে Inactive থাকে, তাহলে আজকের দিন পর্যন্ত হিসাব হবে
+        if (inactiveStart) {
+            let start = inactiveStart > firstPracticeDate ? inactiveStart : firstPracticeDate;
+            let end = now;
+            if (start < end) {
+                totalInactiveDays += Math.floor((end - start) / (1000 * 60 * 60 * 24));
+            }
+        }
+    }
+
+    // 🟢 মোট দিন থেকে Inactive দিনগুলো বাদ দিয়ে అసল Active দিনের হিসাব করা
+    let activeDaysSinceStart = totalDaysSinceStart - totalInactiveDays;
+    if (activeDaysSinceStart < 1) activeDaysSinceStart = 1;
     
-    stats.avg = Math.round(stats.lifetime / daysSinceStart);
+    stats.avg = Math.round(stats.lifetime / activeDaysSinceStart);
     return stats;
 }
 // --- End of New Logic ---
@@ -5221,7 +5610,7 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Updated successfully!', showConfirmButton: false, timer: 1500 });
         renderPracticeLogTeacher(studentId);
     }
-
+};
 // ==========================================
 // 🟢 STATUS HISTORY EDIT & DELETE LOGIC
 // ==========================================
@@ -5737,4 +6126,31 @@ window.executeSingleRestore = async function(backupData) {
         console.error(error);
         Swal.fire('Error', 'Failed to restore student completely. Check internet connection.', 'error');
     }
+};
+// 🟢 NEW: Student Portal QR Code Viewer Function
+window.showStudentPortalQR = function(studentId) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const managerUid = urlParams.get('manager');
+    const baseUrl = window.location.origin + window.location.pathname;
+    
+    // QR কোডের ভেতরে থাকা টেক্সট/লিঙ্ক
+    const qrText = `${baseUrl}?student=${studentId}&manager=${managerUid}`;
+    
+    // QR ছবি তৈরি করা
+    const qr = new QRious({ value: qrText, size: 250, level: 'H' });
+    const qrImg = qr.toDataURL();
+    
+    Swal.fire({
+        title: 'My QR Code',
+        html: `
+            <p style="font-size:13px; color:gray; margin-bottom: 15px;">Show this to your teacher for quick attendance.</p>
+            <div style="background: #f8fafc; padding: 15px; display: inline-block; border-radius: 16px; border: 2px dashed #cbd5e1;">
+                <img src="${qrImg}" style="width: 200px; height: 200px; border-radius: 8px; pointer-events: none;">
+            </div>
+        `,
+        showCloseButton: true,
+        showConfirmButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: '#ef4444', // Red Color for Close Button
+    });
 };
