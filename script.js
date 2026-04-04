@@ -162,9 +162,8 @@ function getPastInactivePeriodsHtml(student) {
 // 🟢 নতুন ফাংশন: স্টুডেন্ট পোর্টাল থেকে সঠিকভাবে লগআউট করার জন্য
 window.studentPortalLogout = function(sId) {
     localStorage.removeItem('verified_student_' + sId);
-    localStorage.removeItem('saved_student_id');
-    localStorage.removeItem('saved_manager_id');
-    window.location.href = window.location.pathname; // লিংক ক্লিয়ার করে মেইন পেজে পাঠাবে
+    // saved_student_id এবং saved_manager_id মুছব না, যাতে শর্টকাট মনে রাখে এটি স্টুডেন্ট পোর্টাল
+    window.location.reload(); // পেজটি রিলোড করবে, ফলে স্টুডেন্ট লগইন পপআপ আসবে
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -241,11 +240,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
                                     let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
                                     let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
+                                    let inst = typeof rec.data === 'object' && rec.data !== null && rec.data.instrument ? rec.data.instrument : ''; 
 
-                                    // কালার লজিক
                                     let clr = status === 'present' ? '#16a34a' : (status === 'absent' ? '#dc2626' : '#f59e0b');
 
-                                    // Date & Time ফরম্যাট
                                     const d = new Date(rec.date);
                                     const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
                                     const formattedDate = d.toLocaleDateString('en-IN');
@@ -253,11 +251,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     let timeDisplay = time ? formatTime12H(time) : '';
                                     let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
                                     
+                                    let instBadge = inst ? `<span style="font-size:10px; color:#0ea5e9; background:#e0f2fe; padding:2px 6px; border-radius:4px; margin-left:5px; border:1px solid #bae6fd; font-weight:bold;">${inst}</span>` : '';
+                                    
                                     let noteDisplay = note ? `<br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>` : '';
 
                                     return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
                                         <div>
-                                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}
+                                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}${instBadge}
                                             ${noteDisplay}
                                         </div>
                                         <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
@@ -746,44 +746,46 @@ setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
                 return; 
             }
             auth.onAuthStateChanged(async (user) => {
-    const loginOverlay = document.getElementById('loginOverlay');
-    const userDisplay = document.getElementById('currentUserDisplay');
+            const loginOverlay = document.getElementById('loginOverlay');
+            const userDisplay = document.getElementById('currentUserDisplay');
 
-    // 🟢 NEW: চেক করা হচ্ছে এটি স্টুডেন্ট পোর্টাল কিনা
-    const urlParams = new URLSearchParams(window.location.search);
-    const isStudentPortal = urlParams.get('student') && urlParams.get('manager');
+            // 🟢 NEW: চেক করা হচ্ছে এটি স্টুডেন্ট পোর্টাল কিনা (URL বা LocalStorage থেকে)
+            const urlParams = new URLSearchParams(window.location.search);
+            const isStudentPortal = urlParams.get('student') && urlParams.get('manager');
+            const savedStudent = localStorage.getItem('saved_student_id');
+            const savedManager = localStorage.getItem('saved_manager_id');
 
-    // যদি স্টুডেন্ট পোর্টাল হয়, তবে লগইন স্ক্রিন লুকিয়ে ফেলবে এবং নিচের কোড রান করবে না
-    if (isStudentPortal) {
-        if(loginOverlay) loginOverlay.style.display = 'none';
-        return; 
-    }
+            // যদি স্টুডেন্ট পোর্টাল হয় (বা ব্রাউজারে স্টুডেন্ট সেভ থাকে), তবে ম্যানেজার লগইন স্ক্রিন লুকিয়ে ফেলবে
+            if (isStudentPortal || (savedStudent && savedManager)) {
+                if(loginOverlay) loginOverlay.style.display = 'none';
+                return; 
+            }
 
-    if (user) {
-        console.log("Logged in:", user.email);
-        if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
-        
-        loginOverlay.style.display = 'none';
-        DOC_ID = user.uid; 
+            // ম্যানেজার লগইন চেক
+            if (user) {
+                console.log("Logged in:", user.email);
+                if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
+                
+                loginOverlay.style.display = 'none';
+                DOC_ID = user.uid; 
 
-        await syncOldDataToFirebase();
-        await loadInstituteLogo();
-        await loadAuthSignature();
+                await syncOldDataToFirebase();
+                await loadInstituteLogo();
+                await loadAuthSignature();
 
-        secureAction(() => { 
-            initApp(); 
-            startClock(); 
-        }, true);
+                secureAction(() => { 
+                    initApp(); 
+                    startClock(); 
+                }, true);
 
-    } else {
-        console.log("No user.");
-        loginOverlay.style.display = 'flex';
-        document.getElementById('securityOverlay').style.display = 'none';
-    }
-});
+            } else {
+                console.log("No user.");
+                loginOverlay.style.display = 'flex';
+                document.getElementById('securityOverlay').style.display = 'none';
+            }
         });
-
-
+        });
+        
 window.showHelpOptions = function() {
             Swal.fire({
                 title: 'Contact Teacher',
@@ -1557,6 +1559,9 @@ async function addStudent() {
         ? `<div style="margin-top:5px;"><img src="${currentStudentSignature}" style="max-height: 40px; border:1px solid #ddd; padding:2px;"></div>` 
         : '<span style="color:red;">No</span>';
 
+// Date of Birth একটু সুন্দর করে দেখানোর জন্য (DD/MM/YYYY)
+    const dobDisplay = dob ? new Date(dob).toLocaleDateString('en-IN') : '-';
+
     const detailsHtml = `
         <div style="text-align: center;">${photoDisplay}</div>
         <div style="text-align: left; font-size: 14px; line-height: 1.6; background: var(--bg-input); padding: 15px; border-radius: 8px;">
@@ -1567,7 +1572,7 @@ async function addStudent() {
             <div><strong>Phone:</strong> ${phone || '-'}</div>
             <div><strong>Guardian:</strong> ${guardian || '-'}</div>
             <div><strong>Address:</strong> ${address || '-'}</div>
-            <div><strong>Signature:</strong> ${sigDisplay}</div>
+            <div><strong>Email:</strong> ${email || '-'}</div> <div><strong>DOB:</strong> ${dobDisplay}</div> <div><strong>Signature:</strong> ${sigDisplay}</div>
         </div>
         <div style="margin-top: 10px; font-size: 12px; color: var(--danger);">
             * Please check carefully before saving.
@@ -3489,7 +3494,6 @@ function renderAttendance() {
         return getScore(b) - getScore(a); 
     });
 
-    // 🟢 নতুন লজিক: Table Row গুলো String-এ জমানো হচ্ছে
     let tableHtml = '';
 
     activeStudents.forEach(student => { 
@@ -3505,6 +3509,9 @@ function renderAttendance() {
         const statusText = status === 'present' ? 'Present' : (status === 'absent' ? 'Absent' : 'Not Marked');
         const statusClass = status === 'present' ? 'status-present' : (status === 'absent' ? 'status-absent' : ''); 
         
+        const inst = (typeof entry === 'object' && entry !== null && entry.instrument) ? entry.instrument : '';
+        const instBadge = inst ? `<br><span style="font-size:10px; color:var(--info); background:rgba(59, 130, 246, 0.1); padding:2px 6px; border-radius:4px; border:1px solid rgba(59, 130, 246, 0.2); display:inline-block; margin-top:3px;">${inst}</span>` : '';
+
         const isToday = student.class_day === currentDayName;
         const highlightStyle = isToday ? 'border: 1px solid var(--primary); background: rgba(79, 70, 229, 0.05);' : '';
 
@@ -3519,7 +3526,7 @@ function renderAttendance() {
                         ${note ? '📝 ' + note : ''}
                     </div>
                 </td>
-                <td class="${statusClass}">${statusText}</td>
+                <td class="${statusClass}">${statusText}${instBadge}</td>
                 <td class="action-buttons">
                     <button class="btn-success" onclick="markAttendance(${student.id}, 'present')">P</button>
                     <button class="btn-danger" onclick="markAttendance(${student.id}, 'absent')">A</button>
@@ -3529,7 +3536,6 @@ function renderAttendance() {
             </tr>`;
     }); 
 
-    // 🟢 লুপ শেষ, এবার একবারে স্ক্রিনে দেখানো হলো
     tableBody.innerHTML = tableHtml;
 
     if(document.getElementById('attTotalCount')) document.getElementById('attTotalCount').textContent = totalActive;
@@ -3539,22 +3545,28 @@ function renderAttendance() {
     searchTable('searchAttendance', 'attendanceTable'); 
 }
 
-function markAttendance(studentId, status) {
+// 🟢 আপডেটেড অ্যাটেন্ডেন্স মার্কিং লজিক (With Multi-Class Selection Checkboxes)
+window.markAttendance = async function(studentId, status) {
     const date = document.getElementById('attendanceDate').value; 
     if (!date) { Swal.fire('Alert','Please select a date.', 'warning'); return; } 
     
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
     if (!attendance[date]) attendance[date] = {}; 
     
     const currentEntry = attendance[date][studentId];
     let existingNote = '';
+    let existingInst = '';
     
-    if (typeof currentEntry === 'object' && currentEntry !== null && currentEntry.note) {
-        existingNote = currentEntry.note;
+    if (typeof currentEntry === 'object' && currentEntry !== null) {
+        existingNote = currentEntry.note || '';
+        existingInst = currentEntry.instrument || '';
     }
 
     if (status === 'clear') { 
         if (existingNote) {
-            attendance[date][studentId] = { status: null, time: '', note: existingNote };
+            attendance[date][studentId] = { status: null, time: '', note: existingNote, instrument: existingInst };
         } else {
             delete attendance[date][studentId]; 
 
@@ -3572,17 +3584,71 @@ function markAttendance(studentId, status) {
             const now = new Date(); 
             timeToSave = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`; 
         }
+
+        let selectedInstrument = existingInst;
+
+        // 🟢 NEW: একাধিক ক্লাস থাকলে Checkbox এর মাধ্যমে সিলেক্ট করার অপশন
+        if (status === 'present' || status === 'absent') {
+            let classList = student.class ? student.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : ['Music'];
+
+            if (classList.length > 1) {
+                let checkboxesHtml = '<div style="display:flex; flex-direction:column; gap:8px; text-align:left; margin-top:15px;">';
+                classList.forEach(c => {
+                    // আগে থেকে সেভ করা থাকলে অটোমেটিক টিক (✓) দেওয়া থাকবে
+                    let isChecked = existingInst.includes(c) ? 'checked' : '';
+                    checkboxesHtml += `
+                        <label style="display:flex; align-items:center; background:var(--bg-input); padding:10px 15px; border-radius:8px; border:1px solid var(--border-color); cursor:pointer; transition:0.2s;">
+                            <input type="checkbox" class="swal-att-inst-cb" value="${c}" ${isChecked} style="width:18px; height:18px; margin:0 12px 0 0; accent-color:var(--primary); cursor:pointer;">
+                            <span style="font-size:14px; font-weight:600; color:var(--text-main);">${c}</span>
+                        </label>
+                    `;
+                });
+                checkboxesHtml += '</div>';
+
+                const { value: formValues, isConfirmed } = await Swal.fire({
+                    title: 'Select Classes',
+                    html: `
+                        <p style="font-size:13px; color:var(--text-muted); margin:0;">Which classes is <b>${student.name.split(' ')[0]}</b> attending today?</p>
+                        ${checkboxesHtml}
+                    `,
+                    showCancelButton: true,
+                    confirmButtonText: 'Save Attendance',
+                    confirmButtonColor: 'var(--success)',
+                    preConfirm: () => {
+                        const cbs = document.querySelectorAll('.swal-att-inst-cb:checked');
+                        let selected = [];
+                        cbs.forEach(cb => selected.push(cb.value));
+                        
+                        if(selected.length === 0) {
+                            Swal.showValidationMessage('Please select at least one class!');
+                            return false;
+                        }
+                        // একাধিক ক্লাস কমা (,) দিয়ে যুক্ত করা হচ্ছে
+                        return selected.join(', '); 
+                    }
+                });
+
+                if (isConfirmed && formValues) {
+                    selectedInstrument = formValues;
+                } else {
+                    return; // User cancelled
+                }
+            } else if (classList.length === 1) {
+                selectedInstrument = classList[0];
+            }
+        }
         
         attendance[date][studentId] = { 
             status: status, 
             time: timeToSave,
-            note: existingNote 
+            note: existingNote,
+            instrument: selectedInstrument
         }; 
     }
     
     renderAttendance(); 
     saveData().catch(err => console.log("Background Sync Pending...")); 
-}
+};
 
 // 🟢 রিয়েল-টাইম ডুপ্লিকেট নোট চেকার
 window.checkNoteRealtime = function(studentId, inputVal, currentDate) {
@@ -4290,12 +4356,13 @@ function renderStudentDetailsHistory() {
             const entry = attendance[date]?.[student.id];
             if(entry) {
                 const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
-                let timeStr = ''; let status = entry;
+                let timeStr = ''; let status = entry; let instStr = '';
                 if(typeof entry === 'object' && entry !== null) {
                     status = entry.status;
-                    if(entry.time) { timeStr = ` (${formatTime12H(entry.time)})`; }
+                    if(entry.time) { timeStr = ` <span style="color:var(--text-muted);">(${formatTime12H(entry.time)})</span>`; }
+                    if(entry.instrument) { instStr = ` <span style="font-size:10px; color:#0ea5e9; font-weight:600;">[${entry.instrument}]</span>`; }
                 }
-                const formattedDate = `${d.toLocaleDateString('en-IN')} (${dayName})${timeStr}`;
+                const formattedDate = `${d.toLocaleDateString('en-IN')} (${dayName})${timeStr}${instStr}`;
                 if (status === 'present') { presentList.innerHTML += `<li style="padding:2px 0; border-bottom:1px solid #f9f9f9;">${formattedDate}</li>`; } 
                 else if (status === 'absent') { absentList.innerHTML += `<li style="padding:2px 0; border-bottom:1px solid #f9f9f9;">${formattedDate}</li>`; }
             }
@@ -4786,17 +4853,15 @@ function closeQRScanner() {
     }
 }
 
-function onScanSuccess(decodedText, decodedResult) {
+async function onScanSuccess(decodedText, decodedResult) {
     let studentId = null;
     
-    // Check if it's a new Web URL QR Code
     if(decodedText.includes("student=")) {
         try {
             const url = new URL(decodedText);
             studentId = parseInt(url.searchParams.get("student"));
         } catch(e) {}
     } 
-    // Check if it's an old Text QR Code
     else if(decodedText.includes("[APP_ID:")) {
         const match = decodedText.match(/\[APP_ID:(\d+)\]/);
         if(match && match[1]) studentId = parseInt(match[1]);
@@ -4806,25 +4871,19 @@ function onScanSuccess(decodedText, decodedResult) {
         const student = students.find(s => s.id === studentId);
         if(student) {
             closeQRScanner();
-            markAttendance(studentId, 'present');
+            
+            await markAttendance(studentId, 'present');
+            
             Swal.fire({
                 toast: true, position: 'top-end',
                 icon: 'success', title: `${student.name} Marked Present!`,
                 showConfirmButton: false, timer: 2500
             });
         } else {
-            Swal.fire({
-                toast: true, position: 'top',
-                icon: 'error', title: 'Student not found.',
-                showConfirmButton: false, timer: 2000
-            });
+            Swal.fire({ toast: true, position: 'top', icon: 'error', title: 'Student not found.', showConfirmButton: false, timer: 2000 });
         }
     } else {
-         Swal.fire({
-             toast: true, position: 'bottom',
-             icon: 'warning', title: 'Invalid QR Code.',
-             showConfirmButton: false, timer: 1500
-         });
+         Swal.fire({ toast: true, position: 'bottom', icon: 'warning', title: 'Invalid QR Code.', showConfirmButton: false, timer: 1500 });
     }
 }
 
