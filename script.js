@@ -173,14 +173,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     let studentViewId = urlParams.get('student');
     let managerUid = urlParams.get('manager');
 
-    // --- 🟢 Chrome Shortcut Fix শুরু ---
+// --- 🟢 Chrome Shortcut Fix শুরু ---
     if (!studentViewId || !managerUid) {
         const savedStudent = localStorage.getItem('saved_student_id');
         const savedManager = localStorage.getItem('saved_manager_id');
-        // ব্রাউজারের মেমোরিতে স্টুডেন্ট আইডি থাকলে স্বয়ংক্রিয়ভাবে পোর্টালে নিয়ে যাবে
+        // ব্রাউজারের মেমোরিতে স্টুডেন্ট আইডি থাকলে রিলোড না করে সরাসরি ভেরিয়েবলে সেট করা হলো
         if (savedStudent && savedManager) {
-            window.location.replace(`?student=${savedStudent}&manager=${savedManager}`);
-            return;
+            studentViewId = savedStudent;
+            managerUid = savedManager;
+            // URL-টি সাইলেন্টলি আপডেট করা হলো যাতে পেজ রিলোড না নেয়
+            window.history.replaceState(null, '', `?student=${studentViewId}&manager=${managerUid}`);
         }
     } else {
         // প্রথমবার লিংকে ক্লিক করলে ডেটা সেভ করে রাখবে
@@ -6386,6 +6388,107 @@ window.executeSingleRestore = async function(backupData) {
         Swal.fire('Error', 'Failed to restore student completely. Check internet connection.', 'error');
     }
 };
+// --- 🟢 MISSING FUNCTIONS RECOVERED ---
+function sendGeneralMsg(type, studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    // স্টুডেন্টের নিজস্ব পোর্টাল লিঙ্ক তৈরি করা হচ্ছে
+    const baseUrl = window.location.origin + window.location.pathname;
+    const portalLink = `${baseUrl}?student=${student.id}&manager=${DOC_ID}`;
+
+    // 🟢 সুন্দর এবং প্রফেশনাল মেসেজ টেমপ্লেট (ইমোজি সহ)
+    let msgBody = `Hello ${student.name},\n\nHope you are doing well and enjoying your ${student.class || 'Music'} classes! 🎵\n\nYou can check your Attendance, Fees, and Study Materials anytime from your Student Portal here:\n${portalLink}\n\nKeep practicing regularly!\n\nRegards,\nSrikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes)`;
+    
+    if(type === 'wa') {
+        let cleanPhone = student.phone.replace(/[^0-9]/g, '');
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+    } else if (type === 'sms') {
+        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+    } else if (type === 'mail') {
+        window.open(`mailto:${student.email}?subject=${encodeURIComponent("Update from Music Class")}&body=${encodeURIComponent(msgBody)}`, '_self');
+    }
+}
+
+function openEditStudentModal(id) {
+    const student = students.find(s => s.id === id);
+    if (!student) return;
+    
+    document.getElementById('editStudentId').value = student.id;
+    document.getElementById('editStudentName').value = student.name;
+    document.getElementById('editStudentClass').value = student.class || '';
+    document.getElementById('editStudentDay').value = student.class_day || '';
+    document.getElementById('editStudentTime').value = student.class_time || '';
+    document.getElementById('editStudentFee').value = student.fee_amount || DEFAULT_FEE;
+    document.getElementById('editPhone').value = student.phone || '';
+    document.getElementById('editGuardianName').value = student.guardian || '';
+    document.getElementById('editStudentEmail').value = student.email || '';
+    document.getElementById('editAddress').value = student.address || '';
+    document.getElementById('editStudentDOB').value = student.dob || '';
+    document.getElementById('editAllowProfile').checked = student.allow_profile_view !== false; // Default true
+    
+    const photoPreview = document.getElementById('editPhotoPreview');
+    if (student.photo) {
+        photoPreview.src = student.photo;
+        currentEditPhotoBase64 = student.photo;
+    } else {
+        photoPreview.src = 'https://via.placeholder.com/100?text=No+Photo';
+        currentEditPhotoBase64 = null;
+    }
+    isPhotoDeletedInEdit = false;
+
+    document.getElementById('editStudentModal').style.display = 'flex';
+}
+
+async function saveStudentChanges() {
+    const id = parseInt(document.getElementById('editStudentId').value);
+    const studentIndex = students.findIndex(s => s.id === id);
+    if (studentIndex === -1) return;
+
+    const name = document.getElementById('editStudentName').value;
+    const className = document.getElementById('editStudentClass').value;
+    const day = document.getElementById('editStudentDay').value;
+    const time = document.getElementById('editStudentTime').value;
+    const fee = parseFloat(document.getElementById('editStudentFee').value) || DEFAULT_FEE;
+    const phone = document.getElementById('editPhone').value;
+    const guardian = document.getElementById('editGuardianName').value;
+    const email = document.getElementById('editStudentEmail').value;
+    const address = document.getElementById('editAddress').value;
+    const dob = document.getElementById('editStudentDOB').value;
+    const allowProfile = document.getElementById('editAllowProfile').checked;
+
+    if (name.trim() === '') {
+        Swal.fire('Error', 'Name is required.', 'error');
+        return;
+    }
+
+    let finalPhoto = students[studentIndex].photo;
+    if (isPhotoDeletedInEdit) {
+        finalPhoto = null;
+    } else if (currentEditPhotoBase64) {
+        finalPhoto = currentEditPhotoBase64;
+    }
+
+    students[studentIndex] = {
+        ...students[studentIndex],
+        name, class: className, class_day: day, class_time: time,
+        fee_amount: fee, phone, guardian, email, address, dob,
+        photo: finalPhoto,
+        allow_profile_view: allowProfile
+    };
+
+    closeModal('editStudentModal');
+    loadAllData();
+    Swal.fire('Success', 'Student updated successfully!', 'success');
+
+    const user = firebase.auth().currentUser;
+    if (user) {
+        db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(id)).set(students[studentIndex], { merge: true })
+        .catch(e => console.log("Offline sync pending"));
+    }
+}
+// ------------------------------------------
 // 🟢 NEW: Student Portal QR Code Viewer Function
 window.showStudentPortalQR = function(studentId) {
     const urlParams = new URLSearchParams(window.location.search);
@@ -6410,6 +6513,6 @@ window.showStudentPortalQR = function(studentId) {
         showCloseButton: true,
         showConfirmButton: true,
         confirmButtonText: 'Close',
-        confirmButtonColor: '#ef4444', // Red Color for Close Button
+        confirmButtonColor: '#ef4444' // 🟢 Fixed Syntax Error Here
     });
 };
