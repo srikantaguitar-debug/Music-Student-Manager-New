@@ -769,6 +769,7 @@ setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
                 if(userDisplay) userDisplay.textContent = `User: ${user.email}`;
                 
                 loginOverlay.style.display = 'none';
+                if(document.getElementById('initialLoader')) document.getElementById('initialLoader').style.display = 'none';
                 DOC_ID = user.uid; 
 
                 await syncOldDataToFirebase();
@@ -782,6 +783,7 @@ setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
 
             } else {
                 console.log("No user.");
+                if(document.getElementById('initialLoader')) document.getElementById('initialLoader').style.display = 'none';
                 loginOverlay.style.display = 'flex';
                 document.getElementById('securityOverlay').style.display = 'none';
             }
