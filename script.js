@@ -2500,6 +2500,7 @@ function exportStudentDetailsAsPDF(studentId) {
     addInfo("Class:", student.class);
     addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE}/-`);
     addInfo("Joined:", new Date(student.joining_date).toLocaleDateString('en-IN'));
+    
     // 🟢 PDF Inactive Details Logic Start
     if (student.status && student.status.history && student.status.history.length > 0) {
         const sortedHistory = [...student.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -2521,12 +2522,12 @@ function exportStudentDetailsAsPDF(studentId) {
             if (d > 0) dur.push(d + ' Days');
             if (dur.length === 0) dur.push('Today');
             
-            doc.setTextColor(220, 38, 38); // লাল রঙ
+            doc.setTextColor(220, 38, 38); 
             doc.setFont("helvetica", "bold");
             doc.text("Status:", leftMargin, y);
             doc.setFont("helvetica", "normal");
             doc.text(`Inactive From ${inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'})} (Duration: ${dur.join(', ')})`, leftMargin + 35, y);
-            doc.setTextColor(0); // আবার কালো রঙে ফেরত
+            doc.setTextColor(0); 
             y += lineHeight;
         } 
         // ২. যদি অতীতে Inactive ছিল কিন্তু এখন Active
@@ -2549,16 +2550,15 @@ function exportStudentDetailsAsPDF(studentId) {
             const startStr = inactiveDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
             const endStr = reactivatedDate.toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'2-digit'});
 
-            doc.setTextColor(180, 83, 9); // হলুদ/কমলা রঙ
+            doc.setTextColor(180, 83, 9); 
             doc.setFont("helvetica", "bold");
             doc.text("Past Inactive:", leftMargin, y);
             doc.setFont("helvetica", "normal");
             doc.text(`${startStr} to ${endStr} (${dur.join(', ')})`, leftMargin + 35, y);
-            doc.setTextColor(0); // আবার কালো রঙে ফেরত
+            doc.setTextColor(0); 
             y += lineHeight;
         }
     }
-    // 🟢 PDF Inactive Details Logic End
     y += 5;
 
     doc.setFontSize(12);
@@ -2638,7 +2638,6 @@ function exportStudentDetailsAsPDF(studentId) {
     doc.setFillColor(230);
     doc.rect(leftMargin, y, pageWidth - (leftMargin*2), 8, 'F');
     doc.setFontSize(10);
-    // Modified Date column text to Date & Time
     doc.text("Date & Time", leftMargin + 5, y + 5);
     doc.text("Status", leftMargin + 50, y + 5);
     doc.text("Topic / Note", leftMargin + 80, y + 5);
@@ -2692,6 +2691,132 @@ function exportStudentDetailsAsPDF(studentId) {
     if (!hasAttendance) {
         doc.setTextColor(0);
         doc.text("No attendance records found.", leftMargin + 5, y);
+        y += 10;
+    } else {
+        y += 10; 
+    }
+
+    // --- 🟢 NEW: Practice Statistics (Grid & Class-wise) Section Start ---
+    if (student.practice_log && student.practice_log.length > 0) {
+        if (y > 230) { addPageFooter(doc, currentDate); doc.addPage(); y = 20; }
+
+        doc.setFontSize(14);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0);
+        doc.text("Practice History Statistics", leftMargin, y);
+        y += 8;
+
+        let classesToReport = ['All'];
+        let classList = student.class ? student.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : [];
+        
+        // একের বেশি সাবজেক্ট থাকলে 'All' এর পর বাকিগুলো লিস্টে ঢুকবে
+        if (classList.length > 1) {
+            classesToReport = ['All', ...classList];
+        }
+
+        classesToReport.forEach(subject => {
+            if (y > 240) { addPageFooter(doc, currentDate); doc.addPage(); y = 20; }
+
+            const stats = getPracticeStats(student, subject);
+            const title = subject === 'All' ? (classList.length > 1 ? "Overall Practice (All Subjects)" : "Practice Stats") : `Subject: ${subject}`;
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(0, 102, 204); 
+            doc.text(title, leftMargin, y);
+            y += 6;
+
+            const boxW = 55;
+            const boxH = 15;
+            const gap = 5;
+            let startX = leftMargin;
+
+            const statBoxes = [
+                { label: "TODAY", val: formatPracticeTime(stats.today), color: [99, 102, 241] },
+                { label: "THIS WEEK", val: formatPracticeTime(stats.week), color: [217, 119, 6] },
+                { label: "THIS MONTH", val: formatPracticeTime(stats.month), color: [225, 29, 72] },
+                { label: "THIS YEAR", val: formatPracticeTime(stats.year), color: [37, 99, 235] },
+                { label: "LIFETIME", val: formatPracticeTime(stats.lifetime), color: [16, 185, 129] },
+                { label: "DAILY AVG", val: formatPracticeTime(stats.avg), color: [219, 39, 119] }
+            ];
+
+            statBoxes.forEach((box, i) => {
+                const row = Math.floor(i / 3);
+                const col = i % 3;
+                const bx = startX + (col * (boxW + gap));
+                const by = y + (row * (boxH + gap));
+
+                doc.setFillColor(245, 247, 250);
+                doc.setDrawColor(220, 220, 220);
+                doc.rect(bx, by, boxW, boxH, 'FD');
+
+                doc.setFontSize(8);
+                doc.setTextColor(100, 116, 139);
+                doc.setFont("helvetica", "bold");
+                doc.text(box.label, bx + (boxW / 2), by + 5, { align: 'center' });
+
+                doc.setFontSize(12);
+                doc.setTextColor(box.color[0], box.color[1], box.color[2]);
+                doc.text(box.val, bx + (boxW / 2), by + 12, { align: 'center' });
+            });
+
+            y += (2 * boxH) + gap + 8; 
+        });
+
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.5);
+        doc.line(leftMargin, y, pageWidth - leftMargin, y);
+        y += 8;
+
+        // --- Practice Log Table (Recent) ---
+        if (y > 250) { addPageFooter(doc, currentDate); doc.addPage(); y = 20; }
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0);
+        doc.text("Practice Log Details (Recent 20)", leftMargin, y);
+        y += 8;
+
+        doc.setFillColor(230);
+        doc.rect(leftMargin, y, pageWidth - (leftMargin * 2), 8, 'F');
+        doc.setFontSize(10);
+        
+        doc.text("Date & Time", leftMargin + 5, y + 5);
+        doc.text("Subject", leftMargin + 45, y + 5);
+        doc.text("Topic", leftMargin + 85, y + 5);
+        doc.text("Duration", leftMargin + 150, y + 5);
+        y += 12;
+
+        doc.setFont("helvetica", "normal");
+        
+        // লেটেস্ট ২০টি লগ দেখানো
+        const recentLogs = [...student.practice_log].sort((a, b) => b.id - a.id).slice(0, 20);
+
+        recentLogs.forEach(log => {
+            doc.setTextColor(0);
+            const dateTimeText = `${log.date} ${log.time}`;
+            doc.text(dateTimeText, leftMargin + 5, y);
+
+            let displayInst = log.instrument || (student.class ? student.class.split(',')[0].trim() : 'Music');
+            doc.setTextColor(0, 102, 204); 
+            const instLines = doc.splitTextToSize(displayInst, 35);
+            doc.text(instLines, leftMargin + 45, y);
+
+            doc.setTextColor(80);
+            const topicText = log.topic || 'Regular Practice';
+            const topicLines = doc.splitTextToSize(topicText, 60);
+            doc.text(topicLines, leftMargin + 85, y);
+
+            doc.setTextColor(0, 128, 0); 
+            doc.setFont("helvetica", "bold");
+            doc.text(`${log.minutes} mins`, leftMargin + 150, y);
+            doc.setFont("helvetica", "normal");
+
+            const rowHeight = Math.max(7, Math.max(topicLines.length, instLines.length) * 5);
+            y += rowHeight;
+
+            if (y > 270) { addPageFooter(doc, currentDate); doc.addPage(); y = 20; }
+        });
     }
 
     addPageFooter(doc, currentDate);
