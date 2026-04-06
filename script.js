@@ -173,7 +173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let studentViewId = urlParams.get('student');
     let managerUid = urlParams.get('manager');
 
-// --- 🟢 Chrome Shortcut Fix শুরু ---
+    // --- 🟢 Chrome Shortcut Fix শুরু ---
     if (!studentViewId || !managerUid) {
         const savedStudent = localStorage.getItem('saved_student_id');
         const savedManager = localStorage.getItem('saved_manager_id');
@@ -789,7 +789,7 @@ setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
             }
         });
         });
-        
+
 window.showHelpOptions = function() {
             Swal.fire({
                 title: 'Contact Teacher',
@@ -3090,7 +3090,6 @@ function loadStudentsList(showAll = false) {
         // 🟢 নতুন: সরাসরি DOM এ append না করে String-এ row তৈরি করা হচ্ছে
         const rowString = `
             <tr class="${rowClass}">
-                <td>${student.serial_no}</td>
                 <td>${getStudentHtml(student)}</td>
                 <td>${student.class || 'N/A'}${dayTimeStr}</td>
                 <td>₹${student.fee_amount || DEFAULT_FEE}</td>
