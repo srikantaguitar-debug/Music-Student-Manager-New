@@ -7197,7 +7197,7 @@ setTimeout(() => {
     }
 }, 500); // পেজ রেডি হওয়ার জন্য আধ সেকেন্ড সময় দেওয়া হলো
 // ==========================================
-// 🟢 STOCK MANAGEMENT LOGIC & AUTO DEDUCT
+// 🟢 STOCK MANAGEMENT LOGIC (ADD, EDIT, DELETE)
 // ==========================================
 
 window.stockInventory = [];
@@ -7207,42 +7207,105 @@ window.openStockModal = function() {
     document.getElementById('stockModal').style.display = 'flex';
 };
 
+// ১. স্টক সেভ বা আপডেট করা
 window.addStockItem = async function() {
     const name = document.getElementById('newStockName').value.trim();
     const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
     const qty = parseInt(document.getElementById('newStockQty').value) || 0;
+    
+    // এডিট করার জন্য আইডি চেক করা
+    const editIdInput = document.getElementById('editStockId');
+    const editId = editIdInput ? editIdInput.value : '';
 
     if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
 
-    const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-    if (existingIndex > -1) {
-        // Update existing item
-        window.stockInventory[existingIndex].price = price;
-        window.stockInventory[existingIndex].qty += qty; // Add new qty to old qty
+    if (editId) {
+        // 🟡 এডিট মোড: পুরনো আইটেমের নাম, দাম ও সংখ্যা আপডেট করা
+        const index = window.stockInventory.findIndex(i => i.id == editId);
+        if (index > -1) {
+            window.stockInventory[index] = { ...window.stockInventory[index], name, price, qty };
+        }
     } else {
-        // Add new item
-        window.stockInventory.push({ id: Date.now(), name, price, qty });
+        // 🟢 নতুন আইটেম মোড: নতুন তৈরি হবে বা একই নামে থাকলে কোয়ান্টিটি বাড়বে
+        const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+        if (existingIndex > -1) {
+            window.stockInventory[existingIndex].price = price;
+            window.stockInventory[existingIndex].qty += qty;
+        } else {
+            window.stockInventory.push({ id: Date.now(), name, price, qty });
+        }
     }
 
+    // কাজ শেষ হলে ইনপুট বক্স ফাঁকা করা
     document.getElementById('newStockName').value = '';
     document.getElementById('newStockPrice').value = '';
     document.getElementById('newStockQty').value = '';
+    if(editIdInput) editIdInput.value = '';
+    
+    // বাটন আগের অবস্থায় ফিরিয়ে আনা
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add / Update Stock';
+        btn.style.background = ''; // ডিফল্ট ব্লু কালার
+    }
 
     window.renderStockTable();
     window.renderInventoryDropdown();
     
-    // Save to Firebase
+    // ফায়ারবেসে সেভ করা
     await dbSet('stockData', window.stockInventory);
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Stock updated!', showConfirmButton: false, timer: 1500});
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
 };
 
+// ২. স্টক এডিট করা (পেন্সিল আইকনে ক্লিক করলে কাজ করবে)
+window.editStockItem = function(id) {
+    const item = window.stockInventory.find(i => i.id === id);
+    if (!item) return;
+
+    // বক্সগুলোতে আগের ডাটা বসিয়ে দেওয়া
+    document.getElementById('newStockName').value = item.name;
+    document.getElementById('newStockPrice').value = item.price;
+    document.getElementById('newStockQty').value = item.qty;
+    
+    // Hidden input এ ID সেট করা (যাতে সেভ করার সময় বুঝতে পারে এটি এডিট হচ্ছে)
+    let editIdInput = document.getElementById('editStockId');
+    if(!editIdInput) {
+        editIdInput = document.createElement('input');
+        editIdInput.type = 'hidden';
+        editIdInput.id = 'editStockId';
+        document.querySelector('#stockModal .form-grid').appendChild(editIdInput);
+    }
+    editIdInput.value = item.id;
+
+    // বাটনের স্টাইল চেঞ্জ করে 'Update' করা
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-save"></i> Update Stock Item';
+        btn.style.background = '#f59e0b'; // ওয়ার্নিং/কমলা রং
+    }
+};
+
+// ৩. স্টক ডিলিট করা (ট্র্যাশ আইকনে ক্লিক করলে কাজ করবে)
 window.deleteStockItem = async function(id) {
-    window.stockInventory = window.stockInventory.filter(i => i.id !== id);
-    window.renderStockTable();
-    window.renderInventoryDropdown();
-    await dbSet('stockData', window.stockInventory);
+    Swal.fire({
+        title: 'Delete Item?',
+        text: "Are you sure you want to remove this item from stock?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, delete it'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            window.stockInventory = window.stockInventory.filter(i => i.id !== id);
+            window.renderStockTable();
+            window.renderInventoryDropdown();
+            await dbSet('stockData', window.stockInventory);
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+        }
+    });
 };
 
+// ৪. স্টক টেবিল দেখানো (Edit ✏️ এবং Delete 🗑️ দুটি বাটন সহ)
 window.renderStockTable = function() {
     const tbody = document.getElementById('stockTableBody');
     if(!tbody) return;
@@ -7260,14 +7323,16 @@ window.renderStockTable = function() {
                 <td style="padding: 10px 8px; color: var(--text-main); font-weight: 500;">${item.name}</td>
                 <td style="padding: 10px 8px; color: var(--text-main);">₹${item.price}</td>
                 <td style="padding: 10px 8px; ${stockColor}">${item.qty} pcs</td>
-                <td style="padding: 10px 8px; text-align: center;">
-                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer;"><i class="fas fa-trash"></i></button>
+                <td style="padding: 10px 8px; text-align: center; white-space: nowrap;">
+                    <button onclick="window.editStockItem(${item.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; margin-right:12px; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
     });
 };
 
+// ডাটা লিস্ট আপডেট করা
 window.renderInventoryDropdown = function() {
     const datalist = document.getElementById('stockDataList');
     if(!datalist) return;
@@ -7279,40 +7344,74 @@ window.renderInventoryDropdown = function() {
     });
 };
 
+window.currentUnitPrice = 0; // ১ পিসের দাম মনে রাখার জন্য
+
+// 🟢 অটোমেটিক দাম বসানো এবং স্টক চেক করা
 window.autoFillItemPrice = function() {
     const inputName = document.getElementById('itemName').value.trim();
     const item = window.stockInventory.find(i => i.name.toLowerCase() === inputName.toLowerCase());
     
     if (item) {
-        document.getElementById('itemPrice').value = item.price;
-        window.calculateSaleDue();
+        window.currentUnitPrice = item.price; 
+        window.updateSalePriceCalc(); // Qty অনুযায়ী মোট দাম বসাবে
         
-        // 🟢 স্টক ০ থাকলে নাম লেখার সাথেই ওয়ার্নিং দেবে
         if (item.qty <= 0) {
             Swal.fire({toast: true, position: 'top-end', icon: 'error', title: 'Out of Stock!', text: 'This item is finished.', showConfirmButton: false, timer: 2500});
         }
     }
 };
 
-// 🟢 Override Process Sale to Auto-Deduct & Block Out of Stock
+// 🟢 Qty পরিবর্তন হলে Total Price অটোমেটিক গুণ করা
+window.updateSalePriceCalc = function() {
+    const qty = parseInt(document.getElementById('saleQty').value) || 1;
+    if (window.currentUnitPrice > 0) {
+        document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
+    }
+    window.calculateSaleDue();
+};
+
+window.calculateSaleDue = function() {
+    const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const due = price - paid;
+    
+    const display = document.getElementById('saleDueDisplay');
+    if(display) {
+        if (due > 0) {
+            display.innerHTML = `Current Due: <span style="color:var(--danger);">₹${due}</span>`;
+            display.style.background = 'rgba(239, 68, 68, 0.1)';
+        } else {
+            display.innerHTML = `Current Due: <span style="color:var(--success);">₹0 (Fully Paid)</span>`;
+            display.style.background = 'rgba(16, 185, 129, 0.1)';
+        }
+    }
+};
+
+// 🟢 Qty অনুযায়ী স্টক কমানো এবং সেল প্রসেস করা
 window.processSale = function() {
     const sId = document.getElementById('saleStudentId').value;
-    const item = document.getElementById('itemName').value.trim();
+    const itemNameInput = document.getElementById('itemName').value.trim();
+    const saleQty = parseInt(document.getElementById('saleQty').value) || 1;
     const price = parseFloat(document.getElementById('itemPrice').value);
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
     const editId = document.getElementById('editSaleId').value;
 
-    if (!sId || !item || isNaN(price)) {
-        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Fill all details!', showConfirmButton: false, timer: 2000});
+    if (!sId || !itemNameInput || isNaN(price) || saleQty < 1) {
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Fill all details correctly!', showConfirmButton: false, timer: 2000});
         return;
     }
 
-    // 🟢 NEW: সেল করার আগে চেক করবে স্টক আছে কি না (শুধুমাত্র নতুন সেলের ক্ষেত্রে)
+    // রিসিটে দেখানোর জন্য আইটেমের নামের সাথে পিস যুক্ত করা (যেমন: Guitar Strings (x2))
+    const finalItemName = saleQty > 1 ? `${itemNameInput} (x${saleQty})` : itemNameInput;
+
+    // 🟢 সেল করার আগে চেক করবে স্টক পর্যাপ্ত আছে কি না
     if (!editId) {
-        const stockItemCheck = window.stockInventory.find(i => i.name.toLowerCase() === item.toLowerCase());
-        if (stockItemCheck && stockItemCheck.qty <= 0) {
-            Swal.fire('Out of Stock!', `You don't have any "${stockItemCheck.name}" left in stock. Please add stock first.`, 'error');
-            return; // 🚫 স্টক না থাকলে সেল এখানেই ক্যানসেল করে দেবে
+        const stockItemCheck = window.stockInventory.find(i => i.name.toLowerCase() === itemNameInput.toLowerCase());
+        if (stockItemCheck) {
+            if (stockItemCheck.qty < saleQty) {
+                Swal.fire('Not Enough Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left.`, 'error');
+                return; // 🚫 স্টক পর্যাপ্ত না থাকলে সেল হবে না
+            }
         }
     }
 
@@ -7323,31 +7422,25 @@ window.processSale = function() {
     if (editId) {
         const index = salesDataArray.findIndex(s => s.id == editId);
         if(index > -1) {
-            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: item, price: price, paid: paid, due: due };
+            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: finalItemName, price: price, paid: paid, due: due };
         }
-        window.addAccessoryDueToStudent(student.id, parseInt(editId), item, due); 
+        window.addAccessoryDueToStudent(student.id, parseInt(editId), finalItemName, due); 
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
     } else {
         const newSaleId = Date.now();
         const saleData = {
-            id: newSaleId,
-            studentId: student.id,
-            studentName: student.name,
-            item: item,
-            price: price,
-            paid: paid,
-            due: due,
-            date: new Date().toISOString().split('T')[0]
+            id: newSaleId, studentId: student.id, studentName: student.name,
+            item: finalItemName, price: price, paid: paid, due: due, date: new Date().toISOString().split('T')[0]
         };
         salesDataArray.unshift(saleData);
-        window.addAccessoryDueToStudent(student.id, newSaleId, item, due); 
+        window.addAccessoryDueToStudent(student.id, newSaleId, finalItemName, due); 
         
-        // 🟢 AUTO DEDUCT STOCK LOGIC
-        const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === item.toLowerCase());
-        if (stockItem && stockItem.qty > 0) {
-            stockItem.qty -= 1; // 1 পিস কমিয়ে দেওয়া হলো
-            dbSet('stockData', window.stockInventory).catch(e=>console.log(e)); // সেভ করা হলো
-            window.renderStockTable(); // 🟢 টেবিল আপডেট
+        // 🟢 স্টক থেকে সঠিক কোয়ান্টিটি মাইনাস করা
+        const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === itemNameInput.toLowerCase());
+        if (stockItem && stockItem.qty >= saleQty) {
+            stockItem.qty -= saleQty; 
+            dbSet('stockData', window.stockInventory).catch(e=>console.log(e)); 
+            window.renderStockTable(); 
             window.renderInventoryDropdown();
         }
 
@@ -7358,4 +7451,59 @@ window.processSale = function() {
     window.renderSalesUI();
     window.cancelSaleEdit();
     window.syncSalesToFirebase(currentYear);
+};
+
+// 🟢 এডিট ক্যানসেল করার ফাংশন (যেখানে Qty রিসেট হবে)
+window.cancelSaleEdit = function() {
+    document.getElementById('saleStudentId').value = '';
+    document.getElementById('saleSelectedName').textContent = '🔍 Click here to search student...';
+    document.getElementById('saleSelectedName').style.color = 'var(--text-muted)';
+    document.getElementById('saleSelectedPhoto').style.display = 'none';
+    
+    document.getElementById('itemName').value = '';
+    document.getElementById('saleQty').value = '1'; // Qty রিসেট
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('amountPaid').value = '';
+    document.getElementById('editSaleId').value = '';
+    window.currentUnitPrice = 0;
+    
+    const btn = document.getElementById('saleProcessBtn');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i> Sell & Send Receipt';
+        btn.className = 'btn-primary';
+    }
+    const cancelBtn = document.getElementById('saleCancelEditBtn');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    
+    window.calculateSaleDue();
+};
+
+window.editSaleRecord = function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    
+    const student = students.find(st => st.id == sale.studentId);
+    if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
+
+    // নামের সাথে থাকা (x2) বা (x3) এক্সট্র্যাক্ট করে আসল নাম ও Qty আলাদা করা
+    let extractedName = sale.item;
+    let extractedQty = 1;
+    const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
+    if (match) {
+        extractedName = match[1];
+        extractedQty = parseInt(match[2]);
+    }
+
+    document.getElementById('itemName').value = extractedName;
+    document.getElementById('saleQty').value = extractedQty;
+    document.getElementById('itemPrice').value = sale.price;
+    document.getElementById('amountPaid').value = sale.paid;
+    document.getElementById('editSaleId').value = sale.id;
+
+    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
+    document.getElementById('saleProcessBtn').className = 'btn-warning';
+    document.getElementById('saleCancelEditBtn').style.display = 'block';
+    
+    window.calculateSaleDue();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
