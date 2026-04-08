@@ -4,11 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Music Classes Manager (Pro)</title>
-    
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link rel="preconnect" href="https://www.gstatic.com">
-    
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://www.gstatic.com">
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -27,6 +25,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js" defer></script>
     <script src="https://unpkg.com/html5-qrcode" defer></script>
     
@@ -69,6 +68,7 @@
             <div class="wn-row"><span class="wn-label">Address:</span><span id="wnAddress" class="wn-val"></span></div>
             <div class="wn-row"><span class="wn-label">Phone:</span><span id="wnPhone" class="wn-val"></span></div>
         </div>
+
         <div class="wn-photo-col">
             <img id="wnStudentPhoto" src="">
         </div>
@@ -112,702 +112,839 @@
             <span style="font-size: 18px;">(Owner & Instructor)</span>
         </div>
     </div>
-</div> 
-
-<div id="securityOverlay">
-    <span class="close-pin" onclick="closePinScreen()" style="position: absolute; top: 30px; right: 20px; font-size: 30px; opacity: 0.7;">&times;</span>
-    <div style="font-size: 20px; letter-spacing: 2px; margin-bottom: 20px; opacity: 0.9;">ENTER PIN</div>
-    <div class="pin-dots" id="pinDots"><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div></div>
-    <div class="pin-pad">
-        <div class="pin-btn" onclick="pressPin('1')">1</div><div class="pin-btn" onclick="pressPin('2')">2</div><div class="pin-btn" onclick="pressPin('3')">3</div>
-        <div class="pin-btn" onclick="pressPin('4')">4</div><div class="pin-btn" onclick="pressPin('5')">5</div><div class="pin-btn" onclick="pressPin('6')">6</div>
-        <div class="pin-btn" onclick="pressPin('7')">7</div><div class="pin-btn" onclick="pressPin('8')">8</div><div class="pin-btn" onclick="pressPin('9')">9</div>
-        <div class="pin-btn" onclick="pressPin('C')" style="color: #ef4444;"><i class="fas fa-times"></i></div>
-        <div class="pin-btn" onclick="pressPin('0')">0</div>
-        <div class="pin-btn" onclick="submitPin()" style="color: #10b981;"><i class="fas fa-check"></i></div>
+</div> <div id="securityOverlay">
+        <span class="close-pin" onclick="closePinScreen()" style="position: absolute; top: 30px; right: 20px; font-size: 30px; opacity: 0.7;">&times;</span>
+        <div style="font-size: 20px; letter-spacing: 2px; margin-bottom: 20px; opacity: 0.9;">ENTER PIN</div>
+        <div class="pin-dots" id="pinDots"><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div></div>
+        <div class="pin-pad">
+            <div class="pin-btn" onclick="pressPin('1')">1</div><div class="pin-btn" onclick="pressPin('2')">2</div><div class="pin-btn" onclick="pressPin('3')">3</div>
+            <div class="pin-btn" onclick="pressPin('4')">4</div><div class="pin-btn" onclick="pressPin('5')">5</div><div class="pin-btn" onclick="pressPin('6')">6</div>
+            <div class="pin-btn" onclick="pressPin('7')">7</div><div class="pin-btn" onclick="pressPin('8')">8</div><div class="pin-btn" onclick="pressPin('9')">9</div>
+            <div class="pin-btn" onclick="pressPin('C')" style="color: #ef4444;"><i class="fas fa-times"></i></div>
+            <div class="pin-btn" onclick="pressPin('0')">0</div>
+            <div class="pin-btn" onclick="submitPin()" style="color: #10b981;"><i class="fas fa-check"></i></div>
+        </div>
     </div>
+
+    <div id="signatureModal" class="modal">
+        <div class="sig-container-wrapper" id="sigWrapper">
+            <div class="sig-canvas-box">
+                <canvas id="sigCanvas"></canvas>
+            </div>
+        </div>
+ <div class="sig-toolbar">
+    <button class="btn-danger" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
+    <button class="btn-success" onclick="saveSignature()"><i class="fas fa-save"></i> Save Signature</button>
+    <button class="btn-warning" onclick="closeSignatureModal()">Close</button>
+</div>
+    </div>
+
+    <header>
+        <div class="header-content">
+            <img id="headerLogo" src="" alt="Logo">
+            <div>
+                <h1>Music Classes Manager</h1>
+                <div id="liveClock">Loading time...</div>
+            </div>
+        </div>
+        <div onclick="openTab('settings')" style="padding: 5px;"><i class="fas fa-cog" style="color: var(--text-muted); font-size: 18px;"></i></div>
+    </header>
+
+    <div class="container">
+        
+        <div class="nav-arrow-container">
+            <div class="nav-arrow nav-arrow-left" id="scrollArrowLeft" onclick="scrollBottomNav('left')">
+                <b style="font-size: 22px; font-family: monospace;">&lt;</b>
+            </div>
+            
+            <div class="nav-arrow nav-arrow-right" id="scrollArrowRight" onclick="scrollBottomNav('right')">
+                <b style="font-size: 22px; font-family: monospace;">&gt;</b>
+            </div>
+        </div>
+        
+        <div class="bottom-nav">
+            <button class="nav-item active" onclick="openTab('attendance')"><i class="fas fa-calendar-check"></i><span>Attend</span></button>
+            <button class="nav-item" onclick="openTab('fees')"><i class="fas fa-rupee-sign"></i><span>Fees</span></button>
+            <button class="nav-item" onclick="openTab('dashboard')"><i class="fas fa-chart-pie"></i><span>Dash</span></button>
+             <button class="nav-item" onclick="openTab('sales')"><i class="fas fa-shopping-cart"></i><span>Sales</span></button>
+            <button class="nav-item" onclick="openTab('reminders')"><i class="fas fa-bell"></i><span>Remind</span></button>
+            <button class="nav-item" onclick="openTab('studentMgmt')"><i class="fas fa-users"></i><span>Students</span></button>
+            <button class="nav-item" onclick="openTab('reports')"><i class="fas fa-file-invoice"></i><span>Report</span></button>
+            <button class="nav-item" onclick="openTab('analytics')"><i class="fas fa-chart-line"></i><span>Analytic</span></button>
+        </div>
+
+        <div class="tab-buttons">
+            <button class="tab-button" onclick="openTab('attendance')"></button>
+            <button class="tab-button" onclick="openTab('fees')"></button>
+            <button class="tab-button" onclick="openTab('studentMgmt')"></button>
+            <button class="tab-button" onclick="openTab('dashboard')"></button>
+            <button class="tab-button" onclick="openTab('reminders')"></button>
+            <button class="tab-button" onclick="openTab('reports')"></button>
+            <button class="tab-button" onclick="openTab('analytics')"></button>
+            <button class="tab-button" onclick="openTab('settings')"></button>
+        </div>
+
+        <div id="attendance" class="tab-content active">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <div class="form-group" style="display: flex; gap: 8px; margin-bottom: 0; flex: 1;">
+        <div style="flex: 1;">
+            <label style="font-size: 11px; margin-bottom: 2px;">Date</label>
+            <input type="date" id="attendanceDate" onchange="renderAttendance()" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+        </div>
+        <div style="flex: 1;">
+            <label style="font-size: 11px; margin-bottom: 2px;">Time</label>
+            <input type="time" id="attendanceTime" placeholder="Default: Current" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+        </div>
+    </div>
+    <button class="btn-primary" onclick="startQRScanner()" style="margin-left: 10px; height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; align-self: flex-end;"><i class="fas fa-qrcode"></i> Scan QR</button>
 </div>
 
-<div id="signatureModal" class="modal">
-    <div class="sig-container-wrapper" id="sigWrapper">
-        <div class="sig-canvas-box">
-            <canvas id="sigCanvas"></canvas>
-        </div>
-    </div>
-    <div class="sig-toolbar">
-        <button class="btn-danger" onclick="clearSignature()"><i class="fas fa-eraser"></i> Clear</button>
-        <button class="btn-success" onclick="saveSignature()"><i class="fas fa-save"></i> Save Signature</button>
-        <button class="btn-warning" onclick="closeSignatureModal()">Close</button>
-    </div>
-</div>
-
-<header>
-    <div class="header-content">
-        <img id="headerLogo" src="" alt="Logo">
-        <div>
-            <h1>Music Classes Manager</h1>
-            <div id="liveClock">Loading time...</div>
-        </div>
-    </div>
-    <div onclick="openTab('settings')" style="padding: 5px;"><i class="fas fa-cog" style="color: var(--text-muted); font-size: 18px;"></i></div>
-</header>
-
-<div class="container">
-    <div class="bottom-nav">
-        <button class="nav-item active" onclick="openTab('attendance')"><i class="fas fa-calendar-check"></i><span>Attend</span></button>
-        <button class="nav-item" onclick="openTab('fees')"><i class="fas fa-rupee-sign"></i><span>Fees</span></button>
-        <button class="nav-item" onclick="openTab('dashboard')"><i class="fas fa-chart-pie"></i><span>Dash</span></button>
-        <button class="nav-item" onclick="openTab('reminders')"><i class="fas fa-bell"></i><span>Remind</span></button>
-        <button class="nav-item" onclick="openTab('studentMgmt')"><i class="fas fa-users"></i><span>Students</span></button>
-        <button class="nav-item" onclick="openTab('reports')"><i class="fas fa-file-invoice"></i><span>Report</span></button>
-        <button class="nav-item" onclick="openTab('analytics')"><i class="fas fa-chart-line"></i><span>Analytic</span></button>
-    </div>
-
-    <div class="tab-buttons">
-        <button class="tab-button" onclick="openTab('attendance')"></button>
-        <button class="tab-button" onclick="openTab('fees')"></button>
-        <button class="tab-button" onclick="openTab('studentMgmt')"></button>
-        <button class="tab-button" onclick="openTab('dashboard')"></button>
-        <button class="tab-button" onclick="openTab('reminders')"></button>
-        <button class="tab-button" onclick="openTab('reports')"></button>
-        <button class="tab-button" onclick="openTab('analytics')"></button>
-        <button class="tab-button" onclick="openTab('settings')"></button>
-    </div>
-
-    <div id="attendance" class="tab-content active">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div class="form-group" style="display: flex; gap: 8px; margin-bottom: 0; flex: 1;">
-                <div style="flex: 1;">
-                    <label style="font-size: 11px; margin-bottom: 2px;">Date</label>
-                    <input type="date" id="attendanceDate" onchange="renderAttendance()" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+            <div id="attendanceSummary" class="summary-box" style="margin-bottom: 10px; margin-top: 0; padding: 6px 4px; gap: 4px; min-height: unset;">
+                <div onclick="showAttendanceList('total')" class="clickable-stat" style="padding: 2px;">
+                    <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">TOTAL</h4>
+                    <p id="attTotalCount" style="color:var(--text-main); font-size:14px; font-weight:700; margin:0;">0</p>
                 </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 11px; margin-bottom: 2px;">Time</label>
-                    <input type="time" id="attendanceTime" placeholder="Default: Current" style="height: 36px; padding: 0 10px; font-size: 13px; border-radius: 6px;">
+                <div onclick="showAttendanceList('present')" class="clickable-stat" style="padding: 2px;">
+                    <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">PRESENT</h4>
+                    <p id="attPresentCount" style="color:var(--success); font-size:14px; font-weight:700; margin:0;">0</p>
+                </div>
+                <div onclick="showAttendanceList('absent')" class="clickable-stat" style="padding: 2px;">
+                    <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">ABSENT</h4>
+                    <p id="attAbsentCount" style="color:var(--danger); font-size:14px; font-weight:700; margin:0;">0</p>
                 </div>
             </div>
-            <button class="btn-primary" onclick="startQRScanner()" style="margin-left: 10px; height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; align-self: flex-end;"><i class="fas fa-qrcode"></i> Scan QR</button>
+
+            <div class="search-bar"><input type="search" id="searchAttendance" onkeyup="searchTable('searchAttendance', 'attendanceTable')" placeholder="Search Name, Address..."></div>
+            
+            <table id="attendanceTable"><thead><tr><th>Student</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table>
         </div>
 
-        <div id="attendanceSummary" class="summary-box" style="margin-bottom: 10px; margin-top: 0; padding: 6px 4px; gap: 4px; min-height: unset;">
-            <div onclick="showAttendanceList('total')" class="clickable-stat" style="padding: 2px;">
-                <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">TOTAL</h4>
-                <p id="attTotalCount" style="color:var(--text-main); font-size:14px; font-weight:700; margin:0;">0</p>
-            </div>
-            <div onclick="showAttendanceList('present')" class="clickable-stat" style="padding: 2px;">
-                <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">PRESENT</h4>
-                <p id="attPresentCount" style="color:var(--success); font-size:14px; font-weight:700; margin:0;">0</p>
-            </div>
-            <div onclick="showAttendanceList('absent')" class="clickable-stat" style="padding: 2px;">
-                <h4 style="font-size: 8px; margin-bottom: 2px; letter-spacing: 0.5px;">ABSENT</h4>
-                <p id="attAbsentCount" style="color:var(--danger); font-size:14px; font-weight:700; margin:0;">0</p>
-            </div>
+        <div id="fees" class="tab-content">
+            <h3 style="border-left: 4px solid var(--success); padding-left:10px;">Monthly Fees</h3>
+            <div class="form-group"><input type="month" id="feeMonth" onchange="renderFees()"></div>
+            <div class="search-bar"><input type="search" id="searchFees" onkeyup="searchTable('searchFees', 'feeTable')" placeholder="Search Name, Address..."></div>
+            <div id="feeSummary" class="summary-box"></div>
+            <table id="feeTable"><thead><tr><th>Student</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
         </div>
 
-        <div class="search-bar"><input type="search" id="searchAttendance" onkeyup="searchTable('searchAttendance', 'attendanceTable')" placeholder="Search Name, Address..."></div>
-        <table id="attendanceTable"><thead><tr><th>Student</th><th>Status</th><th>Action</th></tr></thead><tbody></tbody></table>
-    </div>
+        <div id="reminders" class="tab-content">
+            <h3 style="border-left: 4px solid var(--warning); padding-left:10px;">Weekly Reminders</h3>
+            <div class="dashboard-card">
+                <div class="form-group">
+                    <label>Add New Reminder</label>
+                    <input type="text" id="reminderText" placeholder="e.g. Check Guitars, Call Piano Batch..." style="margin-bottom:10px;">
+                    <div style="display: flex; gap: 10px;">
+                        <input type="date" id="reminderDate" style="flex:1;" onchange="updateReminderDay()">
+                        <select id="reminderDay" style="flex:1;">
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                            <option value="Sunday">Sunday</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" onclick="addReminder()" style="width:100%; margin-top: 10px;">Add Reminder</button>
+                </div>
+            </div>
+            <div id="reminderListContainer" style="margin-bottom: 30px;"></div>
 
-    <div id="fees" class="tab-content">
-        <h3 style="border-left: 4px solid var(--success); padding-left:10px;">Monthly Fees</h3>
-        <div class="form-group"><input type="month" id="feeMonth" onchange="renderFees()"></div>
-        <div class="search-bar"><input type="search" id="searchFees" onkeyup="searchTable('searchFees', 'feeTable')" placeholder="Search Name, Address..."></div>
-        <div id="feeSummary" class="summary-box"></div>
-        <table id="feeTable"><thead><tr><th>Student</th><th>Status</th><th>Actions</th></tr></thead><tbody></tbody></table>
-    </div>
+            <hr style="margin: 25px 0; border-top: 2px dashed var(--border-color);">
+            <h3 style="border-left: 4px solid var(--info); padding-left:10px; color: var(--info);">📚 Material Library</h3>
+            
+            <div class="dashboard-card" style="border-color: var(--info);">
+                <h4 style="margin-top:0; margin-bottom:15px; font-size:14px; color:var(--text-muted);">Add Link to Library</h4>
+                <div class="form-grid">
+                    <div class="form-group"><input type="text" id="libMatTitle" placeholder="Title (e.g. C Major Scale)"></div>
+                    <div style="display:flex; gap:10px;">
+                        <div class="form-group" style="flex:1;">
+                            <select id="libMatCategory">
+                                <option value="Guitar">🎸 Guitar</option>
+                                <option value="Bass Guitar">🎸 Bass Guitar</option>
+                                <option value="Keyboard">🎹 Keyboard/Piano</option>
+                                <option value="Mandolin">🪕 Mandolin</option>
+                                <option value="Other">📁 Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <select id="libMatType">
+                                <option value="video">🎬 Video</option>
+                                <option value="pdf">📄 PDF</option>
+                                <option value="audio">🎵 Audio</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group"><input type="url" id="libMatLink" placeholder="Paste Link Here"></div>
+                </div>
+                <button class="btn-info" onclick="saveGlobalMaterial()" style="width:100%; margin-top:5px;">
+                    <i class="fas fa-save"></i> Save to Library
+                </button>
+            </div>
 
-    <div id="reminders" class="tab-content">
-        <h3 style="border-left: 4px solid var(--warning); padding-left:10px;">Weekly Reminders</h3>
-        <div class="dashboard-card">
-            <div class="form-group">
-                <label>Add New Reminder</label>
-                <input type="text" id="reminderText" placeholder="e.g. Check Guitars, Call Piano Batch..." style="margin-bottom:10px;">
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <div class="search-bar" style="margin-bottom: 10px;">
+                    <input type="search" id="searchLibrary" onkeyup="filterLibrary()" placeholder="🔍 Search by Title...">
+                </div>
                 <div style="display: flex; gap: 10px;">
-                    <input type="date" id="reminderDate" style="flex:1;" onchange="updateReminderDay()">
-                    <select id="reminderDay" style="flex:1;">
-                        <option value="Monday">Monday</option>
-                        <option value="Tuesday">Tuesday</option>
-                        <option value="Wednesday">Wednesday</option>
-                        <option value="Thursday">Thursday</option>
-                        <option value="Friday">Friday</option>
-                        <option value="Saturday">Saturday</option>
-                        <option value="Sunday">Sunday</option>
+                    <select id="filterLibCategory" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+                        <option value="All">🎸 All Categories</option>
+                        <option value="Guitar">Guitar</option>
+                        <option value="Bass Guitar">Bass Guitar</option>
+                        <option value="Keyboard">Keyboard</option>
+                        <option value="Mandolin">Mandolin</option>
+                        <option value="Other">Other</option>
+                    </select>
+                    <select id="filterLibType" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
+                        <option value="All">📂 All Types</option>
+                        <option value="video">🎬 Video</option>
+                        <option value="pdf">📄 PDF</option>
+                        <option value="audio">🎵 Audio</option>
                     </select>
                 </div>
-                <button class="btn-primary" onclick="addReminder()" style="width:100%; margin-top: 10px;">Add Reminder</button>
-            </div>
-        </div>
-        <div id="reminderListContainer" style="margin-bottom: 30px;"></div>
-
-        <hr style="margin: 25px 0; border-top: 2px dashed var(--border-color);">
-        <h3 style="border-left: 4px solid var(--info); padding-left:10px; color: var(--info);">📚 Material Library</h3>
-        
-        <div class="dashboard-card" style="border-color: var(--info);">
-            <h4 style="margin-top:0; margin-bottom:15px; font-size:14px; color:var(--text-muted);">Add Link to Library</h4>
-            <div class="form-grid">
-                <div class="form-group"><input type="text" id="libMatTitle" placeholder="Title (e.g. C Major Scale)"></div>
-                <div style="display:flex; gap:10px;">
-                    <div class="form-group" style="flex:1;">
-                        <select id="libMatCategory">
-                            <option value="Guitar">🎸 Guitar</option>
-                            <option value="Bass Guitar">🎸 Bass Guitar</option>
-                            <option value="Keyboard">🎹 Keyboard/Piano</option>
-                            <option value="Mandolin">🪕 Mandolin</option>
-                            <option value="Other">📁 Other</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <select id="libMatType">
-                            <option value="video">🎬 Video</option>
-                            <option value="pdf">📄 PDF</option>
-                            <option value="audio">🎵 Audio</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="form-group"><input type="url" id="libMatLink" placeholder="Paste Link Here"></div>
-            </div>
-            <button class="btn-info" onclick="saveGlobalMaterial()" style="width:100%; margin-top:5px;">
-                <i class="fas fa-save"></i> Save to Library
-            </button>
-        </div>
-
-        <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color);">
-            <div class="search-bar" style="margin-bottom: 10px;">
-                <input type="search" id="searchLibrary" onkeyup="filterLibrary()" placeholder="🔍 Search by Title...">
-            </div>
-            <div style="display: flex; gap: 10px;">
-                <select id="filterLibCategory" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
-                    <option value="All">🎸 All Categories</option>
-                    <option value="Guitar">Guitar</option>
-                    <option value="Bass Guitar">Bass Guitar</option>
-                    <option value="Keyboard">Keyboard</option>
-                    <option value="Mandolin">Mandolin</option>
-                    <option value="Other">Other</option>
-                </select>
-                <select id="filterLibType" onchange="filterLibrary()" style="flex: 1; font-size: 12px; padding: 8px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main);">
-                    <option value="All">📂 All Types</option>
-                    <option value="video">🎬 Video</option>
-                    <option value="pdf">📄 PDF</option>
-                    <option value="audio">🎵 Audio</option>
-                </select>
-            </div>
-        </div>
-        
-        <div id="globalLibraryList" onscroll="handleLibraryScroll()" style="display:flex; flex-direction:column; gap:12px; max-height: 450px; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;"></div>
-    </div>
-
-    <div id="studentMgmt" class="tab-content">
-        <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-            <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
-        </div>
-
-        <div class="dashboard-card" style="border-color: var(--info);">
-            <h3><i class="fas fa-user-plus"></i> Add Student</h3>
-            <div style="text-align: center;">
-                <input type="file" id="addStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'add')" style="display:none;">
-                <input type="file" id="addStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'add')" style="display:none;">
-                <div id="photoPreviewBox" onclick="openPhotoSourceModal('add')">
-                    <span id="photoPlaceholder" style="font-size: 11px; color: var(--text-muted); text-align: center;"><i class="fas fa-camera fa-2x"></i><br>Add Photo</span>
-                    <img id="photoPreview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
-                </div>
-            </div>
-            <div class="form-grid">
-                <div class="form-group"><input type="text" id="studentName" placeholder="Full Name"></div>
-                <div class="form-group"><input type="text" id="studentClass" placeholder="Class/Instrument"></div>
-                <div class="form-group"><select id="studentDay"><option value="">Select Day</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
-                <div class="form-group"><input type="time" id="studentTime"></div>
-                <div class="form-group"><input type="number" id="studentFee" placeholder="Monthly Fee (₹)"></div>
-                <div class="form-group"><input type="tel" id="phone" placeholder="Phone Number"></div>
-                <div class="form-group"><input type="email" id="studentEmail" placeholder="Email"></div>
-                <div class="form-group"><input type="text" id="guardianName" placeholder="Guardian Name"></div>
-                <div class="form-group"><input type="text" id="address" placeholder="Address"></div>
-                <div class="form-group"><label>Date of Birth</label><input type="date" id="studentDOB"></div>
             </div>
             
-            <button class="btn-info" onclick="openSignatureModal()" style="width: 100%; margin-top: 10px; background: #6366f1;">
-                <i class="fas fa-pen-nib"></i> Take Digital Signature
-            </button>
-            <div id="signatureStatus" style="text-align:center; font-size:12px; color:green; display:none; margin-top:5px;">Signature Captured <i class="fas fa-check-circle"></i></div>
+            <div id="globalLibraryList" onscroll="handleLibraryScroll()" style="display:flex; flex-direction:column; gap:12px; max-height: 450px; overflow-y: auto; padding-right: 5px; padding-bottom: 20px;"></div>
+        </div>
 
-            <button class="btn-success" onclick="addStudent()" style="width: 100%; margin-top: 10px;">Save Student</button>
+        <div id="studentMgmt" class="tab-content">
+            
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
+    <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
+</div>
+
+            <div class="dashboard-card" style="border-color: var(--info);">
+                <h3><i class="fas fa-user-plus"></i> Add Student</h3>
+                <div style="text-align: center;">
+                    <input type="file" id="addStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'add')" style="display:none;">
+                    <input type="file" id="addStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'add')" style="display:none;">
+                    <div id="photoPreviewBox" onclick="openPhotoSourceModal('add')">
+                        <span id="photoPlaceholder" style="font-size: 11px; color: var(--text-muted); text-align: center;"><i class="fas fa-camera fa-2x"></i><br>Add Photo</span>
+                        <img id="photoPreview" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                    </div>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group"><input type="text" id="studentName" placeholder="Full Name"></div>
+                    <div class="form-group"><input type="text" id="studentClass" placeholder="Class/Instrument"></div>
+                    <div class="form-group"><select id="studentDay"><option value="">Select Day</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
+                    <div class="form-group"><input type="time" id="studentTime"></div>
+                    <div class="form-group"><input type="number" id="studentFee" placeholder="Monthly Fee (₹)"></div>
+                    <div class="form-group"><input type="tel" id="phone" placeholder="Phone Number"></div>
+                    <div class="form-group"><input type="email" id="studentEmail" placeholder="Email"></div>
+                    <div class="form-group"><input type="text" id="guardianName" placeholder="Guardian Name"></div>
+                    <div class="form-group"><input type="text" id="address" placeholder="Address"></div>
+                    <div class="form-group"><label>Date of Birth</label><input type="date" id="studentDOB"></div>
+                </div>
+                
+                <button class="btn-info" onclick="openSignatureModal()" style="width: 100%; margin-top: 10px; background: #6366f1;">
+                    <i class="fas fa-pen-nib"></i> Take Digital Signature
+                </button>
+                <div id="signatureStatus" style="text-align:center; font-size:12px; color:green; display:none; margin-top:5px;">Signature Captured <i class="fas fa-check-circle"></i></div>
+
+                <button class="btn-success" onclick="addStudent()" style="width: 100%; margin-top: 10px;">Save Student</button>
+            </div>
+            
+            <div class="search-bar">
+                <input type="search" id="searchStudents" onkeyup="filterStudentLists()" placeholder="Search student by Name, Address...">
+            </div>
+
+            <div style="display: flex; margin-bottom: 15px; background: var(--bg-input); border-radius: 8px; padding: 5px; border: 1px solid var(--border-color);">
+                <button id="btnShowActive" onclick="switchStudentView('active')" style="flex: 1; border: none; background: var(--primary); color: white; padding: 10px; border-radius: 6px; font-size: 13px; margin-right: 5px;">Active Students</button>
+                <button id="btnShowInactive" onclick="switchStudentView('inactive')" style="flex: 1; border: none; background: transparent; color: var(--text-muted); padding: 10px; border-radius: 6px; font-size: 13px;">Inactive Students</button>
+            </div>
+
+            <div id="activeStudentsContainer">
+                <table id="activeStudentsTable">
+                    <thead><tr><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="activeStudentsList"></tbody>
+                </table>
+            </div>
+
+            <div id="inactiveStudentsContainer" style="display: none;">
+                <table id="inactiveStudentsTable" style="opacity: 0.9;">
+                    <thead><tr><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="inactiveStudentsList"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="dashboard" class="tab-content">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3>Dashboard</h3>
+                <button class="btn-primary" onclick="exportDashboardPDF()" style="font-size: 11px;"><i class="fas fa-download"></i> PDF</button>
+            </div>
+            
+            <div id="dashboardRemindersBox" class="dashboard-card" style="display: none; border-top-color: var(--warning); background-color: rgba(253, 230, 138, 0.2);">
+                <h3 style="color: var(--warning); border:none; margin-bottom:5px;"><i class="fas fa-bell"></i> Reminders for Today</h3>
+                <div id="dashboardReminderList" style="padding-top:5px;"></div>
+            </div>
+
+            <div id="birthdayAlertBox" class="dashboard-card birthday-card" style="display: none;">
+                <h3 style="color: var(--pink); border:none;"><i class="fas fa-birthday-cake"></i> Birthdays Today!</h3>
+                <div id="birthdayList"></div>
+            </div>
+            
+            <div id="todaysPracticeBox" class="dashboard-card" style="display: none; border-top-color: var(--success); background-color: rgba(16, 185, 129, 0.05);">
+                <h3 style="color: var(--success); border:none; margin-bottom:10px;">
+    <i class="fas fa-stopwatch"></i> Today's Practice Logs 
+    <span style="color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 16px; margin-left: 5px;" onclick="showTodaysPracticingStudentsModal()">
+        (<span id="todaysPracticeCount">0</span>)
+    </span>
+</h3>
+                <div id="todaysPracticeList" style="max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <h3>Financials</h3>
+                    <div class="chart-container" style="height: 200px;"><canvas id="financeChart"></canvas></div>
+                    <div id="financeOverviewNumbers" class="summary-box" style="margin-top: 10px;"></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Stats</h3>
+                    <div id="studentStatsSummary" class="summary-box" style="margin-top:0;"></div>
+                    <div id="dashboardYearlySummary" class="summary-box"></div>
+                </div>
+                <div class="dashboard-card">
+                    <h3>Class Strength</h3>
+                    <ul id="classStrengthList" class="class-strength-list" style="padding-left: 20px;"></ul>
+                </div>
+                <div class="dashboard-card" style="border-top-color: var(--danger);">
+                    <h3 style="color: var(--danger);">Pending Dues (Active Only)</h3>
+                    <p id="dueFeeMessage" style="font-size: 12px; color: var(--text-muted);"></p>
+                    <table id="dueFeeTable"><thead><tr><th>Student</th><th>Action</th></tr></thead><tbody></tbody></table>
+                </div>
+            </div>
         </div>
         
-        <div class="search-bar">
-            <input type="search" id="searchStudents" onkeyup="filterStudentLists()" placeholder="Search student by Name, Address...">
+        <div id="reports" class="tab-content">
+             <div class="dashboard-card">
+                <h3>Generate Reports</h3>
+                <div class="form-group">
+                    <select id="reportType" onchange="toggleReportInputs(); generateReport()">
+                        <option value="monthly">Monthly Report</option>
+                        <option value="yearly">Yearly Report</option>
+                    </select>
+                </div>
+                <div class="form-group" id="reportMonth-group">
+                    <input type="month" id="reportMonth" onchange="generateReport()">
+                </div>
+                <div class="form-group" id="reportYear-group" style="display: none;">
+                    <input type="number" id="reportYear" placeholder="Year" oninput="generateReport()">
+                </div>
+                <button class="btn-primary" onclick="generateReport()" style="width: 100%;">Generate View</button>
+                <button id="exportReportBtn" class="btn-secondary" style="display:none; width: 100%; margin-top:10px;" onclick="exportReportPDF()">Download PDF</button>
+            </div>
+            <div id="reportSummary" class="summary-box" style="display: none;"></div>
+
+            <div class="search-bar" id="reportSearchBox" style="display: none; margin-top: 15px;">
+                <input type="search" id="searchReport" onkeyup="searchTable('searchReport', 'reportTable')" placeholder="Search student by Name...">
+            </div>
+
+            <table id="reportTable" style="display: none; margin-top: 10px;"><thead></thead><tbody></tbody></table>
+        </div> <div id="analytics" class="tab-content">
+             <div class="dashboard-card">
+                <h3>Yearly Analysis & Comparison</h3>
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+                    <div class="form-group" style="margin-bottom:0; flex:1;">
+                        <label>Select Year</label>
+                        <input type="number" id="analyticsYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0; flex:1;">
+                        <label>Compare Year</label>
+                        <input type="number" id="compareYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()">
+                    </div>
+                </div>
+                <div class="chart-container" style="height: 280px; position: relative;">
+                    <canvas id="yearlyChart"></canvas>
+                </div>
+                <div id="yearlyAverages" class="summary-box" style="margin-top: 15px; display:none;"></div>
+            </div>
+            
+            <div class="dashboard-card" style="border-top-color: var(--info);">
+                <h3>Compare Specific Months</h3>
+                <div class="form-group">
+                    <label>Period A (Base)</label>
+                    <input type="month" id="compMonth1" onchange="comparePeriods()">
+                </div>
+                <div class="form-group">
+                    <label>Period B (Target)</label>
+                    <input type="month" id="compMonth2" onchange="comparePeriods()">
+                </div>
+                <button class="btn-info" onclick="comparePeriods()" style="width:100%;">Compare Data</button>
+                
+                <div id="comparisonResults" style="display:none; margin-top:20px;">
+                    <h4 style="text-align:center; margin-bottom:10px;">Comparison Result</h4>
+                    <div class="comparison-grid">
+                        <div class="comp-card">
+                            <span style="font-size:10px; color:var(--text-muted);">Income A</span><br>
+                            <strong id="compIncome1"></strong>
+                        </div>
+                        <div class="comp-card">
+                            <span style="font-size:10px; color:var(--text-muted);">Income B</span><br>
+                            <strong id="compIncome2"></strong>
+                            <div id="compIncomeDiff" class="comp-diff"></div>
+                        </div>
+                        <div class="comp-card">
+                            <span style="font-size:10px; color:var(--text-muted);">Students A</span><br>
+                            <strong id="compStudent1"></strong>
+                        </div>
+                        <div class="comp-card">
+                            <span style="font-size:10px; color:var(--text-muted);">Students B</span><br>
+                            <strong id="compStudent2"></strong>
+                            <div id="compStudentDiff" class="comp-diff"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div style="display: flex; margin-bottom: 15px; background: var(--bg-input); border-radius: 8px; padding: 5px; border: 1px solid var(--border-color);">
-            <button id="btnShowActive" onclick="switchStudentView('active')" style="flex: 1; border: none; background: var(--primary); color: white; padding: 10px; border-radius: 6px; font-size: 13px; margin-right: 5px;">Active Students</button>
-            <button id="btnShowInactive" onclick="switchStudentView('inactive')" style="flex: 1; border: none; background: transparent; color: var(--text-muted); padding: 10px; border-radius: 6px; font-size: 13px;">Inactive Students</button>
-        </div>
-
-        <div id="activeStudentsContainer">
-            <table id="activeStudentsTable">
-                <thead><tr><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody id="activeStudentsList"></tbody>
-            </table>
-        </div>
-
-        <div id="inactiveStudentsContainer" style="display: none;">
-            <table id="inactiveStudentsTable" style="opacity: 0.9;">
-                <thead><tr><th>Details</th><th>Class</th><th>Fee</th><th>Contact</th><th>Status</th><th>Actions</th></tr></thead>
-                <tbody id="inactiveStudentsList"></tbody>
-            </table>
+<div id="sales" class="tab-content">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+        <h3 style="border-left: 4px solid var(--info); padding-left:10px; margin:0;">Accessories Sales</h3>
+        <div>
+            <button class="btn-info" onclick="window.openStockModal()" style="font-size:11px; padding: 6px 10px; background: #3b82f6; border: none; border-radius: 6px; margin-right: 5px;"><i class="fas fa-boxes"></i> Stock</button>
+            <button class="btn-success" onclick="backupSalesData()" style="font-size:11px; padding: 6px 10px; background: #10b981; border: none; border-radius: 6px;"><i class="fas fa-download"></i> Backup</button>
         </div>
     </div>
 
-    <div id="dashboard" class="tab-content">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>Dashboard</h3>
-            <button class="btn-primary" onclick="exportDashboardPDF()" style="font-size: 11px;"><i class="fas fa-download"></i> PDF</button>
+    <div class="dashboard-card">
+        <div class="form-group">
+            <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: block;">Search & Select Student</label>
+            <div onclick="openSaleStudentSelector()" style="display:flex; align-items:center; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); cursor:pointer; margin-bottom:15px; transition: 0.2s;">
+                <img id="saleSelectedPhoto" src="" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-right: 12px; display: none;">
+                <div style="flex-grow: 1;">
+                    <div id="saleSelectedName" style="font-weight: bold; font-size: 14px; color: var(--text-muted);">🔍 Click here to search student...</div>
+                </div>
+                <input type="hidden" id="saleStudentId" value="">
+                <i class="fas fa-chevron-down" style="color: var(--text-muted);"></i>
+            </div>
+            
+            <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: block;">Item Details (Auto-fills price from stock)</label>
+            <input type="text" id="itemName" list="stockDataList" placeholder="Select or type item name..." oninput="window.autoFillItemPrice()" style="margin-bottom:10px; width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+            <datalist id="stockDataList"></datalist>
+            
+            <div style="display: flex; gap: 10px; margin-bottom:10px;">
+                <div style="flex:1;">
+                    <label style="font-size:11px; color: var(--text-muted);">Total Price (₹)</label>
+                    <input type="number" id="itemPrice" placeholder="0" oninput="calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:11px; color: var(--text-muted);">Amount Paid (₹)</label>
+                    <input type="number" id="amountPaid" placeholder="0" oninput="calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                </div>
+            </div>
+            
+            <div id="saleDueDisplay" style="margin-bottom:15px; font-weight:bold; color:var(--success); font-size:14px; background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 6px;">Due: ₹0</div>
+            
+            <input type="hidden" id="editSaleId" value="">
+            <button id="saleProcessBtn" class="btn-primary" onclick="processSale()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none;">
+                <i class="fas fa-file-invoice-dollar"></i> Sell & Send Receipt
+            </button>
+            <button id="saleCancelEditBtn" class="btn-danger" onclick="cancelSaleEdit()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; margin-top: 8px; display: none;">
+                Cancel Edit
+            </button>
         </div>
-        
-        <div id="dashboardRemindersBox" class="dashboard-card" style="display: none; border-top-color: var(--warning); background-color: rgba(253, 230, 138, 0.2);">
-            <h3 style="color: var(--warning); border:none; margin-bottom:5px;"><i class="fas fa-bell"></i> Reminders for Today</h3>
-            <div id="dashboardReminderList" style="padding-top:5px;"></div>
-        </div>
+    </div>
 
-        <div id="birthdayAlertBox" class="dashboard-card birthday-card" style="display: none;">
-            <h3 style="color: var(--pink); border:none;"><i class="fas fa-birthday-cake"></i> Birthdays Today!</h3>
-            <div id="birthdayList"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 20px; margin-bottom: 10px;">
+        <h4 style="margin:0; font-size: 14px;">Sales History</h4>
+        <div style="display: flex; align-items: center; gap: 5px;">
+            <label style="font-size:11px; color:var(--text-muted);">Year:</label>
+            <input type="number" id="salesYearFilter" style="width:70px; padding:5px; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); font-size:12px; text-align:center;" onchange="fetchSalesData()">
         </div>
-        
-        <div id="todaysPracticeBox" class="dashboard-card" style="display: none; border-top-color: var(--success); background-color: rgba(16, 185, 129, 0.05);">
-            <h3 style="color: var(--success); border:none; margin-bottom:10px;">
-                <i class="fas fa-stopwatch"></i> Today's Practice Logs 
-                <span style="color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 16px; margin-left: 5px;" onclick="showTodaysPracticingStudentsModal()">
-                    (<span id="todaysPracticeCount">0</span>)
-                </span>
-            </h3>
-            <div id="todaysPracticeList" style="max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
-        </div>
+    </div>
 
-        <div class="dashboard-grid">
-            <div class="dashboard-card">
-                <h3>Financials</h3>
-                <div class="chart-container" style="height: 200px;"><canvas id="financeChart"></canvas></div>
-                <div id="financeOverviewNumbers" class="summary-box" style="margin-top: 10px;"></div>
-            </div>
-            <div class="dashboard-card">
-                <h3>Stats</h3>
-                <div id="studentStatsSummary" class="summary-box" style="margin-top:0;"></div>
-                <div id="dashboardYearlySummary" class="summary-box"></div>
-            </div>
-            <div class="dashboard-card">
-                <h3>Class Strength</h3>
-                <ul id="classStrengthList" class="class-strength-list" style="padding-left: 20px;"></ul>
-            </div>
-            <div class="dashboard-card" style="border-top-color: var(--danger);">
-                <h3 style="color: var(--danger);">Pending Dues (Active Only)</h3>
-                <p id="dueFeeMessage" style="font-size: 12px; color: var(--text-muted);"></p>
-                <table id="dueFeeTable"><thead><tr><th>Student</th><th>Action</th></tr></thead><tbody></tbody></table>
+    <div class="search-bar" style="margin-bottom: 10px;">
+        <input type="search" id="searchSalesHistoryInput" onkeyup="renderSalesUI()" placeholder="🔍 Search student name or item..." style="width:100%; padding:10px 10px 10px 40px; border-radius:50px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); font-size:13px; box-sizing:border-box;">
+    </div>
+
+    <table id="salesTable" style="width:100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th style="text-align:left; padding:8px; border-bottom: 2px solid var(--border-color);">Details</th>
+                <th style="text-align:left; padding:8px; border-bottom: 2px solid var(--border-color);">Price</th>
+                <th style="text-align:left; padding:8px; border-bottom: 2px solid var(--border-color);">Status</th>
+                <th style="text-align:center; padding:8px; border-bottom: 2px solid var(--border-color);">Action</th>
+            </tr>
+        </thead>
+        <tbody id="salesList"></tbody>
+    </table>
+</div> ```
+
+        <div id="settings" class="tab-content">
+             <h3>App Settings</h3>
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <label>App Theme</label>
+                    <button class="btn-secondary" onclick="toggleTheme()" id="themeToggleBtn" style="width:100%;">
+                        <i class="fas fa-moon"></i> Switch to Dark Mode
+                    </button>
+                </div>
+                
+                <div class="dashboard-card">
+                    <label>Institute Logo</label>
+                    <input type="file" id="instituteLogoInput" accept="image/*" onchange="saveInstituteLogo(this)">
+                    <img id="logoPreview" src="" style="max-height: 60px; margin-top:10px; display: none;">
+                    <button class="btn-danger" onclick="removeLogo()" id="removeLogoBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button>
+                </div>
+                <div class="dashboard-card">
+                    <label>Auth Signature</label>
+                    <input type="file" id="authSigInput" accept="image/*" onchange="saveAuthSignature(this)">
+                    <img id="authSigPreview" src="" style="max-height: 60px; margin-top:10px; display: none;">
+                    <button class="btn-danger" onclick="removeAuthSignature()" id="removeAuthSigBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button>
+                </div>
+                <div class="dashboard-card">
+                    <label>Update PIN</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="password" id="newAppPin" placeholder="New PIN" maxlength="4">
+                        <button class="btn-info" onclick="changeAppPin()">Save</button>
+                    </div>
+                </div>
+                <div class="dashboard-card" style="border-top-color: var(--danger);">
+    <label>Account Status</label>
+    <div style="margin-top: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="currentUserDisplay">Checking status...</div>
+    <button class="btn-danger" onclick="handleLogout()" style="width:100%;">
+        <i class="fas fa-sign-out-alt"></i> Logout
+    </button>
+</div>
+                <div class="dashboard-card">
+    <label>Backup Data</label>
+    <button class="btn-primary btn-google" onclick="secureAction(exportData)" style="width:100%; margin-top:5px;"><i class="fab fa-google-drive"></i> Backup All Data</button>
+    <button class="btn-success" onclick="secureAction(exportToExcel)" style="width:100%; margin-top:10px; background: #1D6F42;">
+        <i class="fas fa-file-excel"></i> Export to Excel
+    </button>
+    
+    <hr style="margin: 15px 0; border-top: 1px solid var(--border-color);">
+    
+<label>Restore / Reset</label>
+
+<button class="btn-warning" onclick="secureAction(() => document.getElementById('importFile').click())" style="width:100%;"><i class="fas fa-file-upload"></i> Restore Full JSON</button>
+<input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+
+<button class="btn-info" onclick="secureAction(() => document.getElementById('importSingleFile').click())" style="width:100%; margin-top:10px; background: #0ea5e9;">
+    <i class="fas fa-user-plus"></i> Restore 1 Student (Single Backup)
+</button>
+<input type="file" id="importSingleFile" accept=".json" style="display: none;" onchange="importSingleStudentData(event)">
+
+<button class="btn-info" onclick="secureAction(() => document.getElementById('importSingleFromFull').click())" style="width:100%; margin-top:10px; background: #6366f1;">
+    <i class="fas fa-user-shield"></i> Restore 1 Student (Full Backup)
+</button>
+<input type="file" id="importSingleFromFull" accept=".json" style="display: none;" onchange="importSingleStudentFromFullBackup(event)">
+
+<button class="btn-danger" onclick="secureAction(resetApp)" style="width:100%; margin-top:15px;"><i class="fas fa-trash"></i> Factory Reset</button>
+</div>
             </div>
         </div>
+    </div>
+
+    <div id="photoSourceModal" class="modal" style="z-index: 3000;">
+        <div class="modal-content" style="max-width: 300px; text-align: center;">
+            <span class="close-button" onclick="closeModal('photoSourceModal')">&times;</span>
+            <h3>Add Photo</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+                <button class="btn-primary" onclick="triggerCamera()"><i class="fas fa-camera"></i> Camera</button>
+                <button class="btn-info" onclick="triggerGallery()"><i class="fas fa-images"></i> Gallery</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="classStudentsModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('classStudentsModal')">&times;</span>
+            <h3 id="classStudentsTitle"></h3>
+            <div style="max-height: 60vh; overflow-y: auto;">
+                <table id="classStudentsTable"><thead><tr><th>ID</th><th>Student</th><th>Contact</th></tr></thead><tbody></tbody></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="studentDetailsModal" class="modal">
+        
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('studentDetailsModal')">&times;</span>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <img id="modalStudentPhoto" src="" style="width:100px; height:100px; border-radius:50%; border:2px solid #000 !important; object-fit:cover;">
+                <h2 id="modalStudentName" style="margin:10px 0 5px 0;"></h2>
+                <span id="modalClass" style="color:var(--primary); font-weight:600;"></span>
+            </div>
+            
+            <button class="btn-info" onclick="shareQRCode(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 15px; background-color: #059669; border: none; padding: 10px; border-radius: 8px;">
+                <i class="fas fa-qrcode"></i> Show/Share QR Code
+            </button>
+
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; font-size: 14px; margin-bottom: 20px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+                    <div><strong>ID:</strong> <span id="modalSerialNo"></span></div>
+                    <div><strong>Fee:</strong> <span id="modalFeeAmount"></span></div>
+                    <div><strong>Day:</strong> <span id="modalDayTime"></span></div>
+                    <div><strong>Join:</strong> <span id="modalJoiningDate"></span></div>
+                    
+                </div>
+                <div id="modalInactiveStatusBox" style="display:none; background: #fff1f2; padding: 10px; border-radius: 8px; border-left: 4px solid #e11d48; margin-top: 12px; margin-bottom: 8px; font-size: 13px;"></div>
+                <p><strong>Phone:</strong> <span id="modalPhone"></span></p>
+                <p><strong>Email:</strong> <span id="modalEmail"></span></p>
+                <p><strong>Guardian:</strong> <span id="modalGuardianName"></span></p>
+                <p><strong>Addr:</strong> <span id="modalAddress"></span></p>
+                <p><strong>DOB:</strong> <span id="modalDOB"></span></p>
+            </div>
+            
+            <button class="btn-info" id="btnViewSignature" style="width: 100%; margin-top: 10px; margin-bottom: 15px; background-color: #6366f1; border: none; padding: 10px; border-radius: 8px;">
+                <i class="fas fa-file-signature"></i> View Digital Signature
+            </button>
+
+            <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; background:var(--bg-input); padding:10px; border-radius:8px;">
+                <select id="detailsFilterYear" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
+                <select id="detailsFilterMonth" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
+            </div>
+            
+
+            <div style="margin-bottom:20px;">
+                <h4 style="margin:0 0 10px 0;">Status History</h4>
+                <ul id="modalStatusHistory" class="scrollable-list"></ul>
+            </div>
+            <div style="margin-bottom:20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                 <div>
+                    <h4 style="margin:0 0 5px 0;">Paid</h4>
+                    <ul id="modalPaidList" class="scrollable-list"></ul>
+                 </div>
+                 <div>
+                    <h4 style="margin:0 0 5px 0;">Attendance</h4>
+                    <div style="font-size:11px;">Present: <ul id="modalPresentList" class="scrollable-list" style="max-height:80px;"></ul></div>
+                    <div style="font-size:11px; color:red; margin-top:5px;">Absent: <ul id="modalAbsentList" class="scrollable-list" style="max-height:80px;"></ul></div>
+                 </div>
+            </div>
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--success); padding-bottom: 5px; margin-bottom: 10px;">
+        <h4 style="margin: 0;">
+            <i class="fas fa-stopwatch" style="color: var(--success);"></i> Practice History
+        </h4>
+        <select id="teacherPracticeFilter" onchange="renderPracticeLogTeacher(currentlyViewingStudentId)" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); outline: none;">
+            <option value="All">All Subjects</option>
+        </select>
+    </div>
+    <div style="max-height: 150px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+        <ul id="modalPracticeList" style="list-style: none; padding: 0; margin: 0;"></ul>
+    </div>
+</div>
+            
+    <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+        <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--info); padding-bottom: 5px;">
+            <i class="fas fa-book-open" style="color: var(--info);"></i> Study Materials
+        </h4>
+        <button class="btn-info" onclick="openAddMaterialModal(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 10px; background: #0ea5e9;">
+            <i class="fas fa-plus-circle"></i> Add Note/Video/PDF Link
+        </button>
+        <div style="max-height: 120px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
+            <ul id="modalStudyMaterialsList" style="list-style: none; padding: 0; margin: 0;"></ul>
+        </div>
+    </div>
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
+        <i class="fas fa-sticky-note" style="color: var(--warning);"></i> Class Notes History
+    </h4>
+    
+    <input type="text" id="noteSearchInput" placeholder="Search by Date or Note content..." 
+           onkeyup="filterStudentNotes()" 
+           style="padding: 8px; font-size: 12px; margin-bottom: 10px;">
+
+    <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px;">
+        <ul id="modalNotesList" style="list-style: none; padding: 0; margin: 0;">
+            </ul>
+    </div>
+    <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
+    <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
+        <i class="fas fa-bullhorn" style="color: var(--warning);"></i> Personal Notice
+    </h4>
+    <div id="currentNoticeDisplay" style="font-size:12px; margin-bottom:10px; color: var(--text-main); font-weight:600;"></div>
+    <textarea id="personalNoticeInput" rows="2" placeholder="Write notice for this student..." style="width:100%; border-radius:8px; border:1px solid var(--border-color); padding:8px; font-size:12px; background: var(--bg-card); color: var(--text-main); box-sizing: border-box;"></textarea>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn-success" onclick="savePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Save Notice</button>
+        <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
+    </div>
+</div>
+</div>
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px;">
+                <label>Generate Documents</label>
+                <button class="btn-success" onclick="exportSingleStudent(currentlyViewingStudentId)" style="width:100%; margin-top:10px; background-color: #10b981; border: none;">
+    <i class="fas fa-file-download"></i> Backup This Student (JSON)
+</button>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="date" id="idCardIssueDate">
+                    <input type="date" id="idCardEndDate">
+                </div>
+                
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-info" onclick="generateIDCard()" style="flex:1;">ID Card</button>
+                    <button class="btn-primary" id="exportPdfBtn" style="flex:1;">Profile PDF</button>
+                </div>
+                <button class="btn-welcome" id="generateWelcomeBtn" onclick="generateWelcomeNote(currentlyViewingStudentId)" style="width:100%; margin-top:10px;">
+                    <i class="fas fa-file-pdf"></i> Welcome Note (Bangla)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="bulkMsgModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('bulkMsgModal')">&times;</span>
+            <h2>Send Notice</h2>
+            <div class="form-group">
+                <label>Select Target</label>
+                <select id="bulkMsgFilter">
+                    <option value="All">All Active Students</option>
+                    <option value="Sunday">Sunday Batch</option>
+                    <option value="Monday">Monday Batch</option>
+                    <option value="Tuesday">Tuesday Batch</option>
+                    <option value="Wednesday">Wednesday Batch</option>
+                    <option value="Thursday">Thursday Batch</option>
+                    <option value="Friday">Friday Batch</option>
+                    <option value="Saturday">Saturday Batch</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Message</label>
+                <textarea id="bulkMsgText" rows="4" placeholder="Write your notice here..."></textarea>
+            </div>
+            <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="sendBulkMsg('sms')"><i class="fas fa-sms"></i> Send via SMS (Bulk)</button>
+            <button class="btn-whatsapp" style="width:100%;" onclick="sendBulkMsg('wa')"><i class="fab fa-whatsapp"></i> WhatsApp List (Individual)</button>
+            <div id="waBulkList" style="margin-top:10px; display:none; max-height:200px; overflow-y:auto; background:var(--bg-input); padding:10px; border-radius:8px;"></div>
+        </div>
+    </div>
+
+    <div id="qrScannerModal" class="modal" style="z-index: 2500;">
+        <div class="modal-content" style="text-align: center;">
+            <span class="close-button" onclick="closeQRScanner()">&times;</span>
+            <h3>Scan QR Code</h3>
+            <p style="font-size:12px; color:var(--text-muted);">Place student's QR code in frame to mark attendance</p>
+            <div id="qr-reader-box" style="width:100%; max-width:400px; margin: 0 auto; border-radius: 12px; overflow:hidden;"></div>
+        </div>
+    </div>
+
+    <div id="statusChangeModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-button" onclick="closeModal('statusChangeModal')">&times;</span>
+            <h2 id="statusChangeTitle"></h2>
+            <input type="hidden" id="statusChangeStudentId"><input type="hidden" id="statusChangeToActive">
+            <div class="form-group"><label>Date:</label><input type="date" id="statusDate"></div>
+            <div class="form-group"><label>Note:</label><textarea id="statusNote" rows="3"></textarea></div>
+            <button class="btn-primary" onclick="saveStatusChange()" style="width:100%;">Confirm</button>
+        </div>
+    </div>
+
+    <div id="editStudentModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('editStudentModal')">&times;</span>
+            <h2>Edit Student</h2>
+            <input type="hidden" id="editStudentId">
+            <input type="file" id="editStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
+            <input type="file" id="editStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
+            <div style="text-align: center; margin-bottom: 15px;">
+    <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
+        <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
+        <div style="position: absolute; bottom: 0; background: rgba(0,0,0,0.5); width: 100%; color: white; font-size: 10px;">EDIT</div>
     </div>
     
-    <div id="reports" class="tab-content">
-         <div class="dashboard-card">
-            <h3>Generate Reports</h3>
-            <div class="form-group">
-                <select id="reportType" onchange="toggleReportInputs(); generateReport()">
-                    <option value="monthly">Monthly Report</option>
-                    <option value="yearly">Yearly Report</option>
-                </select>
-            </div>
-            <div class="form-group" id="reportMonth-group">
-                <input type="month" id="reportMonth" onchange="generateReport()">
-            </div>
-            <div class="form-group" id="reportYear-group" style="display: none;">
-                <input type="number" id="reportYear" placeholder="Year" oninput="generateReport()">
-            </div>
-            <button class="btn-primary" onclick="generateReport()" style="width: 100%;">Generate View</button>
-            <button id="exportReportBtn" class="btn-secondary" style="display:none; width: 100%; margin-top:10px;" onclick="exportReportPDF()">Download PDF</button>
-        </div>
-        <div id="reportSummary" class="summary-box" style="display: none;"></div>
-
-        <div class="search-bar" id="reportSearchBox" style="display: none; margin-top: 15px;">
-            <input type="search" id="searchReport" onkeyup="searchTable('searchReport', 'reportTable')" placeholder="Search student by Name...">
-        </div>
-
-        <table id="reportTable" style="display: none; margin-top: 10px;"><thead></thead><tbody></tbody></table>
-    </div> 
-    
-    <div id="analytics" class="tab-content">
-         <div class="dashboard-card">
-            <h3>Yearly Analysis & Comparison</h3>
-            <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
-                <div class="form-group" style="margin-bottom:0; flex:1;">
-                    <label>Select Year</label>
-                    <input type="number" id="analyticsYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()">
-                </div>
-                <div class="form-group" style="margin-bottom:0; flex:1;">
-                    <label>Compare Year</label>
-                    <input type="number" id="compareYear" placeholder="YYYY" oninput="updateYearlyChart()" onchange="updateYearlyChart()">
-                </div>
-            </div>
-            <div class="chart-container" style="height: 280px; position: relative;">
-                <canvas id="yearlyChart"></canvas>
-            </div>
-            <div id="yearlyAverages" class="summary-box" style="margin-top: 15px; display:none;"></div>
-        </div>
-        
-        <div class="dashboard-card" style="border-top-color: var(--info);">
-            <h3>Compare Specific Months</h3>
-            <div class="form-group">
-                <label>Period A (Base)</label>
-                <input type="month" id="compMonth1" onchange="comparePeriods()">
-            </div>
-            <div class="form-group">
-                <label>Period B (Target)</label>
-                <input type="month" id="compMonth2" onchange="comparePeriods()">
-            </div>
-            <button class="btn-info" onclick="comparePeriods()" style="width:100%;">Compare Data</button>
-            
-            <div id="comparisonResults" style="display:none; margin-top:20px;">
-                <h4 style="text-align:center; margin-bottom:10px;">Comparison Result</h4>
-                <div class="comparison-grid">
-                    <div class="comp-card">
-                        <span style="font-size:10px; color:var(--text-muted);">Income A</span><br>
-                        <strong id="compIncome1"></strong>
-                    </div>
-                    <div class="comp-card">
-                        <span style="font-size:10px; color:var(--text-muted);">Income B</span><br>
-                        <strong id="compIncome2"></strong>
-                        <div id="compIncomeDiff" class="comp-diff"></div>
-                    </div>
-                    <div class="comp-card">
-                        <span style="font-size:10px; color:var(--text-muted);">Students A</span><br>
-                        <strong id="compStudent1"></strong>
-                    </div>
-                    <div class="comp-card">
-                        <span style="font-size:10px; color:var(--text-muted);">Students B</span><br>
-                        <strong id="compStudent2"></strong>
-                        <div id="compStudentDiff" class="comp-diff"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="settings" class="tab-content">
-         <h3>App Settings</h3>
-        <div class="dashboard-grid">
-            <div class="dashboard-card">
-                <label>App Theme</label>
-                <button class="btn-secondary" onclick="toggleTheme()" id="themeToggleBtn" style="width:100%;">
-                    <i class="fas fa-moon"></i> Switch to Dark Mode
-                </button>
+    <button type="button" onclick="removeEditPhoto()" style="margin-top: 5px; background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
+        <i class="fas fa-trash"></i> Remove Photo
+    </button>
+</div>
+<div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
+    <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
+    <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
+</div>
+            <div class="form-grid">
+                <div class="form-group"><label>Name</label><input type="text" id="editStudentName"></div>
+                <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
+                <div class="form-group"><label>Day</label><select id="editStudentDay"><option value="">Select</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
+                <div class="form-group"><label>Time</label><input type="time" id="editStudentTime"></div>
+                <div class="form-group"><label>Fee</label><input type="number" id="editStudentFee"></div>
+                <div class="form-group"><label>Phone</label><input type="tel" id="editPhone"></div>
+                <div class="form-group"><label>Guardian</label><input type="text" id="editGuardianName"></div>
+                <div class="form-group"><label>Email</label><input type="email" id="editStudentEmail"></div>
+                <div class="form-group"><label>Addr</label><input type="text" id="editAddress"></div>
+                <div class="form-group"><label>DOB</label><input type="date" id="editStudentDOB"></div>
             </div>
             
-            <div class="dashboard-card">
-                <label>Institute Logo</label>
-                <input type="file" id="instituteLogoInput" accept="image/*" onchange="saveInstituteLogo(this)">
-                <img id="logoPreview" src="" style="max-height: 60px; margin-top:10px; display: none;">
-                <button class="btn-danger" onclick="removeLogo()" id="removeLogoBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button>
-            </div>
-            <div class="dashboard-card">
-                <label>Auth Signature</label>
-                <input type="file" id="authSigInput" accept="image/*" onchange="saveAuthSignature(this)">
-                <img id="authSigPreview" src="" style="max-height: 60px; margin-top:10px; display: none;">
-                <button class="btn-danger" onclick="removeAuthSignature()" id="removeAuthSigBtn" style="display:none; margin-top:5px; font-size:11px;">Remove</button>
-            </div>
-            <div class="dashboard-card">
-                <label>Update PIN</label>
-                <div style="display:flex; gap:10px;">
-                    <input type="password" id="newAppPin" placeholder="New PIN" maxlength="4">
-                    <button class="btn-info" onclick="changeAppPin()">Save</button>
-                </div>
-            </div>
-            <div class="dashboard-card" style="border-top-color: var(--danger);">
-                <label>Account Status</label>
-                <div style="margin-top: 5px; font-size: 12px; color: var(--text-muted); margin-bottom: 10px;" id="currentUserDisplay">Checking status...</div>
-                <button class="btn-danger" onclick="handleLogout()" style="width:100%;">
-                    <i class="fas fa-sign-out-alt"></i> Logout
+            <div style="margin-top: 10px; text-align: center;">
+                <label style="display:block; margin-bottom:5px;">Signature</label>
+                <button class="btn-info" onclick="openSignatureModal()" style="width: 100%; background: #6366f1;">
+                    <i class="fas fa-pen-nib"></i> Update Signature
                 </button>
             </div>
-            <div class="dashboard-card">
-                <label>Backup Data</label>
-                <button class="btn-primary btn-google" onclick="secureAction(exportData)" style="width:100%; margin-top:5px;"><i class="fab fa-google-drive"></i> Backup All Data</button>
-                <button class="btn-success" onclick="secureAction(exportToExcel)" style="width:100%; margin-top:10px; background: #1D6F42;">
-                    <i class="fas fa-file-excel"></i> Export to Excel
-                </button>
-                <hr style="margin: 15px 0; border-top: 1px solid var(--border-color);">
-                <label>Restore / Reset</label>
-                <button class="btn-warning" onclick="secureAction(() => document.getElementById('importFile').click())" style="width:100%;"><i class="fas fa-file-upload"></i> Restore Full JSON</button>
-                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
-                <button class="btn-info" onclick="secureAction(() => document.getElementById('importSingleFile').click())" style="width:100%; margin-top:10px; background: #0ea5e9;">
-                    <i class="fas fa-user-plus"></i> Restore 1 Student (Single Backup)
-                </button>
-                <input type="file" id="importSingleFile" accept=".json" style="display: none;" onchange="importSingleStudentData(event)">
-                <button class="btn-info" onclick="secureAction(() => document.getElementById('importSingleFromFull').click())" style="width:100%; margin-top:10px; background: #6366f1;">
-                    <i class="fas fa-user-shield"></i> Restore 1 Student (Full Backup)
-                </button>
-                <input type="file" id="importSingleFromFull" accept=".json" style="display: none;" onchange="importSingleStudentFromFullBackup(event)">
-                <button class="btn-danger" onclick="secureAction(resetApp)" style="width:100%; margin-top:15px;"><i class="fas fa-trash"></i> Factory Reset</button>
-            </div>
+
+            <button class="btn-primary" onclick="saveStudentChanges()" style="width:100%; margin-top:15px;">Update</button>
         </div>
     </div>
-</div>
 
-<div id="photoSourceModal" class="modal" style="z-index: 3000;">
-    <div class="modal-content" style="max-width: 300px; text-align: center;">
-        <span class="close-button" onclick="closeModal('photoSourceModal')">&times;</span>
-        <h3>Add Photo</h3>
-        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-            <button class="btn-primary" onclick="triggerCamera()"><i class="fas fa-camera"></i> Camera</button>
-            <button class="btn-info" onclick="triggerGallery()"><i class="fas fa-images"></i> Gallery</button>
-        </div>
-    </div>
-</div>
-
-<div id="classStudentsModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeModal('classStudentsModal')">&times;</span>
-        <h3 id="classStudentsTitle"></h3>
-        <div style="max-height: 60vh; overflow-y: auto;">
-            <table id="classStudentsTable"><thead><tr><th>ID</th><th>Student</th><th>Contact</th></tr></thead><tbody></tbody></table>
-        </div>
-    </div>
-</div>
-
-<div id="studentDetailsModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeModal('studentDetailsModal')">&times;</span>
-        <div style="text-align: center; margin-bottom: 20px;">
-            <img id="modalStudentPhoto" src="" style="width:100px; height:100px; border-radius:50%; border:2px solid #000 !important; object-fit:cover;">
-            <h2 id="modalStudentName" style="margin:10px 0 5px 0;"></h2>
-            <span id="modalClass" style="color:var(--primary); font-weight:600;"></span>
-        </div>
-        
-        <button class="btn-info" onclick="shareQRCode(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 15px; background-color: #059669; border: none; padding: 10px; border-radius: 8px;">
-            <i class="fas fa-qrcode"></i> Show/Share QR Code
-        </button>
-
-        <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; font-size: 14px; margin-bottom: 20px;">
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-                <div><strong>ID:</strong> <span id="modalSerialNo"></span></div>
-                <div><strong>Fee:</strong> <span id="modalFeeAmount"></span></div>
-                <div><strong>Day:</strong> <span id="modalDayTime"></span></div>
-                <div><strong>Join:</strong> <span id="modalJoiningDate"></span></div>
+    <div id="feeModal" class="modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close-button" onclick="closeModal('feeModal')">&times;</span>
+            <h2 id="feeModalTitle" style="margin-bottom: 5px;">Record Payment</h2>
+            <div id="paymentSummaryDisplay" style="font-size:12px; color:var(--primary); margin-bottom: 12px; font-weight:600; line-height:1.4;"></div>
+            
+            <input type="hidden" id="feeStudentId">
+            
+            <div id="monthSelectionGroup" class="form-group" style="margin-bottom: 15px;">
+                <label style="color: var(--text-muted); font-weight: 500; font-size: 12px; margin-bottom: 6px;">Select Months to Pay:</label>
+                <div id="dueMonthsCheckboxList" style="max-height: 200px; overflow-y: auto; background: var(--bg-card); padding: 6px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px;">
+                    </div>
             </div>
-            <div id="modalInactiveStatusBox" style="display:none; background: #fff1f2; padding: 10px; border-radius: 8px; border-left: 4px solid #e11d48; margin-top: 12px; margin-bottom: 8px; font-size: 13px;"></div>
-            <p><strong>Phone:</strong> <span id="modalPhone"></span></p>
-            <p><strong>Email:</strong> <span id="modalEmail"></span></p>
-            <p><strong>Guardian:</strong> <span id="modalGuardianName"></span></p>
-            <p><strong>Addr:</strong> <span id="modalAddress"></span></p>
-            <p><strong>DOB:</strong> <span id="modalDOB"></span></p>
-        </div>
-        
-        <button class="btn-info" id="btnViewSignature" style="width: 100%; margin-top: 10px; margin-bottom: 15px; background-color: #6366f1; border: none; padding: 10px; border-radius: 8px;">
-            <i class="fas fa-file-signature"></i> View Digital Signature
-        </button>
 
-        <div style="display:flex; gap:10px; margin-bottom:10px; align-items:center; background:var(--bg-input); padding:10px; border-radius:8px;">
-            <select id="detailsFilterYear" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
-            <select id="detailsFilterMonth" style="flex:1; font-size:12px; padding:8px;" onchange="renderStudentDetailsHistory()"></select>
-        </div>
-        
-        <div style="margin-bottom:20px;">
-            <h4 style="margin:0 0 10px 0;">Status History</h4>
-            <ul id="modalStatusHistory" class="scrollable-list"></ul>
-        </div>
-        <div style="margin-bottom:20px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-             <div>
-                <h4 style="margin:0 0 5px 0;">Paid</h4>
-                <ul id="modalPaidList" class="scrollable-list"></ul>
-             </div>
-             <div>
-                <h4 style="margin:0 0 5px 0;">Attendance</h4>
-                <div style="font-size:11px;">Present: <ul id="modalPresentList" class="scrollable-list" style="max-height:80px;"></ul></div>
-                <div style="font-size:11px; color:red; margin-top:5px;">Absent: <ul id="modalAbsentList" class="scrollable-list" style="max-height:80px;"></ul></div>
-             </div>
-        </div>
-        <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--success); padding-bottom: 5px; margin-bottom: 10px;">
-            <h4 style="margin: 0;">
-                <i class="fas fa-stopwatch" style="color: var(--success);"></i> Practice History
-            </h4>
-            <select id="teacherPracticeFilter" onchange="renderPracticeLogTeacher(currentlyViewingStudentId)" style="padding: 4px 8px; font-size: 11px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); outline: none;">
-                <option value="All">All Subjects</option>
-            </select>
-        </div>
-        <div style="max-height: 150px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-            <ul id="modalPracticeList" style="list-style: none; padding: 0; margin: 0;"></ul>
-        </div>
-    </div>
-        
-        <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-            <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--info); padding-bottom: 5px;">
-                <i class="fas fa-book-open" style="color: var(--info);"></i> Study Materials
-            </h4>
-            <button class="btn-info" onclick="openAddMaterialModal(currentlyViewingStudentId)" style="width: 100%; margin-bottom: 10px; background: #0ea5e9;">
-                <i class="fas fa-plus-circle"></i> Add Note/Video/PDF Link
-            </button>
-            <div style="max-height: 120px; overflow-y: auto; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--border-color);">
-                <ul id="modalStudyMaterialsList" style="list-style: none; padding: 0; margin: 0;"></ul>
-            </div>
-        </div>
-        <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color);">
-            <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
-                <i class="fas fa-sticky-note" style="color: var(--warning);"></i> Class Notes History
-            </h4>
-            <input type="text" id="noteSearchInput" placeholder="Search by Date or Note content..." onkeyup="filterStudentNotes()" style="padding: 8px; font-size: 12px; margin-bottom: 10px;">
-            <div style="max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); background: var(--bg-card); border-radius: 8px;">
-                <ul id="modalNotesList" style="list-style: none; padding: 0; margin: 0;"></ul>
-            </div>
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); margin-top: 20px;">
-                <h4 style="margin: 0 0 10px 0; border-bottom: 2px solid var(--warning); padding-bottom: 5px;">
-                    <i class="fas fa-bullhorn" style="color: var(--warning);"></i> Personal Notice
-                </h4>
-                <div id="currentNoticeDisplay" style="font-size:12px; margin-bottom:10px; color: var(--text-main); font-weight:600;"></div>
-                <textarea id="personalNoticeInput" rows="2" placeholder="Write notice for this student..." style="width:100%; border-radius:8px; border:1px solid var(--border-color); padding:8px; font-size:12px; background: var(--bg-card); color: var(--text-main); box-sizing: border-box;"></textarea>
-                <div style="display:flex; gap:10px; margin-top:10px;">
-                    <button class="btn-success" onclick="savePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Save Notice</button>
-                    <button class="btn-danger" onclick="deletePersonalNotice()" style="flex:1; padding:8px; font-size:12px;">Delete</button>
-                </div>
-            </div>
-        </div>
-        <div style="background: var(--bg-input); padding: 15px; border-radius: 12px;">
-            <label>Generate Documents</label>
-            <button class="btn-success" onclick="exportSingleStudent(currentlyViewingStudentId)" style="width:100%; margin-top:10px; background-color: #10b981; border: none;">
-                <i class="fas fa-file-download"></i> Backup This Student (JSON)
-            </button>
-            <div style="display: flex; gap: 10px; margin-bottom: 10px; margin-top: 10px;">
-                <input type="date" id="idCardIssueDate">
-                <input type="date" id="idCardEndDate">
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label style="color: var(--text-muted); font-weight: 500; font-size: 12px;">Total Amount</label>
+                <input type="number" id="feeAmount" style="font-size: 18px; font-weight: bold; color: var(--success); background: var(--bg-input); border: 1px solid var(--border-color);" readonly>
             </div>
             
-            <div style="display: flex; gap: 10px;">
-                <button class="btn-info" onclick="generateIDCard()" style="flex:1;">ID Card</button>
-                <button class="btn-primary" id="exportPdfBtn" style="flex:1;">Profile PDF</button>
+            <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div class="form-group" style="margin-bottom: 0;"><label style="font-weight: 500; font-size: 12px;">Mode</label><select id="paymentMode"><option value="Cash">Cash</option><option value="Online">Online/UPI</option></select></div>
+                <div class="form-group" style="margin-bottom: 0;"><label style="font-weight: 500; font-size: 12px;">Date</label><input type="date" id="feeDate"></div>
             </div>
-            <button class="btn-welcome" id="generateWelcomeBtn" onclick="generateWelcomeNote(currentlyViewingStudentId)" style="width:100%; margin-top:10px;">
-                <i class="fas fa-file-pdf"></i> Welcome Note (Bangla)
-            </button>
+            
+            <div class="form-group"><label style="font-weight: 500; font-size: 12px;">Txn ID (Optional)</label><input type="text" id="transactionId" placeholder="Transaction ID"></div>
+            
+            <button class="btn-success" onclick="saveFee()" style="width:100%; font-size: 15px; padding: 12px; margin-top: 5px; border-radius: 8px;">Confirm Payment</button>
         </div>
     </div>
-</div>
-
-<div id="bulkMsgModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeModal('bulkMsgModal')">&times;</span>
-        <h2>Send Notice</h2>
-        <div class="form-group">
-            <label>Select Target</label>
-            <select id="bulkMsgFilter">
-                <option value="All">All Active Students</option>
-                <option value="Sunday">Sunday Batch</option>
-                <option value="Monday">Monday Batch</option>
-                <option value="Tuesday">Tuesday Batch</option>
-                <option value="Wednesday">Wednesday Batch</option>
-                <option value="Thursday">Thursday Batch</option>
-                <option value="Friday">Friday Batch</option>
-                <option value="Saturday">Saturday Batch</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Message</label>
-            <textarea id="bulkMsgText" rows="4" placeholder="Write your notice here..."></textarea>
-        </div>
-        <button class="btn-primary" style="width:100%; margin-bottom:10px;" onclick="sendBulkMsg('sms')"><i class="fas fa-sms"></i> Send via SMS (Bulk)</button>
-        <button class="btn-whatsapp" style="width:100%;" onclick="sendBulkMsg('wa')"><i class="fab fa-whatsapp"></i> WhatsApp List (Individual)</button>
-        <div id="waBulkList" style="margin-top:10px; display:none; max-height:200px; overflow-y:auto; background:var(--bg-input); padding:10px; border-radius:8px;"></div>
-    </div>
-</div>
-
-<div id="qrScannerModal" class="modal" style="z-index: 2500;">
-    <div class="modal-content" style="text-align: center;">
-        <span class="close-button" onclick="closeQRScanner()">&times;</span>
-        <h3>Scan QR Code</h3>
-        <p style="font-size:12px; color:var(--text-muted);">Place student's QR code in frame to mark attendance</p>
-        <div id="qr-reader-box" style="width:100%; max-width:400px; margin: 0 auto; border-radius: 12px; overflow:hidden;"></div>
-    </div>
-</div>
-
-<div id="statusChangeModal" class="modal">
-    <div class="modal-content" style="max-width: 400px;">
-        <span class="close-button" onclick="closeModal('statusChangeModal')">&times;</span>
-        <h2 id="statusChangeTitle"></h2>
-        <input type="hidden" id="statusChangeStudentId"><input type="hidden" id="statusChangeToActive">
-        <div class="form-group"><label>Date:</label><input type="date" id="statusDate"></div>
-        <div class="form-group"><label>Note:</label><textarea id="statusNote" rows="3"></textarea></div>
-        <button class="btn-primary" onclick="saveStatusChange()" style="width:100%;">Confirm</button>
-    </div>
-</div>
-
-<div id="editStudentModal" class="modal">
-    <div class="modal-content">
-        <span class="close-button" onclick="closeModal('editStudentModal')">&times;</span>
-        <h2>Edit Student</h2>
-        <input type="hidden" id="editStudentId">
-        <input type="file" id="editStudentCamera" accept="image/*" capture="environment" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
-        <input type="file" id="editStudentGallery" accept="image/*" onchange="handlePhotoSelection(this, 'edit')" style="display:none;">
-        <div style="text-align: center; margin-bottom: 15px;">
-            <div onclick="openPhotoSourceModal('edit')" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; margin: 0 auto; border: 2px solid #000; position: relative; cursor: pointer;">
-                <img id="editPhotoPreview" src="" style="width: 100%; height: 100%; object-fit: cover;">
-                <div style="position: absolute; bottom: 0; background: rgba(0,0,0,0.5); width: 100%; color: white; font-size: 10px;">EDIT</div>
+<div id="stockModal" class="modal" style="z-index: 2500;">
+        <div class="modal-content">
+            <span class="close-button" onclick="closeModal('stockModal')">&times;</span>
+            <h2 style="margin-bottom: 15px;"><i class="fas fa-boxes" style="color:var(--primary);"></i> Manage Stock</h2>
+            
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color);">
+                <div class="form-grid" style="grid-template-columns: 2fr 1fr 1fr; gap: 8px;">
+                    <div>
+                        <label style="font-size: 10px;">Item Name</label>
+                        <input type="text" id="newStockName" placeholder="e.g. Pick" style="padding: 8px; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 10px;">Price (₹)</label>
+                        <input type="number" id="newStockPrice" placeholder="0" style="padding: 8px; font-size: 13px;">
+                    </div>
+                    <div>
+                        <label style="font-size: 10px;">Qty</label>
+                        <input type="number" id="newStockQty" placeholder="0" style="padding: 8px; font-size: 13px;">
+                    </div>
+                </div>
+                <button class="btn-primary" onclick="window.addStockItem()" style="width: 100%; margin-top: 10px; padding: 10px; font-size: 13px;"><i class="fas fa-plus"></i> Add / Update Stock</button>
             </div>
-            <button type="button" onclick="removeEditPhoto()" style="margin-top: 5px; background: #ef4444; color: white; border: none; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer;">
-                <i class="fas fa-trash"></i> Remove Photo
-            </button>
-        </div>
-        <div class="form-group" style="background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px; border: 1px solid #ef4444; display: flex; justify-content: space-between; align-items: center;">
-            <label style="margin:0; color: #dc2626; font-weight:bold; font-size:12px;">Allow QR Profile View?</label>
-            <input type="checkbox" id="editAllowProfile" style="width: 20px; height: 20px; cursor: pointer;">
-        </div>
-        <div class="form-grid">
-            <div class="form-group"><label>Name</label><input type="text" id="editStudentName"></div>
-            <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
-            <div class="form-group"><label>Day</label><select id="editStudentDay"><option value="">Select</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
-            <div class="form-group"><label>Time</label><input type="time" id="editStudentTime"></div>
-            <div class="form-group"><label>Fee</label><input type="number" id="editStudentFee"></div>
-            <div class="form-group"><label>Phone</label><input type="tel" id="editPhone"></div>
-            <div class="form-group"><label>Guardian</label><input type="text" id="editGuardianName"></div>
-            <div class="form-group"><label>Email</label><input type="email" id="editStudentEmail"></div>
-            <div class="form-group"><label>Addr</label><input type="text" id="editAddress"></div>
-            <div class="form-group"><label>DOB</label><input type="date" id="editStudentDOB"></div>
-        </div>
-        
-        <div style="margin-top: 10px; text-align: center;">
-            <label style="display:block; margin-bottom:5px;">Signature</label>
-            <button class="btn-info" onclick="openSignatureModal()" style="width: 100%; background: #6366f1;">
-                <i class="fas fa-pen-nib"></i> Update Signature
-            </button>
-        </div>
 
-        <button class="btn-primary" onclick="saveStudentChanges()" style="width:100%; margin-top:15px;">Update</button>
-    </div>
-</div>
-
-<div id="feeModal" class="modal">
-    <div class="modal-content" style="max-width: 400px;">
-        <span class="close-button" onclick="closeModal('feeModal')">&times;</span>
-        <h2 id="feeModalTitle" style="margin-bottom: 5px;">Record Payment</h2>
-        <div id="paymentSummaryDisplay" style="font-size:12px; color:var(--primary); margin-bottom: 12px; font-weight:600; line-height:1.4;"></div>
-        
-        <input type="hidden" id="feeStudentId">
-        
-        <div id="monthSelectionGroup" class="form-group" style="margin-bottom: 15px;">
-            <label style="color: var(--text-muted); font-weight: 500; font-size: 12px; margin-bottom: 6px;">Select Months to Pay:</label>
-            <div id="dueMonthsCheckboxList" style="max-height: 200px; overflow-y: auto; background: var(--bg-card); padding: 6px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 4px;">
+            <div style="max-height: 300px; overflow-y: auto;">
+                <table style="width: 100%; font-size: 13px; text-align: left;">
+                    <thead>
+                        <tr style="background: var(--bg-input);">
+                            <th style="padding: 8px; border-radius: 8px 0 0 8px;">Item</th>
+                            <th style="padding: 8px;">Price</th>
+                            <th style="padding: 8px;">Stock</th>
+                            <th style="padding: 8px; text-align: center; border-radius: 0 8px 8px 0;">Act</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stockTableBody"></tbody>
+                </table>
             </div>
         </div>
-
-        <div class="form-group" style="margin-bottom: 15px;">
-            <label style="color: var(--text-muted); font-weight: 500; font-size: 12px;">Total Amount</label>
-            <input type="number" id="feeAmount" style="font-size: 18px; font-weight: bold; color: var(--success); background: var(--bg-input); border: 1px solid var(--border-color);" readonly>
-        </div>
-        
-        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
-            <div class="form-group" style="margin-bottom: 0;"><label style="font-weight: 500; font-size: 12px;">Mode</label><select id="paymentMode"><option value="Cash">Cash</option><option value="Online">Online/UPI</option></select></div>
-            <div class="form-group" style="margin-bottom: 0;"><label style="font-weight: 500; font-size: 12px;">Date</label><input type="date" id="feeDate"></div>
-        </div>
-        
-        <div class="form-group"><label style="font-weight: 500; font-size: 12px;">Txn ID (Optional)</label><input type="text" id="transactionId" placeholder="Transaction ID"></div>
-        
-        <button class="btn-success" onclick="saveFee()" style="width:100%; font-size: 15px; padding: 12px; margin-top: 5px; border-radius: 8px;">Confirm Payment</button>
     </div>
-</div>
 
 <script src="script.js"></script>
 </body>
