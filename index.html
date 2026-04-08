@@ -526,13 +526,17 @@
             <datalist id="stockDataList"></datalist>
             
             <div style="display: flex; gap: 10px; margin-bottom:10px;">
-                <div style="flex:1;">
-                    <label style="font-size:11px; color: var(--text-muted);">Total Price (₹)</label>
-                    <input type="number" id="itemPrice" placeholder="0" oninput="calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                <div style="flex: 0.6;">
+                    <label style="font-size:11px; color: var(--text-muted);">Qty</label>
+                    <input type="number" id="saleQty" value="1" min="1" oninput="window.updateSalePriceCalc()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box; font-weight: bold; text-align: center;">
                 </div>
-                <div style="flex:1;">
-                    <label style="font-size:11px; color: var(--text-muted);">Amount Paid (₹)</label>
-                    <input type="number" id="amountPaid" placeholder="0" oninput="calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                <div style="flex: 1.2;">
+                    <label style="font-size:11px; color: var(--text-muted);">Total Price (₹)</label>
+                    <input type="number" id="itemPrice" placeholder="0" oninput="window.calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                </div>
+                <div style="flex: 1.2;">
+                    <label style="font-size:11px; color: var(--text-muted);">Paid (₹)</label>
+                    <input type="number" id="amountPaid" placeholder="0" oninput="window.calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
                 </div>
             </div>
             
