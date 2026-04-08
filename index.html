@@ -953,62 +953,6 @@
             </div>
         </div>
     </div>
-    // ==========================================
-// 🟢 RESTORE SALES DATA LOGIC
-// ==========================================
-window.restoreSalesData = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    event.target.value = ''; // ফাইল ইনপুট রিসেট করা
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const json = e.target.result;
-            const importedData = JSON.parse(json);
-
-            // ফাইলটি আসল সেলস ব্যাকআপ কিনা তা চেক করা
-            if (!importedData || !importedData.year || !Array.isArray(importedData.records)) {
-                Swal.fire('Error', 'Invalid Sales Backup file.', 'error');
-                return;
-            }
-
-            Swal.fire({
-                title: `Restore Sales for ${importedData.year}?`,
-                text: `This will replace the current sales records for the year ${importedData.year}.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#ef4444',
-                confirmButtonText: 'Yes, Restore'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({ title: 'Restoring...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-                    // ১. ইয়ার ফিল্টার আপডেট করা
-                    const yearInput = document.getElementById('salesYearFilter');
-                    if(yearInput) yearInput.value = importedData.year;
-                    
-                    // ২. সেলস অ্যারে আপডেট করা
-                    salesDataArray = importedData.records;
-                    
-                    // ৩. ফায়ারবেসে সিঙ্ক করা
-                    window.syncSalesToFirebase(importedData.year);
-                    
-                    // ৪. স্ক্রিন আপডেট করা
-                    window.renderSalesUI();
-
-                    Swal.fire('Restored!', `Sales data for ${importedData.year} has been restored successfully.`, 'success');
-                }
-            });
-
-        } catch (err) {
-            console.error("Sales Restore Error:", err);
-            Swal.fire('Error', 'Failed to read the backup file.', 'error');
-        }
-    };
-    reader.readAsText(file);
-};
 
 <script src="script.js"></script>
 </body>
