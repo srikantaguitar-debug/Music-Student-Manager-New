@@ -7535,13 +7535,13 @@ window.editSaleRecord = function(saleId) {
     window.calculateSaleDue();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
-// =======================================
-// 🟢 RESTORE SALES DATA LOGIC
+// ==========================================
+// 🟢 RESTORE SALES DATA LOGIC (Full & Final)
 // ==========================================
 window.restoreSalesData = function(event) {
     const file = event.target.files[0];
     if (!file) return;
-    event.target.value = ''; // ফাইল ইনপুট রিসেট করা
+    event.target.value = ''; // ইনপুট ফিল্ড রিসেট করা, যাতে একই ফাইল আবার সিলেক্ট করা যায়
 
     const reader = new FileReader();
     reader.onload = async function(e) {
@@ -7549,15 +7549,25 @@ window.restoreSalesData = function(event) {
             const json = e.target.result;
             const importedData = JSON.parse(json);
 
-            // ফাইলটি আসল সেলস ব্যাকআপ কিনা তা চেক করা
-            if (!importedData || !importedData.year || !Array.isArray(importedData.records)) {
-                Swal.fire('Error', 'Invalid Sales Backup file.', 'error');
+            // ১. ফাইল চেকিং: ইউজার ভুল করে ফুল ব্যাকআপ (স্টুডেন্ট ডেটা) দিয়ে দিয়েছে কি না
+            if (importedData.students || importedData.attendance) {
+                Swal.fire('Wrong File!', 'এটি স্টুডেন্টদের ফুল ব্যাকআপ ফাইল। দয়া করে "MusicClass_Sales_Backup..." নামের ফাইলটি সিলেক্ট করুন।', 'warning');
                 return;
             }
 
+            // ২. ডেটা চেকিং: সেলস রেকর্ড ঠিকঠাক আছে কি না
+            if (!importedData || !Array.isArray(importedData.records)) {
+                Swal.fire('Error', 'ফাইলটি সঠিক সেলস ব্যাকআপ নয় বা ফাইলটি করাপ্ট হয়ে গেছে।', 'error');
+                return;
+            }
+
+            // ৩. সাল (Year) বের করা (ফাইলে না থাকলে বর্তমান সাল ধরবে)
+            const restoreYear = importedData.year || document.getElementById('salesYearFilter').value || new Date().getFullYear();
+
+            // ৪. কনফার্মেশন পপআপ
             Swal.fire({
-                title: `Restore Sales for ${importedData.year}?`,
-                text: `This will replace the current sales records for the year ${importedData.year}.`,
+                title: `Restore Sales for ${restoreYear}?`,
+                text: `This will replace the current sales records for the year ${restoreYear}.`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#10b981',
@@ -7565,28 +7575,43 @@ window.restoreSalesData = function(event) {
                 confirmButtonText: 'Yes, Restore'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    Swal.fire({ title: 'Restoring...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+                    // ⏳ লোডিং স্পিনার শুরু
+                    Swal.fire({ 
+                        title: 'Restoring...', 
+                        allowOutsideClick: false, 
+                        didOpen: () => { Swal.showLoading(); } 
+                    });
 
-                    // ১. ইয়ার ফিল্টার আপডেট করা
+                    // ৫. ডেটা আপডেট করা
                     const yearInput = document.getElementById('salesYearFilter');
-                    if(yearInput) yearInput.value = importedData.year;
+                    if(yearInput) yearInput.value = restoreYear;
                     
-                    // ২. সেলস অ্যারে আপডেট করা
-                    salesDataArray = importedData.records;
+                    salesDataArray = importedData.records; // লোকাল অ্যারে আপডেট
                     
-                    // ৩. ফায়ারবেসে সিঙ্ক করা
-                    window.syncSalesToFirebase(importedData.year);
+                    window.syncSalesToFirebase(restoreYear); // ফায়ারবেসে সেভ করা
                     
-                    // ৪. স্ক্রিন আপডেট করা
-                    window.renderSalesUI();
+                    window.renderSalesUI(); // স্ক্রিনের টেবিল আপডেট করা
 
-                    Swal.fire('Restored!', `Sales data for ${importedData.year} has been restored successfully.`, 'success');
+                    // 🟢 ৬. স্পিনার বন্ধ করে সাকসেস মেসেজ দেখানো (Spinner Fix)
+                    Swal.close(); // প্রথমে স্পিনারটা জোর করে বন্ধ করা
+                    
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: 'Restored!',
+                            text: `Sales data for ${restoreYear} has been restored successfully.`,
+                            icon: 'success',
+                            showConfirmButton: true,
+                            confirmButtonText: 'Close',
+                            confirmButtonColor: '#ef4444', // লাল বাটন
+                            allowOutsideClick: false
+                        });
+                    }, 300); // 0.3 সেকেন্ড গ্যাপ দেওয়া হলো যাতে স্পিনারটা স্মুথলি মুছে যায়
                 }
             });
 
         } catch (err) {
             console.error("Sales Restore Error:", err);
-            Swal.fire('Error', 'Failed to read the backup file.', 'error');
+            Swal.fire('Error', 'Failed to read the backup file. It might be corrupted.', 'error');
         }
     };
     reader.readAsText(file);
