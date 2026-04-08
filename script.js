@@ -6970,25 +6970,53 @@ window.cancelSaleEdit = function() {
 };
 
 
-window.exportSalesBackup = function() {
+window.backupSalesData = async function() {
     if(salesDataArray.length === 0) {
         Swal.fire('Info', 'No sales data to backup for this year.', 'info');
         return;
     }
+    
     const year = document.getElementById('salesYearFilter').value;
     const jsonStr = JSON.stringify({ year: year, records: salesDataArray }, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `MusicClass_Sales_Backup_${year}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Backup Downloaded!', showConfirmButton: false, timer: 2000});
-};
+    const fileName = `MusicClass_Sales_Backup_${year}.json`;
 
+    try {
+        // আধুনিক ব্রাউজার বা কম্পিউটারের জন্য (ফোল্ডার সিলেক্ট করার ডায়ালগ বক্স আনবে)
+        if (window.showSaveFilePicker) {
+            const handle = await window.showSaveFilePicker({
+                suggestedName: fileName,
+                types: [{
+                    description: 'JSON Backup File',
+                    accept: { 'application/json': ['.json'] },
+                }],
+            });
+            const writable = await handle.createWritable();
+            await writable.write(jsonStr);
+            await writable.close();
+            
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Backup Saved Successfully!', showConfirmButton: false, timer: 2000});
+        } else {
+            // মোবাইল বা পুরনো ব্রাউজারের জন্য (সরাসরি ডাউনলোড হবে)
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Backup Downloaded!', showConfirmButton: false, timer: 2000});
+        }
+    } catch (err) {
+        // যদি ইউজার ফোল্ডার সিলেক্ট না করে "Cancel" বাটনে ক্লিক করে, তবে কোনো এরর দেখাবে না
+        if (err.name !== 'AbortError') {
+            console.error(err);
+            Swal.fire('Error', 'Failed to save backup file.', 'error');
+        }
+    }
+};
 window.shareSaleReceiptWA = async function() {
     const doc = window.tempSaleDoc;
     const fileName = window.tempSaleFileName;
@@ -7506,4 +7534,60 @@ window.editSaleRecord = function(saleId) {
     
     window.calculateSaleDue();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+// =======================================
+// 🟢 RESTORE SALES DATA LOGIC
+// ==========================================
+window.restoreSalesData = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = ''; // ফাইল ইনপুট রিসেট করা
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const json = e.target.result;
+            const importedData = JSON.parse(json);
+
+            // ফাইলটি আসল সেলস ব্যাকআপ কিনা তা চেক করা
+            if (!importedData || !importedData.year || !Array.isArray(importedData.records)) {
+                Swal.fire('Error', 'Invalid Sales Backup file.', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: `Restore Sales for ${importedData.year}?`,
+                text: `This will replace the current sales records for the year ${importedData.year}.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'Yes, Restore'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Restoring...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+                    // ১. ইয়ার ফিল্টার আপডেট করা
+                    const yearInput = document.getElementById('salesYearFilter');
+                    if(yearInput) yearInput.value = importedData.year;
+                    
+                    // ২. সেলস অ্যারে আপডেট করা
+                    salesDataArray = importedData.records;
+                    
+                    // ৩. ফায়ারবেসে সিঙ্ক করা
+                    window.syncSalesToFirebase(importedData.year);
+                    
+                    // ৪. স্ক্রিন আপডেট করা
+                    window.renderSalesUI();
+
+                    Swal.fire('Restored!', `Sales data for ${importedData.year} has been restored successfully.`, 'success');
+                }
+            });
+
+        } catch (err) {
+            console.error("Sales Restore Error:", err);
+            Swal.fire('Error', 'Failed to read the backup file.', 'error');
+        }
+    };
+    reader.readAsText(file);
 };
