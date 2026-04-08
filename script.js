@@ -201,13 +201,39 @@ document.addEventListener('DOMContentLoaded', async () => {
                     
                     try {
                         const docRef = db.collection('music_classes').doc(managerUid);
-                        const [studentDoc, mainDoc] = await Promise.all([
+                        const currentYear = new Date().getFullYear();
+                        const [studentDoc, mainDoc, pLogDoc] = await Promise.all([
                             docRef.collection('students').doc(studentViewId).get(),
-                            docRef.get()
+                            docRef.get(),
+                            docRef.collection('practice_logs').doc(String(currentYear)).get()
                         ]);
 
                         if(studentDoc.exists && mainDoc.exists) {
                             const s = studentDoc.data();
+                            
+                            // 🟢 Combine Legacy Logs with New Subcollection Logs
+                            const pLogs = pLogDoc.exists ? pLogDoc.data().records : [];
+                            const legacyLogs = s.practice_log || [];
+                            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
+                            s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
+                            
+                            // 🟢 Calculate Accessory Dues HTML
+                            let accessoryDuesHtml = '';
+                            if (s.unpaid_accessories && s.unpaid_accessories.length > 0) {
+                                const totalAccDue = s.unpaid_accessories.reduce((sum, item) => sum + item.due, 0);
+                                const itemsList = s.unpaid_accessories.map(item => item.item).join(', ');
+                                
+                                accessoryDuesHtml = `
+                                <style>@keyframes pulseAccWarning { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }</style>
+                                <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f59e0b; text-align: center; animation: pulseAccWarning 2s infinite;">
+                                    <div style="background: #f59e0b; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
+                                        <i class="fas fa-shopping-bag"></i>
+                                    </div>
+                                    <h4 style="margin:0; color:#b45309; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Accessories Due</h4>
+                                    <p style="margin:8px 0; font-size:32px; font-weight:900; color:#d97706;">₹${totalAccDue}</p>
+                                    <p style="margin:0; font-size:13px; color:#92400e; font-weight: 600;">Pending for: ${itemsList}</p>
+                                </div>`;
+                            }
                             const globalData = mainDoc.data();
                             const globalAtt = globalData.attendance || {};
                             const globalFees = globalData.fees || {};
@@ -542,6 +568,7 @@ document.body.innerHTML = `
             </div>
 
             ${dueHtml}
+            ${accessoryDuesHtml}
 
             <div style="margin-top: 10px;">
                 <h4 style="margin:0 0 15px 5px; color:#334155; font-size:16px;"><i class="fas fa-book-open" style="color:#6366f1; margin-right:5px;"></i> My Study Materials</h4>
@@ -891,8 +918,21 @@ window.showHelpOptions = function() {
             }
         }
 
-        async function initApp() { 
-            const now = new Date();
+        window.globalPracticeLogs = [];
+window.fetchPracticeLogs = async function() {
+    const year = new Date().getFullYear();
+    const user = firebase.auth().currentUser;
+    if(user) {
+        try {
+            const doc = await db.collection(COLLECTION_NAME).doc(user.uid).collection('practice_logs').doc(String(year)).get();
+            window.globalPracticeLogs = doc.exists ? (doc.data().records || []) : [];
+        } catch(e) { console.error(e); }
+    }
+};
+
+async function initApp() { 
+    await window.fetchPracticeLogs();
+    const now = new Date();
             document.getElementById('attendanceDate').valueAsDate = now;
             document.getElementById('attendanceTime').value = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
             
@@ -930,18 +970,21 @@ window.showHelpOptions = function() {
                     }
                 }
 
-                const [aData, fData, rData, scData, gmData] = await Promise.all([
+                const [aData, fData, rData, scData, gmData, sData] = await Promise.all([
                     dbGet('attendance'),
                     dbGet('fees'),
                     dbGet('reminders'),
                     dbGet('studentSerialCounter'),
-                    dbGet('globalMaterials')
+                    dbGet('globalMaterials'),
+                    dbGet('stockData') // 🟢 এটি নতুন যোগ হলো
                 ]);
 
                 students = loadedStudents || []; 
                 attendance = aData || {}; 
                 fees = fData || {}; 
                 reminders = rData || []; 
+                window.stockInventory = sData || [];
+                window.renderInventoryDropdown();
                 globalMaterials = gmData || [];
                 studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
                 
@@ -1870,6 +1913,9 @@ function openTab(tabName) {
         loadStudentsList();
         currentStudentSignature = null;
         document.getElementById('signatureStatus').style.display = 'none';
+    }
+if(tabName === 'sales') {
+        renderSales();
     }
     if(tabName === 'attendance') {
         const now = new Date();
@@ -5594,7 +5640,6 @@ window.submitPracticeLog = function(studentId) {
         const currentHours = now.getHours();
         const currentMinutes = now.getMinutes();
         const [inputHours, inputMinutes] = timeInputVal.split(':').map(Number);
-        
         if (inputHours > currentHours || (inputHours === currentHours && inputMinutes > currentMinutes)) {
             Swal.fire('Error', 'Future time cannot be selected!', 'error');
             return; 
@@ -5603,13 +5648,8 @@ window.submitPracticeLog = function(studentId) {
     
     const minutes = document.getElementById('practiceMinutes').value;
     let topic = document.getElementById('practiceTopic').value.trim();
+    if (!topic) topic = "Regular Practice"; 
 
-    // 🟢 Topic অপশনাল করা হলো (না দিলে 'Regular Practice' সেভ হবে)
-    if (!topic) {
-        topic = "Regular Practice"; 
-    }
-
-    // 🟢 NEW: Get the selected class/instrument
     const classSelectEl = document.getElementById('practiceClassSelect');
     const selectedInstrument = classSelectEl ? classSelectEl.value : 'Music';
 
@@ -5621,56 +5661,53 @@ window.submitPracticeLog = function(studentId) {
     const now = new Date();
     const dateStr = now.toLocaleDateString('en-IN'); 
     const dayStr = now.toLocaleDateString('en-IN', { weekday: 'short' }); 
-    
-    let timeStr = '';
-    if (timeInputVal) {
-        const [h, m] = timeInputVal.split(':');
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const h12 = h % 12 || 12;
-        timeStr = `${h12.toString().padStart(2, '0')}:${m} ${ampm}`;
-    } else {
-        timeStr = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); 
-    }
+    let timeStr = timeInputVal ? formatTime12H(timeInputVal) : now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); 
 
     const urlParams = new URLSearchParams(window.location.search);
     const managerUid = urlParams.get('manager');
     const isStudentPortal = !!managerUid;
     const targetUid = managerUid ? managerUid : DOC_ID;
 
-    // 🟢 স্টুডেন্টকে খুঁজে বের করা হচ্ছে
     let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
     if (studentIndex === -1) return;
     let studentData = students[studentIndex];
 
-    if (!studentData.practice_log) studentData.practice_log = [];
-
-    // 🟢 লগ ডেটাবেসে পুশ করা হচ্ছে
-    studentData.practice_log.unshift({
+    const currentYear = new Date().getFullYear();
+    const newLog = {
         id: Date.now(),
+        studentId: studentId,
+        studentName: studentData.name,
+        studentPhoto: studentData.photo || '',
         minutes: parseInt(minutes),
         topic: topic,
-        instrument: selectedInstrument, // 🟢 NEW FIELD ADDED
+        instrument: selectedInstrument,
         date: dateStr,
         day: dayStr,
         time: timeStr
-    });
+    };
 
-    // 🟢 Instant UI Update (সাথে সাথে সেভ দেখাবে)
+    // 🟢 Firebase ArrayUnion into Yearly Subcollection
+    db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
+        records: firebase.firestore.FieldValue.arrayUnion(newLog)
+    }, { merge: true }).catch(e => console.log("Background sync", e));
+
+    // 🟢 Local Array update for Instant UI
+    if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
+    if (!studentData.combined_practice_logs) studentData.combined_practice_logs = studentData.practice_log ? [...studentData.practice_log] : [];
+    studentData.combined_practice_logs.unshift(newLog);
+
     document.getElementById('practiceMinutes').value = '';
     document.getElementById('practiceTopic').value = '';
     if(timeInputEl) timeInputEl.value = '';
     
     Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${minutes} minutes!`, icon: 'success', timer: 2000, showConfirmButton: false });
-    renderPracticeHistoryPortal(studentData); 
-
-    // 🟢 Background Database Save (নীরবে সেভ হবে)
-    if (!isStudentPortal) {
-        students[studentIndex] = studentData;
-    }
     
-    db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
-        practice_log: studentData.practice_log
-    }).catch(e => console.log("Sync error:", e));
+    if (isStudentPortal) {
+        window.renderPracticeHistoryPortal(studentData); 
+    } else {
+        window.renderPracticeLogTeacher(studentId);
+        window.renderDashboard();
+    }
 };
 
 window.showTodaysPracticingStudentsModal = function() {
@@ -6641,4 +6678,684 @@ window.showStudentPortalQR = function(studentId) {
         confirmButtonText: 'Close',
         confirmButtonColor: '#ef4444' // 🟢 Fixed Syntax Error Here
     });
+};
+// ==========================================
+// 🟢 ACCESSORIES SALES FINAL LOGIC
+// ==========================================
+
+let salesDataArray = [];
+let tempSalesActiveStudents = [];
+
+window.fetchSalesData = async function() {
+    const yearInput = document.getElementById('salesYearFilter');
+    if (!yearInput.value) yearInput.value = new Date().getFullYear();
+    const year = yearInput.value;
+
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            const doc = await db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').doc(String(year)).get();
+            if (doc.exists) {
+                salesDataArray = doc.data().records || [];
+            } else {
+                salesDataArray = [];
+            }
+        } catch(e) { console.error("Error fetching sales:", e); }
+    }
+    window.renderSalesUI();
+};
+
+window.syncSalesToFirebase = function(year) {
+    const user = firebase.auth().currentUser;
+    if (user) {
+        db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').doc(String(year)).set({
+            records: salesDataArray
+        }).catch(e => console.error("Sales Sync failed", e));
+    }
+};
+
+window.openSaleStudentSelector = function() {
+    tempSalesActiveStudents = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    let listHtml = window.generateSaleStudentListHtml(tempSalesActiveStudents);
+
+    Swal.fire({
+        title: 'Select Student',
+        html: `
+            <input type="text" id="swal-search-sale-student" class="swal2-input" placeholder="🔍 Search by name or ID..." style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="window.filterSaleStudentList()">
+            <div id="sale-student-list" style="width:100%; max-height: 280px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); text-align:left;">
+                ${listHtml}
+            </div>
+        `,
+        showConfirmButton: false,
+        showCancelButton: true,
+        cancelButtonText: 'Close',
+        cancelButtonColor: '#ef4444'
+    });
+};
+
+window.generateSaleStudentListHtml = function(studentsList) {
+    let html = '';
+    studentsList.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        const safeName = s.name.replace(/'/g, "\\'");
+        html += `
+            <div onclick="window.selectStudentForSale(${s.id}, '${safeName}', '${photoSrc}')" style="display:flex; align-items:center; padding: 12px; border-bottom: 1px solid var(--border-color); cursor:pointer; transition: background 0.2s; background: var(--bg-card);">
+                <img src="${photoSrc}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 15px; flex-shrink: 0;">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'} | ID: ${s.serial_no}</div>
+                </div>
+            </div>
+        `;
+    });
+    if(studentsList.length === 0) html = `<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;">No student found</div>`;
+    return html;
+};
+
+window.filterSaleStudentList = function() {
+    const input = document.getElementById('swal-search-sale-student');
+    if(!input) return;
+    const filter = input.value.toUpperCase();
+    const listContainer = document.getElementById('sale-student-list');
+    
+    const filtered = tempSalesActiveStudents.filter(s => {
+        const text = `${s.name} ${s.serial_no} ${s.class || ''}`.toUpperCase();
+        return text.indexOf(filter) > -1;
+    });
+    listContainer.innerHTML = window.generateSaleStudentListHtml(filtered);
+};
+
+window.selectStudentForSale = function(id, name, photoUrl) {
+    document.getElementById('saleStudentId').value = id;
+    
+    const nameEl = document.getElementById('saleSelectedName');
+    nameEl.textContent = name;
+    nameEl.style.color = "var(--text-main)";
+    
+    const imgEl = document.getElementById('saleSelectedPhoto');
+    imgEl.src = photoUrl;
+    imgEl.style.display = 'block';
+
+    Swal.close();
+};
+
+window.calculateSaleDue = function() {
+    const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const due = price - paid;
+    
+    const display = document.getElementById('saleDueDisplay');
+    if(display) {
+        if (due > 0) {
+            display.innerHTML = `Current Due: <span style="color:var(--danger);">₹${due}</span>`;
+            display.style.background = 'rgba(239, 68, 68, 0.1)';
+        } else {
+            display.innerHTML = `Current Due: <span style="color:var(--success);">₹0 (Fully Paid)</span>`;
+            display.style.background = 'rgba(16, 185, 129, 0.1)';
+        }
+    }
+};
+
+window.addAccessoryDueToStudent = function(studentId, saleId, item, due) {
+    let student = students.find(s => s.id == studentId);
+    if(!student) return;
+    if(!student.unpaid_accessories) student.unpaid_accessories = [];
+    student.unpaid_accessories = student.unpaid_accessories.filter(a => a.saleId !== saleId);
+    if (due > 0) student.unpaid_accessories.push({ saleId, item, due });
+    const user = firebase.auth().currentUser;
+    if(user) {
+        db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(studentId)).update({
+            unpaid_accessories: student.unpaid_accessories
+        }).catch(e=>{});
+    }
+};
+
+window.removeAccessoryDueFromStudent = function(studentId, saleId) {
+    let student = students.find(s => s.id == studentId);
+    if(!student || !student.unpaid_accessories) return;
+    student.unpaid_accessories = student.unpaid_accessories.filter(a => a.saleId !== saleId);
+    const user = firebase.auth().currentUser;
+    if(user) {
+        db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(studentId)).update({
+            unpaid_accessories: student.unpaid_accessories
+        }).catch(e=>{});
+    }
+};
+
+window.processSale = function() {
+    const sId = document.getElementById('saleStudentId').value;
+    const item = document.getElementById('itemName').value.trim();
+    const price = parseFloat(document.getElementById('itemPrice').value);
+    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const editId = document.getElementById('editSaleId').value;
+
+    if (!sId || !item || isNaN(price)) {
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Fill all details!', showConfirmButton: false, timer: 2000});
+        return;
+    }
+
+    const student = students.find(s => s.id == sId);
+    const due = price - paid;
+    const currentYear = document.getElementById('salesYearFilter').value;
+
+    if (editId) {
+        const index = salesDataArray.findIndex(s => s.id == editId);
+        if(index > -1) {
+            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: item, price: price, paid: paid, due: due };
+        }
+        window.addAccessoryDueToStudent(student.id, parseInt(editId), item, due); 
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
+    } else {
+        const newSaleId = Date.now();
+        const saleData = {
+            id: newSaleId,
+            studentId: student.id,
+            studentName: student.name,
+            item: item,
+            price: price,
+            paid: paid,
+            due: due,
+            date: new Date().toISOString().split('T')[0]
+        };
+        salesDataArray.unshift(saleData);
+        window.addAccessoryDueToStudent(student.id, newSaleId, item, due); 
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Saved!', showConfirmButton: false, timer: 1500});
+        setTimeout(() => window.generateSalePDF(saleData, student), 500);
+    }
+
+    window.renderSalesUI();
+    window.cancelSaleEdit();
+    window.syncSalesToFirebase(currentYear);
+};
+
+window.deleteSaleRecord = function(saleId) {
+    Swal.fire({
+        title: 'Delete Record?',
+        text: "This will permanently remove the sales and due record.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, delete it!'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const sale = salesDataArray.find(s => s.id === saleId);
+            if (sale) window.removeAccessoryDueFromStudent(sale.studentId, saleId); 
+            
+            salesDataArray = salesDataArray.filter(s => s.id !== saleId);
+            window.renderSalesUI();
+            const currentYear = document.getElementById('salesYearFilter').value;
+            window.syncSalesToFirebase(currentYear);
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+        }
+    });
+};
+
+window.renderSalesUI = function() {
+    const list = document.getElementById('salesList');
+    if(!list) return;
+    list.innerHTML = '';
+    
+    const searchInput = document.getElementById('searchSalesHistoryInput');
+    const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    const filteredSales = salesDataArray.filter(s => {
+        if (!filterText) return true;
+        const searchContent = `${s.studentName} ${s.item}`.toLowerCase();
+        return searchContent.includes(filterText);
+    });
+
+    if (filteredSales.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">No sales found.</td></tr>';
+        return;
+    }
+    
+    filteredSales.forEach(s => {
+        const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
+        const dateStr = new Date(s.date).toLocaleDateString('en-IN');
+        
+        list.innerHTML += `
+            <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
+                <td style="padding:10px 5px;"><strong>${s.studentName}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.item} <br>📅 ${dateStr}</span></td>
+                <td style="font-weight:bold; padding:10px 5px;">₹${s.price}</td>
+                <td style="padding:10px 5px;">
+                    <span style="color:var(--success); font-size:12px;">Paid: ₹${s.paid}</span><br>
+                    <span style="color:${statusClr}; font-weight:bold; font-size:12px;">Due: ₹${s.due}</span>
+                </td>
+                <td class="action-buttons" style="padding:10px 5px; text-align:center;">
+                   <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt PDF" style="padding:6px; margin:2px; background:#8b5cf6; color:#fff; border:none; border-radius:4px;"><i class="fas fa-file-pdf"></i></button>
+                   
+                   <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="padding:6px; margin:2px; background:#f59e0b; color:#fff; border:none; border-radius:4px;"><i class="fas fa-edit"></i></button>
+                   <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="padding:6px; margin:2px; background:#ef4444; color:#fff; border:none; border-radius:4px;"><i class="fas fa-trash"></i></button>
+                   <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WhatsApp" style="padding:6px; margin:2px; background:#25D366; color:#fff; border:none; border-radius:4px;"><i class="fab fa-whatsapp"></i></button>
+                </td>
+            </tr>`;
+    });
+};
+
+window.editSaleRecord = function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    
+    const student = students.find(st => st.id == sale.studentId);
+    if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
+
+    document.getElementById('itemName').value = sale.item;
+    document.getElementById('itemPrice').value = sale.price;
+    document.getElementById('amountPaid').value = sale.paid;
+    document.getElementById('editSaleId').value = sale.id;
+
+    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
+    document.getElementById('saleProcessBtn').className = 'btn-warning';
+    document.getElementById('saleCancelEditBtn').style.display = 'block';
+    
+    window.calculateSaleDue();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.cancelSaleEdit = function() {
+    document.getElementById('saleStudentId').value = '';
+    document.getElementById('saleSelectedName').textContent = '🔍 Click here to search student...';
+    document.getElementById('saleSelectedName').style.color = 'var(--text-muted)';
+    document.getElementById('saleSelectedPhoto').style.display = 'none';
+    
+    document.getElementById('itemName').value = '';
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('amountPaid').value = '';
+    document.getElementById('editSaleId').value = '';
+    
+    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-file-invoice-dollar"></i> Sell & Send Receipt';
+    document.getElementById('saleProcessBtn').className = 'btn-primary';
+    document.getElementById('saleCancelEditBtn').style.display = 'none';
+    window.calculateSaleDue();
+};
+
+
+window.exportSalesBackup = function() {
+    if(salesDataArray.length === 0) {
+        Swal.fire('Info', 'No sales data to backup for this year.', 'info');
+        return;
+    }
+    const year = document.getElementById('salesYearFilter').value;
+    const jsonStr = JSON.stringify({ year: year, records: salesDataArray }, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MusicClass_Sales_Backup_${year}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Backup Downloaded!', showConfirmButton: false, timer: 2000});
+};
+
+window.shareSaleReceiptWA = async function() {
+    const doc = window.tempSaleDoc;
+    const fileName = window.tempSaleFileName;
+    const msg = window.tempSaleMsg;
+    const phone = window.tempSalePhone;
+
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+    Swal.close();
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({ files: [file], title: 'Item Receipt', text: msg });
+        } catch(e) {
+            doc.save(fileName);
+            window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        }
+    } else {
+        doc.save(fileName);
+        window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+};
+
+window.downloadSaleReceiptOnly = function() {
+    window.tempSaleDoc.save(window.tempSaleFileName);
+    Swal.close();
+};
+
+window.generateSalePDF = async function(sale, student) {
+    Swal.fire({ title: 'Generating Receipt...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [105, 148] });
+
+    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.addImage(instituteLogo, 'JPEG', 12.5, 34, 80, 80);
+        doc.restoreGraphicsState();
+    }
+
+    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.rect(5, 5, 95, 138);
+    let y = 15;
+
+    if (typeof instituteLogo !== 'undefined' && instituteLogo) { doc.addImage(instituteLogo, 'JPEG', 42.5, 8, 20, 20); y = 32; }
+
+    doc.setFontSize(12); doc.setFont("helvetica", "bold");
+    const titleLines = doc.splitTextToSize(typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes', 90);
+    doc.text(titleLines, 52.5, y, {align: "center"});
+    y += (titleLines.length * 5) + 2;
+
+    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    doc.text("ACCESSORIES CASH MEMO", 52.5, y, {align: "center"});
+    doc.setLineWidth(0.2); doc.line(25, y+1, 80, y+1); y += 10;
+
+    const labelX = 12; const valueX = 42; const lineH = 7;
+    doc.setFontSize(9);
+
+    doc.text(`Date:`, labelX, y);
+    doc.setFont("helvetica", "bold"); doc.text(`${new Date(sale.date).toLocaleDateString('en-IN')}`, valueX, y); doc.setFont("helvetica", "normal"); y += lineH;
+
+    doc.text(`Student:`, labelX, y);
+    doc.setFont("helvetica", "bold"); doc.text(student.name, valueX, y); doc.setFont("helvetica", "normal"); y += lineH;
+
+    doc.text(`Item Name:`, labelX, y);
+    doc.setFont("helvetica", "bold"); 
+    const itemLines = doc.splitTextToSize(sale.item, 50);
+    doc.text(itemLines, valueX, y); y += (itemLines.length * 4) + 3;
+
+    doc.text(`Total Price:`, labelX, y);
+    doc.setFont("helvetica", "bold"); doc.text(`Rs. ${sale.price}/-`, valueX, y); doc.setFont("helvetica", "normal"); y += lineH;
+
+    doc.text(`Paid Amount:`, labelX, y);
+    doc.setFont("helvetica", "bold"); doc.setTextColor(0, 128, 0); doc.text(`Rs. ${sale.paid}/-`, valueX, y); doc.setTextColor(0); doc.setFont("helvetica", "normal"); y += lineH;
+
+    doc.text(`Current Due:`, labelX, y);
+    if(sale.due > 0) {
+        doc.setFont("helvetica", "bold"); doc.setTextColor(200, 0, 0); doc.text(`Rs. ${sale.due}/-`, valueX, y); doc.setTextColor(0);
+    } else {
+        doc.setFont("helvetica", "bold"); doc.setTextColor(0, 128, 0); doc.text(`NIL (Fully Paid)`, valueX, y); doc.setTextColor(0);
+    }
+    y += lineH + 5;
+
+    let sigBaseY = 135;
+    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 16, 35, 12); }
+    doc.setFontSize(8); doc.setFont("helvetica", "bold");
+    doc.text(`Authorized Signature`, 72, sigBaseY, {align:"center"});
+
+    const fileName = `Receipt_${sale.item.replace(/\s+/g, '_')}.pdf`;
+    
+    window.tempSaleDoc = doc;
+    window.tempSaleFileName = fileName;
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    window.tempSalePhone = cleanPhone;
+    let dueMsg = sale.due > 0 ? `\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
+    window.tempSaleMsg = `Hello ${student.name},\nHere is your receipt for *${sale.item}*.\nTotal: ₹${sale.price}\nPaid: ₹${sale.paid}\nDue: ₹${sale.due}${dueMsg}\n\nThank You!`;
+
+    // 🟢 Fix: স্পিনার জোর করে বন্ধ করা হলো
+    Swal.hideLoading();
+    Swal.close();
+
+    // 🟢 Fix: ০.১ সেকেন্ড অপেক্ষা করে নতুন পপআপ খোলা হলো যাতে স্পিনার আর না আসে
+    setTimeout(() => {
+        Swal.fire({
+            title: 'Receipt Generated!',
+            icon: 'success',
+            html: `
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px;">How do you want to share this receipt?</p>
+                <div style="display:flex; flex-direction:column; gap:12px;">
+                    <button onclick="window.shareSaleReceiptWA()" style="background:#25D366; color:white; border:none; padding:14px; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; width:100%; box-shadow: 0 4px 10px rgba(37,211,102,0.3);">
+                        <i class="fab fa-whatsapp" style="font-size:18px; margin-right:5px;"></i> Share to WhatsApp
+                    </button>
+                    <button onclick="window.downloadSaleReceiptOnly()" style="background:#64748b; color:white; border:none; padding:14px; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; width:100%;">
+                        <i class="fas fa-download" style="margin-right:5px;"></i> Download Only
+                    </button>
+                </div>
+            `,
+            showConfirmButton: false,
+            showCancelButton: false,
+            showCloseButton: true
+        });
+    }, 100);
+};
+
+window.resendSaleReceipt = async function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    const student = students.find(st => st.id == sale.studentId);
+    if(sale && student) window.generateSalePDF(sale, student);
+};
+
+window.sendSaleWhatsApp = async function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    const student = students.find(st => st.id == sale.studentId);
+    
+    if(sale && student) {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        let dueMsg = sale.due > 0 ? `\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
+        const msg = `Hello ${student.name},\n\nThis is regarding your purchase of *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}\n*Current Due:* ₹${sale.due}${dueMsg}\n\nRegards,\nSrikanta Banerjee`;
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+};
+// ==========================================
+// 🟢 BOTTOM NAV SCROLL ARROW LOGIC (ID TARGETING FIX)
+// ==========================================
+
+window.scrollBottomNav = function(direction) {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav) return;
+    
+    const scrollAmount = nav.clientWidth * 0.5; 
+    if (direction === 'left') {
+        nav.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+    } else {
+        nav.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+    
+    window.flashNavArrows(); 
+};
+
+window.arrowTimeout = null;
+
+window.flashNavArrows = function() {
+    const nav = document.querySelector('.bottom-nav');
+    // 🟢 Fix: Class এর বদলে সরাসরি ID দিয়ে টার্গেট করা হলো
+    const leftArrow = document.getElementById('scrollArrowLeft');
+    const rightArrow = document.getElementById('scrollArrowRight');
+    
+    if (!nav || !leftArrow || !rightArrow) return;
+
+    // ১. ক্লিক বা স্ক্রল করলে অ্যারো আসবে
+    if (nav.scrollLeft > 5) {
+        leftArrow.style.display = 'flex';
+        leftArrow.style.opacity = '0.9';
+    } else {
+        leftArrow.style.display = 'none';
+    }
+
+    if (Math.ceil(nav.scrollLeft + nav.clientWidth) < nav.scrollWidth - 5) {
+        rightArrow.style.display = 'flex';
+        rightArrow.style.opacity = '0.9';
+    } else {
+        rightArrow.style.display = 'none';
+    }
+
+    // ২. ঠিক ২ সেকেন্ড পর ১০০% ফাঁকা হয়ে যাবে
+    clearTimeout(window.arrowTimeout);
+    window.arrowTimeout = setTimeout(() => {
+        if(leftArrow) leftArrow.style.display = 'none';
+        if(rightArrow) rightArrow.style.display = 'none';
+    }, 2000); 
+};
+
+// 🟢 Fix: পেজ লোড সিগন্যালের অপেক্ষা না করে সরাসরি কানেকশন করে দেওয়া হলো
+setTimeout(() => {
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) {
+        // মেনুতে টাচ, ক্লিক বা একটু স্ক্রল (Swipe) করলেই অ্যারো আসবে
+        nav.addEventListener('click', window.flashNavArrows);
+        nav.addEventListener('touchstart', window.flashNavArrows, {passive: true});
+        nav.addEventListener('scroll', window.flashNavArrows, {passive: true}); 
+    }
+}, 500); // পেজ রেডি হওয়ার জন্য আধ সেকেন্ড সময় দেওয়া হলো
+// ==========================================
+// 🟢 STOCK MANAGEMENT LOGIC & AUTO DEDUCT
+// ==========================================
+
+window.stockInventory = [];
+
+window.openStockModal = function() {
+    window.renderStockTable();
+    document.getElementById('stockModal').style.display = 'flex';
+};
+
+window.addStockItem = async function() {
+    const name = document.getElementById('newStockName').value.trim();
+    const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
+    const qty = parseInt(document.getElementById('newStockQty').value) || 0;
+
+    if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
+
+    const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+    if (existingIndex > -1) {
+        // Update existing item
+        window.stockInventory[existingIndex].price = price;
+        window.stockInventory[existingIndex].qty += qty; // Add new qty to old qty
+    } else {
+        // Add new item
+        window.stockInventory.push({ id: Date.now(), name, price, qty });
+    }
+
+    document.getElementById('newStockName').value = '';
+    document.getElementById('newStockPrice').value = '';
+    document.getElementById('newStockQty').value = '';
+
+    window.renderStockTable();
+    window.renderInventoryDropdown();
+    
+    // Save to Firebase
+    await dbSet('stockData', window.stockInventory);
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Stock updated!', showConfirmButton: false, timer: 1500});
+};
+
+window.deleteStockItem = async function(id) {
+    window.stockInventory = window.stockInventory.filter(i => i.id !== id);
+    window.renderStockTable();
+    window.renderInventoryDropdown();
+    await dbSet('stockData', window.stockInventory);
+};
+
+window.renderStockTable = function() {
+    const tbody = document.getElementById('stockTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    if (window.stockInventory.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:gray;">No items in stock.</td></tr>';
+        return;
+    }
+
+    window.stockInventory.forEach(item => {
+        const stockColor = item.qty <= 2 ? 'color: var(--danger); font-weight: bold;' : 'color: var(--success); font-weight: bold;';
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 10px 8px; color: var(--text-main); font-weight: 500;">${item.name}</td>
+                <td style="padding: 10px 8px; color: var(--text-main);">₹${item.price}</td>
+                <td style="padding: 10px 8px; ${stockColor}">${item.qty} pcs</td>
+                <td style="padding: 10px 8px; text-align: center;">
+                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer;"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+};
+
+window.renderInventoryDropdown = function() {
+    const datalist = document.getElementById('stockDataList');
+    if(!datalist) return;
+    datalist.innerHTML = '';
+    window.stockInventory.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.name;
+        datalist.appendChild(option);
+    });
+};
+
+window.autoFillItemPrice = function() {
+    const inputName = document.getElementById('itemName').value.trim();
+    const item = window.stockInventory.find(i => i.name.toLowerCase() === inputName.toLowerCase());
+    
+    if (item) {
+        document.getElementById('itemPrice').value = item.price;
+        window.calculateSaleDue();
+        
+        // 🟢 স্টক ০ থাকলে নাম লেখার সাথেই ওয়ার্নিং দেবে
+        if (item.qty <= 0) {
+            Swal.fire({toast: true, position: 'top-end', icon: 'error', title: 'Out of Stock!', text: 'This item is finished.', showConfirmButton: false, timer: 2500});
+        }
+    }
+};
+
+// 🟢 Override Process Sale to Auto-Deduct & Block Out of Stock
+window.processSale = function() {
+    const sId = document.getElementById('saleStudentId').value;
+    const item = document.getElementById('itemName').value.trim();
+    const price = parseFloat(document.getElementById('itemPrice').value);
+    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const editId = document.getElementById('editSaleId').value;
+
+    if (!sId || !item || isNaN(price)) {
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Fill all details!', showConfirmButton: false, timer: 2000});
+        return;
+    }
+
+    // 🟢 NEW: সেল করার আগে চেক করবে স্টক আছে কি না (শুধুমাত্র নতুন সেলের ক্ষেত্রে)
+    if (!editId) {
+        const stockItemCheck = window.stockInventory.find(i => i.name.toLowerCase() === item.toLowerCase());
+        if (stockItemCheck && stockItemCheck.qty <= 0) {
+            Swal.fire('Out of Stock!', `You don't have any "${stockItemCheck.name}" left in stock. Please add stock first.`, 'error');
+            return; // 🚫 স্টক না থাকলে সেল এখানেই ক্যানসেল করে দেবে
+        }
+    }
+
+    const student = students.find(s => s.id == sId);
+    const due = price - paid;
+    const currentYear = document.getElementById('salesYearFilter').value;
+
+    if (editId) {
+        const index = salesDataArray.findIndex(s => s.id == editId);
+        if(index > -1) {
+            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: item, price: price, paid: paid, due: due };
+        }
+        window.addAccessoryDueToStudent(student.id, parseInt(editId), item, due); 
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
+    } else {
+        const newSaleId = Date.now();
+        const saleData = {
+            id: newSaleId,
+            studentId: student.id,
+            studentName: student.name,
+            item: item,
+            price: price,
+            paid: paid,
+            due: due,
+            date: new Date().toISOString().split('T')[0]
+        };
+        salesDataArray.unshift(saleData);
+        window.addAccessoryDueToStudent(student.id, newSaleId, item, due); 
+        
+        // 🟢 AUTO DEDUCT STOCK LOGIC
+        const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === item.toLowerCase());
+        if (stockItem && stockItem.qty > 0) {
+            stockItem.qty -= 1; // 1 পিস কমিয়ে দেওয়া হলো
+            dbSet('stockData', window.stockInventory).catch(e=>console.log(e)); // সেভ করা হলো
+            window.renderStockTable(); // 🟢 টেবিল আপডেট
+            window.renderInventoryDropdown();
+        }
+
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Saved!', showConfirmButton: false, timer: 1500});
+        setTimeout(() => window.generateSalePDF(saleData, student), 500);
+    }
+
+    window.renderSalesUI();
+    window.cancelSaleEdit();
+    window.syncSalesToFirebase(currentYear);
 };
