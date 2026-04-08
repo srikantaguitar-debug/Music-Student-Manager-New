@@ -5672,7 +5672,6 @@ window.submitPracticeLog = function(studentId) {
     if (studentIndex === -1) return;
     let studentData = students[studentIndex];
 
-    const currentYear = new Date().getFullYear();
     const newLog = {
         id: Date.now(),
         studentId: studentId,
@@ -5686,22 +5685,23 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 Firebase ArrayUnion into Yearly Subcollection
-    db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
-        records: firebase.firestore.FieldValue.arrayUnion(newLog)
-    }, { merge: true }).catch(e => console.log("Background sync", e));
+    // 🟢 সঠিক লজিক: সরাসরি স্টুডেন্টের practice_log-এ সেভ করা
+    if (!studentData.practice_log) studentData.practice_log = [];
+    studentData.practice_log.unshift(newLog); // লোকাল UI আপডেট
 
-    // 🟢 Local Array update for Instant UI
-    if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
-    if (!studentData.combined_practice_logs) studentData.combined_practice_logs = studentData.practice_log ? [...studentData.practice_log] : [];
-    studentData.combined_practice_logs.unshift(newLog);
+    // 🟢 ফায়ারবেসে স্টুডেন্টের ডকুমেন্টে আপডেট পাঠানো
+    db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+        practice_log: studentData.practice_log
+    }).catch(e => console.log("Background sync error:", e));
 
+    // ইনপুট বক্স ফাঁকা করা
     document.getElementById('practiceMinutes').value = '';
     document.getElementById('practiceTopic').value = '';
     if(timeInputEl) timeInputEl.value = '';
     
     Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${minutes} minutes!`, icon: 'success', timer: 2000, showConfirmButton: false });
     
+    // UI রিলোড করা
     if (isStudentPortal) {
         window.renderPracticeHistoryPortal(studentData); 
     } else {
