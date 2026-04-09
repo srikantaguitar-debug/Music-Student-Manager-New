@@ -6867,6 +6867,42 @@ window.renderSalesUI = function() {
     const searchInput = document.getElementById('searchSalesHistoryInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
+    // --- 🟢 NEW: মোট Due এবং Due থাকা রেকর্ডগুলো গোনা হচ্ছে ---
+    let totalDueAmount = 0;
+    let dueRecords = [];
+    
+    salesDataArray.forEach(s => {
+        if (s.due > 0) {
+            totalDueAmount += s.due;
+            dueRecords.push(s);
+        }
+    });
+
+    // 🟢 NEW: Sales ট্যাবের ঠিক উপরে লাল বাটনটি (Due Button) তৈরি করা হচ্ছে
+    let dueAlertContainer = document.getElementById('salesDueAlertContainer');
+    if (!dueAlertContainer) {
+        const searchBar = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement;
+        dueAlertContainer = document.createElement('div');
+        dueAlertContainer.id = 'salesDueAlertContainer';
+        dueAlertContainer.style.marginBottom = '15px';
+        searchBar.parentNode.insertBefore(dueAlertContainer, searchBar);
+    }
+
+    if (dueRecords.length > 0) {
+        dueAlertContainer.innerHTML = `
+            <button onclick="window.showSalesDuesPopup()" style="width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: bold; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; box-shadow: 0 4px 10px rgba(239,68,68,0.3); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-exclamation-triangle" style="font-size:18px;"></i> Unpaid Accessories</span>
+                <span style="background: white; color: #ef4444; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 900; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+                    ${dueRecords.length} Dues (₹${totalDueAmount})
+                </span>
+            </button>
+        `;
+        dueAlertContainer.style.display = 'block';
+    } else {
+        dueAlertContainer.style.display = 'none';
+    }
+    // -------------------------------------
+
     const filteredSales = salesDataArray.filter(s => {
         if (!filterText) return true;
         const searchContent = `${s.studentName} ${s.item}`.toLowerCase();
@@ -6874,7 +6910,7 @@ window.renderSalesUI = function() {
     });
 
     if (filteredSales.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:12px;">No sales found.</td></tr>';
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No sales found.</td></tr>';
         return;
     }
     
@@ -6882,21 +6918,22 @@ window.renderSalesUI = function() {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
         const dateStr = new Date(s.date).toLocaleDateString('en-IN');
         
+        // 🟢 বাটনগুলোর সাইজ (width, height, font-size) বড় করা হয়েছে
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
-                <td style="padding:6px 4px; font-size:12px;"><strong>${s.studentName}</strong><br><span style="font-size:10px; color:var(--text-muted);">${s.item} <br>📅 ${dateStr}</span></td>
-                <td style="font-weight:bold; padding:6px 4px; font-size:12px;">₹${s.price}</td>
-                <td style="padding:6px 4px; font-size:11px;">
+                <td style="padding:12px 6px; font-size:13px; vertical-align: middle;"><strong>${s.studentName}</strong><br><span style="font-size:11px; color:var(--text-muted); line-height:1.4; display:block; margin-top:3px;">${s.item} <br>📅 ${dateStr}</span></td>
+                <td style="font-weight:bold; padding:12px 6px; font-size:13px; vertical-align: middle;">₹${s.price}</td>
+                <td style="padding:12px 6px; font-size:12px; vertical-align: middle;">
                     <span style="color:var(--success);">Paid: ₹${s.paid}</span><br>
-                    <span style="color:${statusClr}; font-weight:bold;">Due: ₹${s.due}</span>
+                    <span style="color:${statusClr}; font-weight:bold; margin-top:2px; display:inline-block;">Due: ₹${s.due}</span>
                 </td>
-                <td class="action-buttons" style="padding:6px 4px;">
-                    <div style="display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;">
-                       <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="padding:4px 6px; margin:0; background:#8b5cf6; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-file-pdf"></i></button>
-                       <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="padding:4px 6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-edit"></i></button>
-                       <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="padding:4px 6px; margin:0; background:#ef4444; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-trash"></i></button>
-                       <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="padding:4px 6px; margin:0; background:#25D366; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fab fa-whatsapp"></i></button>
-                       <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="padding:4px 6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-sms"></i></button>
+                <td class="action-buttons" style="padding:12px 6px; vertical-align: middle;">
+                    <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                       <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-file-pdf"></i></button>
+                       <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-edit"></i></button>
+                       <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-trash"></i></button>
+                       <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; font-size:16px;"><i class="fab fa-whatsapp"></i></button>
+                       <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-sms"></i></button>
                     </div>
                 </td>
             </tr>`;
@@ -7583,4 +7620,64 @@ window.downloadSaleReceiptOnly = function() {
     Swal.close();
 };
 
+// 🟢 NEW: Accessory Due Popup Function (Mobile Responsive & Fixed)
+window.showSalesDuesPopup = function() {
+    let dueRecords = salesDataArray.filter(s => s.due > 0);
+    
+    if (dueRecords.length === 0) {
+        Swal.fire('No Dues', 'All accessory sales are fully paid!', 'success');
+        return;
+    }
+
+    // 🟢 Container style আপডেট করা হয়েছে যাতে overflow ঠিক থাকে
+    let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
+    
+    dueRecords.forEach(sale => {
+        const student = students.find(st => st.id == sale.studentId);
+        const photoSrc = student && student.photo ? student.photo : 'https://via.placeholder.com/50?text=S';
+        const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
+        
+        // 🟢 Mobile view ঠিক করার জন্য flex-direction এবং padding আপডেট করা হয়েছে
+        listHtml += `
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <img src="${photoSrc}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1; flex-shrink: 0;">
+                    <div style="flex-grow: 1; word-break: break-word;">
+                        <div style="font-weight: 700; font-size: 15px; color: var(--text-main);">${sale.studentName}</div>
+                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+                            <strong>Date:</strong> ${dateStr}
+                        </div>
+                    </div>
+                </div>
+
+                <div style="font-size: 13px; color: var(--text-main); line-height: 1.5; background: var(--bg-body); padding: 8px; border-radius: 8px;">
+                    <strong>Item:</strong> <span style="color:#0284c7;">${sale.item}</span>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff1f2; padding: 12px; border-radius: 8px; border: 1px dashed #fecaca;">
+                    <div>
+                        <div style="font-size: 11px; color: #be123c; font-weight: bold; text-transform: uppercase;">Total Due</div>
+                        <div style="font-weight: 900; font-size: 18px; color: #e11d48;">₹${sale.due}</div>
+                    </div>
+                    <button onclick="Swal.close(); window.editSaleRecord(${sale.id});" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
+                        Pay Now
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+    listHtml += '</div>';
+
+    Swal.fire({
+        title: 'Pending Accessory Dues',
+        html: listHtml,
+        showConfirmButton: true,
+        confirmButtonText: 'Close',
+        // 🟢 Close বাটনটি লাল করা হয়েছে
+        confirmButtonColor: '#ef4444', 
+        width: '95%',
+        padding: '15px'
+    });
+};
 window.processSale = processSale;
