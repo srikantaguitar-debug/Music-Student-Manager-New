@@ -211,11 +211,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(studentDoc.exists && mainDoc.exists) {
                             const s = studentDoc.data();
                             
-                            // 🟢 Combine Legacy Logs with New Subcollection Logs
                             const pLogs = pLogDoc.exists ? pLogDoc.data().records : [];
-                            const legacyLogs = s.practice_log || [];
-                            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
-                            s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
+const legacyLogs = s.practice_log || [];
+s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
+s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
+
+// 🟢 UI রেন্ডারিং ফিক্স করার জন্য ডাটা মেইন অবজেক্টে সেট করা হলো
+s.practice_log = s.combined_practice_logs;
                             
                             // 🟢 Calculate Accessory Dues HTML
                             let accessoryDuesHtml = '';
@@ -981,6 +983,21 @@ async function initApp() {
                 ]);
 
                 students = loadedStudents || []; 
+                // 🟢 Manager-এর জন্য গ্লোবাল প্র্যাকটিস লগগুলো স্টুডেন্টদের ডেটায় মার্জ করা হচ্ছে
+if (window.globalPracticeLogs && window.globalPracticeLogs.length > 0) {
+    window.globalPracticeLogs.forEach(log => {
+        let s = students.find(st => st.id == log.studentId);
+        if (s) {
+            if (!s.practice_log) s.practice_log = [];
+            if (!s.practice_log.some(l => l.id === log.id)) {
+                s.practice_log.push(log);
+            }
+        }
+    });
+    students.forEach(s => {
+        if (s.practice_log) s.practice_log.sort((a,b) => b.id - a.id);
+    });
+}
                 attendance = aData || {}; 
                 fees = fData || {}; 
                 reminders = rData || []; 
@@ -5705,9 +5722,16 @@ window.submitPracticeLog = function(studentId) {
     }, { merge: true }).catch(e => console.log("Background sync", e));
 
     // 🟢 Local Array update for Instant UI
-    if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
-    if (!studentData.combined_practice_logs) studentData.combined_practice_logs = studentData.practice_log ? [...studentData.practice_log] : [];
-    studentData.combined_practice_logs.unshift(newLog);
+if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
+if (!studentData.practice_log) studentData.practice_log = [];
+studentData.practice_log.unshift(newLog);
+
+// 🟢 Manager side-এ থাকলে মেইন স্টুডেন্ট ডকুমেন্টে সেভ করবে
+if (!isStudentPortal) {
+    db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+        practice_log: studentData.practice_log
+    }).catch(e => console.log(e));
+}
 
     document.getElementById('practiceMinutes').value = '';
     document.getElementById('practiceTopic').value = '';
