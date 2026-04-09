@@ -932,6 +932,7 @@ window.fetchPracticeLogs = async function() {
 
 async function initApp() { 
     await window.fetchPracticeLogs();
+    await window.fetchSalesData();
     const now = new Date();
             document.getElementById('attendanceDate').valueAsDate = now;
             document.getElementById('attendanceTime').value = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
@@ -1726,7 +1727,9 @@ async function exportData() {
         attendance: attendance || {}, 
         fees: fees || {}, 
         reminders: reminders || [], 
-        globalMaterials: globalMaterials || [], /* 🟢 এটি নতুন অ্যাড করা হলো */
+        globalMaterials: globalMaterials || [], 
+        salesDataArray: salesDataArray || [], // 🟢 Sales Data যুক্ত করা হলো
+        stockInventory: window.stockInventory || [], // 🟢 Stock Data যুক্ত করা হলো
         studentSerialCounter: studentSerialCounter || 1,
         instituteLogo: instituteLogo || null, 
         authorizedSignature: authorizedSignature || null,
@@ -1762,7 +1765,7 @@ async function exportData() {
 
         Swal.fire({ 
             title: 'Full Backup Successful!', 
-            text: 'All data (Students, Photos, Fees, Materials, Signature & PIN) saved offline.', 
+            text: 'All data (Students, Fees, Sales, Stock, Signature & PIN) saved offline.', 
             icon: 'success' 
         }); 
     } catch (err) { 
@@ -1820,7 +1823,9 @@ async function importData(event) {
             attendance = importedData.attendance || {};
             fees = importedData.fees || {};
             reminders = importedData.reminders || [];
-            globalMaterials = importedData.globalMaterials || []; /* 🟢 এটি নতুন অ্যাড করা হলো */
+            globalMaterials = importedData.globalMaterials || []; 
+            salesDataArray = importedData.salesDataArray || []; // 🟢 Sales রিস্টোর
+            window.stockInventory = importedData.stockInventory || []; // 🟢 Stock রিস্টোর
             studentSerialCounter = importedData.studentSerialCounter || 1;
             
             if(importedData.instituteLogo) instituteLogo = importedData.instituteLogo;
@@ -1834,7 +1839,12 @@ async function importData(event) {
                 dbSet('attendance', attendance).catch(console.error);
                 dbSet('fees', fees).catch(console.error);
                 dbSet('reminders', reminders).catch(console.error);
-                dbSet('globalMaterials', globalMaterials).catch(console.error); /* 🟢 এটি নতুন অ্যাড করা হলো */
+                dbSet('globalMaterials', globalMaterials).catch(console.error); 
+                dbSet('stockData', window.stockInventory).catch(console.error); // 🟢 Stock ফায়ারবেসে সেভ
+                
+                const currentYear = document.getElementById('salesYearFilter')?.value || new Date().getFullYear();
+                window.syncSalesToFirebase(currentYear); // 🟢 Sales ফায়ারবেসে সেভ
+                
                 dbSet('studentSerialCounter', studentSerialCounter).catch(console.error);
                 if(instituteLogo) dbSet('instituteLogo', instituteLogo).catch(console.error);
                 if(authorizedSignature) dbSet('authorizedSignature', authorizedSignature).catch(console.error);
@@ -1876,6 +1886,9 @@ async function importData(event) {
             }
 
             loadAllData();
+            window.renderSalesUI(); // 🟢 Sales UI আপডেট
+            window.renderStockTable(); // 🟢 Stock UI আপডেট
+            window.renderInventoryDropdown(); // 🟢 Dropdown আপডেট
             
             if(authorizedSignature) {
                 const sigPreview = document.getElementById('authSigPreview');
@@ -1888,7 +1901,7 @@ async function importData(event) {
 
             Swal.fire({
                 title: 'Restore Complete!',
-                html: `Successfully restored <b>${loadedCount}</b> students.<br>You can now use the app.`,
+                html: `Successfully restored <b>${loadedCount}</b> students.<br>All Fees, Sales, and Stocks are recovered.`,
                 icon: 'success',
                 confirmButtonColor: 'var(--primary)'
             });
@@ -1915,7 +1928,7 @@ function openTab(tabName) {
         document.getElementById('signatureStatus').style.display = 'none';
     }
 if(tabName === 'sales') {
-        renderSales();
+        window.renderSalesUI(); // 🟢 এখানে UI কথাটি যুক্ত করতে হবে
     }
     if(tabName === 'attendance') {
         const now = new Date();
@@ -5672,6 +5685,7 @@ window.submitPracticeLog = function(studentId) {
     if (studentIndex === -1) return;
     let studentData = students[studentIndex];
 
+    const currentYear = new Date().getFullYear();
     const newLog = {
         id: Date.now(),
         studentId: studentId,
@@ -5685,23 +5699,22 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 সঠিক লজিক: সরাসরি স্টুডেন্টের practice_log-এ সেভ করা
-    if (!studentData.practice_log) studentData.practice_log = [];
-    studentData.practice_log.unshift(newLog); // লোকাল UI আপডেট
+    // 🟢 Firebase ArrayUnion into Yearly Subcollection
+    db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
+        records: firebase.firestore.FieldValue.arrayUnion(newLog)
+    }, { merge: true }).catch(e => console.log("Background sync", e));
 
-    // 🟢 ফায়ারবেসে স্টুডেন্টের ডকুমেন্টে আপডেট পাঠানো
-    db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
-        practice_log: studentData.practice_log
-    }).catch(e => console.log("Background sync error:", e));
+    // 🟢 Local Array update for Instant UI
+    if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
+    if (!studentData.combined_practice_logs) studentData.combined_practice_logs = studentData.practice_log ? [...studentData.practice_log] : [];
+    studentData.combined_practice_logs.unshift(newLog);
 
-    // ইনপুট বক্স ফাঁকা করা
     document.getElementById('practiceMinutes').value = '';
     document.getElementById('practiceTopic').value = '';
     if(timeInputEl) timeInputEl.value = '';
     
     Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${minutes} minutes!`, icon: 'success', timer: 2000, showConfirmButton: false });
     
-    // UI রিলোড করা
     if (isStudentPortal) {
         window.renderPracticeHistoryPortal(studentData); 
     } else {
@@ -6780,9 +6793,11 @@ window.selectStudentForSale = function(id, name, photoUrl) {
 };
 
 window.calculateSaleDue = function() {
-    const price = parseFloat(document.getElementById('itemPrice').value) || 0;
+    let cartTotal = 0;
+    window.saleCart.forEach(item => cartTotal += item.price);
+    
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
-    const due = price - paid;
+    const due = cartTotal - paid;
     
     const display = document.getElementById('saleDueDisplay');
     if(display) {
@@ -6820,52 +6835,6 @@ window.removeAccessoryDueFromStudent = function(studentId, saleId) {
             unpaid_accessories: student.unpaid_accessories
         }).catch(e=>{});
     }
-};
-
-window.processSale = function() {
-    const sId = document.getElementById('saleStudentId').value;
-    const item = document.getElementById('itemName').value.trim();
-    const price = parseFloat(document.getElementById('itemPrice').value);
-    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
-    const editId = document.getElementById('editSaleId').value;
-
-    if (!sId || !item || isNaN(price)) {
-        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Fill all details!', showConfirmButton: false, timer: 2000});
-        return;
-    }
-
-    const student = students.find(s => s.id == sId);
-    const due = price - paid;
-    const currentYear = document.getElementById('salesYearFilter').value;
-
-    if (editId) {
-        const index = salesDataArray.findIndex(s => s.id == editId);
-        if(index > -1) {
-            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: item, price: price, paid: paid, due: due };
-        }
-        window.addAccessoryDueToStudent(student.id, parseInt(editId), item, due); 
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
-    } else {
-        const newSaleId = Date.now();
-        const saleData = {
-            id: newSaleId,
-            studentId: student.id,
-            studentName: student.name,
-            item: item,
-            price: price,
-            paid: paid,
-            due: due,
-            date: new Date().toISOString().split('T')[0]
-        };
-        salesDataArray.unshift(saleData);
-        window.addAccessoryDueToStudent(student.id, newSaleId, item, due); 
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Saved!', showConfirmButton: false, timer: 1500});
-        setTimeout(() => window.generateSalePDF(saleData, student), 500);
-    }
-
-    window.renderSalesUI();
-    window.cancelSaleEdit();
-    window.syncSalesToFirebase(currentYear);
 };
 
 window.deleteSaleRecord = function(saleId) {
@@ -6920,55 +6889,18 @@ window.renderSalesUI = function() {
                 <td style="padding:10px 5px;">
                     <span style="color:var(--success); font-size:12px;">Paid: ₹${s.paid}</span><br>
                     <span style="color:${statusClr}; font-weight:bold; font-size:12px;">Due: ₹${s.due}</span>
-                </td>
-                <td class="action-buttons" style="padding:10px 5px; text-align:center;">
-                   <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt PDF" style="padding:6px; margin:2px; background:#8b5cf6; color:#fff; border:none; border-radius:4px;"><i class="fas fa-file-pdf"></i></button>
-                   
-                   <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="padding:6px; margin:2px; background:#f59e0b; color:#fff; border:none; border-radius:4px;"><i class="fas fa-edit"></i></button>
-                   <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="padding:6px; margin:2px; background:#ef4444; color:#fff; border:none; border-radius:4px;"><i class="fas fa-trash"></i></button>
-                   <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WhatsApp" style="padding:6px; margin:2px; background:#25D366; color:#fff; border:none; border-radius:4px;"><i class="fab fa-whatsapp"></i></button>
+                <td class="action-buttons" style="padding:10px 5px;">
+                    <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
+                       <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt PDF" style="padding:6px; margin:0; background:#8b5cf6; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-file-pdf"></i></button>
+                       <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="padding:6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-edit"></i></button>
+                       <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="padding:6px; margin:0; background:#ef4444; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-trash"></i></button>
+                       <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WhatsApp" style="padding:6px; margin:0; background:#25D366; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fab fa-whatsapp"></i></button>
+                       <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="padding:6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-sms"></i></button>
+                    </div>
                 </td>
             </tr>`;
     });
 };
-
-window.editSaleRecord = function(saleId) {
-    const sale = salesDataArray.find(s => s.id === saleId);
-    if(!sale) return;
-    
-    const student = students.find(st => st.id == sale.studentId);
-    if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
-
-    document.getElementById('itemName').value = sale.item;
-    document.getElementById('itemPrice').value = sale.price;
-    document.getElementById('amountPaid').value = sale.paid;
-    document.getElementById('editSaleId').value = sale.id;
-
-    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
-    document.getElementById('saleProcessBtn').className = 'btn-warning';
-    document.getElementById('saleCancelEditBtn').style.display = 'block';
-    
-    window.calculateSaleDue();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-
-window.cancelSaleEdit = function() {
-    document.getElementById('saleStudentId').value = '';
-    document.getElementById('saleSelectedName').textContent = '🔍 Click here to search student...';
-    document.getElementById('saleSelectedName').style.color = 'var(--text-muted)';
-    document.getElementById('saleSelectedPhoto').style.display = 'none';
-    
-    document.getElementById('itemName').value = '';
-    document.getElementById('itemPrice').value = '';
-    document.getElementById('amountPaid').value = '';
-    document.getElementById('editSaleId').value = '';
-    
-    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-file-invoice-dollar"></i> Sell & Send Receipt';
-    document.getElementById('saleProcessBtn').className = 'btn-primary';
-    document.getElementById('saleCancelEditBtn').style.display = 'none';
-    window.calculateSaleDue();
-};
-
 
 window.backupSalesData = async function() {
     if(salesDataArray.length === 0) {
@@ -6981,22 +6913,16 @@ window.backupSalesData = async function() {
     const fileName = `MusicClass_Sales_Backup_${year}.json`;
 
     try {
-        // আধুনিক ব্রাউজার বা কম্পিউটারের জন্য (ফোল্ডার সিলেক্ট করার ডায়ালগ বক্স আনবে)
         if (window.showSaveFilePicker) {
             const handle = await window.showSaveFilePicker({
                 suggestedName: fileName,
-                types: [{
-                    description: 'JSON Backup File',
-                    accept: { 'application/json': ['.json'] },
-                }],
+                types: [{ description: 'JSON Backup File', accept: { 'application/json': ['.json'] } }],
             });
             const writable = await handle.createWritable();
             await writable.write(jsonStr);
             await writable.close();
-            
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Backup Saved Successfully!', showConfirmButton: false, timer: 2000});
         } else {
-            // মোবাইল বা পুরনো ব্রাউজারের জন্য (সরাসরি ডাউনলোড হবে)
             const blob = new Blob([jsonStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -7006,17 +6932,611 @@ window.backupSalesData = async function() {
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Backup Downloaded!', showConfirmButton: false, timer: 2000});
         }
     } catch (err) {
-        // যদি ইউজার ফোল্ডার সিলেক্ট না করে "Cancel" বাটনে ক্লিক করে, তবে কোনো এরর দেখাবে না
         if (err.name !== 'AbortError') {
             console.error(err);
             Swal.fire('Error', 'Failed to save backup file.', 'error');
         }
     }
 };
+
+window.exportSalesBackup = window.backupSalesData;
+
+window.restoreSalesData = function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    event.target.value = ''; 
+
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const json = e.target.result;
+            const importedData = JSON.parse(json);
+
+            let salesRecordsToRestore = [];
+            let restoreYear = document.getElementById('salesYearFilter').value || new Date().getFullYear();
+
+            if (importedData.salesDataArray !== undefined) {
+                salesRecordsToRestore = importedData.salesDataArray; 
+                Swal.fire({ toast: true, position: 'top-end', icon: 'info', title: 'Extracting Sales from Full Backup...', showConfirmButton: false, timer: 1500 });
+            } 
+            else if (importedData.records && Array.isArray(importedData.records)) {
+                salesRecordsToRestore = importedData.records;
+                if (importedData.year) restoreYear = importedData.year;
+            } 
+            else {
+                Swal.fire('Error', 'এই ফাইলে কোনো সেলস রেকর্ড পাওয়া যায়নি!', 'error');
+                return;
+            }
+
+            Swal.fire({
+                title: `Restore Sales Data?`,
+                text: `This will replace your current sales records with the backup data.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#10b981',
+                cancelButtonColor: '#ef4444',
+                confirmButtonText: 'Yes, Restore Only Sales'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Restoring...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+                    const yearInput = document.getElementById('salesYearFilter');
+                    if(yearInput) yearInput.value = restoreYear;
+                    
+                    salesDataArray = salesRecordsToRestore;
+                    window.syncSalesToFirebase(restoreYear);
+                    window.renderSalesUI();
+
+                    Swal.close();
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: 'Restored!',
+                            text: `Sales data has been restored successfully.`,
+                            icon: 'success',
+                            showConfirmButton: true,
+                            confirmButtonText: 'Close',
+                            confirmButtonColor: '#ef4444', 
+                            allowOutsideClick: false
+                        });
+                    }, 300);
+                }
+            });
+
+        } catch (err) {
+            console.error("Sales Restore Error:", err);
+            Swal.fire('Error', 'Failed to read the backup file. File might be corrupted.', 'error');
+        }
+    };
+    reader.readAsText(file);
+};
+
+// ==========================================
+// 🟢 BOTTOM NAV SCROLL ARROW LOGIC
+// ==========================================
+
+window.scrollBottomNav = function(direction) {
+    const nav = document.querySelector('.bottom-nav');
+    if (!nav) return;
+    
+    const scrollAmount = nav.clientWidth * 0.5; 
+    if (direction === 'left') {
+        nav.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
+    } else {
+        nav.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+    
+    window.flashNavArrows(); 
+};
+
+window.arrowTimeout = null;
+
+window.flashNavArrows = function() {
+    const nav = document.querySelector('.bottom-nav');
+    const leftArrow = document.getElementById('scrollArrowLeft');
+    const rightArrow = document.getElementById('scrollArrowRight');
+    
+    if (!nav || !leftArrow || !rightArrow) return;
+
+    if (nav.scrollLeft > 5) {
+        leftArrow.style.display = 'flex';
+        leftArrow.style.opacity = '0.9';
+    } else {
+        leftArrow.style.display = 'none';
+    }
+
+    if (Math.ceil(nav.scrollLeft + nav.clientWidth) < nav.scrollWidth - 5) {
+        rightArrow.style.display = 'flex';
+        rightArrow.style.opacity = '0.9';
+    } else {
+        rightArrow.style.display = 'none';
+    }
+
+    clearTimeout(window.arrowTimeout);
+    window.arrowTimeout = setTimeout(() => {
+        if(leftArrow) leftArrow.style.display = 'none';
+        if(rightArrow) rightArrow.style.display = 'none';
+    }, 2000); 
+};
+
+setTimeout(() => {
+    const nav = document.querySelector('.bottom-nav');
+    if (nav) {
+        nav.addEventListener('click', window.flashNavArrows);
+        nav.addEventListener('touchstart', window.flashNavArrows, {passive: true});
+        nav.addEventListener('scroll', window.flashNavArrows, {passive: true}); 
+    }
+}, 500);
+
+// ==========================================
+// 🟢 STOCK MANAGEMENT LOGIC (ADD, EDIT, DELETE)
+// ==========================================
+
+window.stockInventory = [];
+
+window.openStockModal = function() {
+    window.renderStockTable();
+    document.getElementById('stockModal').style.display = 'flex';
+};
+
+window.addStockItem = async function() {
+    const name = document.getElementById('newStockName').value.trim();
+    const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
+    const qty = parseInt(document.getElementById('newStockQty').value) || 0;
+    
+    const editIdInput = document.getElementById('editStockId');
+    const editId = editIdInput ? editIdInput.value : '';
+
+    if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
+
+    if (editId) {
+        const index = window.stockInventory.findIndex(i => i.id == editId);
+        if (index > -1) {
+            window.stockInventory[index] = { ...window.stockInventory[index], name, price, qty };
+        }
+    } else {
+        const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+        if (existingIndex > -1) {
+            window.stockInventory[existingIndex].price = price;
+            window.stockInventory[existingIndex].qty += qty;
+        } else {
+            window.stockInventory.push({ id: Date.now(), name, price, qty });
+        }
+    }
+
+    document.getElementById('newStockName').value = '';
+    document.getElementById('newStockPrice').value = '';
+    document.getElementById('newStockQty').value = '';
+    if(editIdInput) editIdInput.value = '';
+    
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add / Update Stock';
+        btn.style.background = ''; 
+    }
+
+    window.renderStockTable();
+    window.renderInventoryDropdown();
+    
+    await dbSet('stockData', window.stockInventory);
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
+};
+
+window.editStockItem = function(id) {
+    const item = window.stockInventory.find(i => i.id === id);
+    if (!item) return;
+
+    document.getElementById('newStockName').value = item.name;
+    document.getElementById('newStockPrice').value = item.price;
+    document.getElementById('newStockQty').value = item.qty;
+    
+    let editIdInput = document.getElementById('editStockId');
+    if(!editIdInput) {
+        editIdInput = document.createElement('input');
+        editIdInput.type = 'hidden';
+        editIdInput.id = 'editStockId';
+        document.querySelector('#stockModal .form-grid').appendChild(editIdInput);
+    }
+    editIdInput.value = item.id;
+
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-save"></i> Update Stock Item';
+        btn.style.background = '#f59e0b'; 
+    }
+};
+
+window.deleteStockItem = async function(id) {
+    Swal.fire({
+        title: 'Delete Item?',
+        text: "Are you sure you want to remove this item from stock?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, delete it'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            window.stockInventory = window.stockInventory.filter(i => i.id !== id);
+            window.renderStockTable();
+            window.renderInventoryDropdown();
+            await dbSet('stockData', window.stockInventory);
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+        }
+    });
+};
+
+window.renderStockTable = function() {
+    const tbody = document.getElementById('stockTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+
+    if (window.stockInventory.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:gray;">No items in stock.</td></tr>';
+        return;
+    }
+
+    window.stockInventory.forEach(item => {
+        const stockColor = item.qty <= 2 ? 'color: var(--danger); font-weight: bold;' : 'color: var(--success); font-weight: bold;';
+        tbody.innerHTML += `
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 10px 8px; color: var(--text-main); font-weight: 500;">${item.name}</td>
+                <td style="padding: 10px 8px; color: var(--text-main);">₹${item.price}</td>
+                <td style="padding: 10px 8px; ${stockColor}">${item.qty} pcs</td>
+                <td style="padding: 10px 8px; text-align: center; white-space: nowrap;">
+                    <button onclick="window.editStockItem(${item.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; margin-right:12px; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
+                </td>
+            </tr>
+        `;
+    });
+};
+
+window.renderInventoryDropdown = function() {
+    const datalist = document.getElementById('stockDataList');
+    if(!datalist) return;
+    datalist.innerHTML = '';
+    window.stockInventory.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.name;
+        datalist.appendChild(option);
+    });
+};
+
+window.currentUnitPrice = 0; 
+window.saleCart = []; 
+
+window.autoFillItemPrice = function() {
+    const inputName = document.getElementById('itemName').value.trim();
+    const item = window.stockInventory.find(i => i.name.toLowerCase() === inputName.toLowerCase());
+    
+    if (item) {
+        window.currentUnitPrice = item.price; 
+        window.updateSalePriceCalc(); 
+        if (item.qty <= 0) Swal.fire({toast: true, position: 'top-end', icon: 'error', title: 'Out of Stock!', showConfirmButton: false, timer: 2000});
+    }
+};
+
+window.updateSalePriceCalc = function() {
+    const qty = parseInt(document.getElementById('saleQty').value) || 1;
+    if (window.currentUnitPrice > 0) {
+        document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
+    }
+};
+
+window.addToCart = function() {
+    const name = document.getElementById('itemName').value.trim();
+    const qty = parseInt(document.getElementById('saleQty').value) || 1;
+    const totalItemPrice = parseFloat(document.getElementById('itemPrice').value);
+
+    if (!name || isNaN(totalItemPrice) || qty < 1) {
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Enter item name and price!', showConfirmButton: false, timer: 2000});
+        return;
+    }
+
+    const stockItemCheck = window.stockInventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+    if (stockItemCheck && stockItemCheck.qty < qty) {
+        Swal.fire('Low Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left.`, 'warning');
+    }
+
+    window.saleCart.push({ name: name, qty: qty, price: totalItemPrice });
+    
+    document.getElementById('itemName').value = '';
+    document.getElementById('saleQty').value = '1';
+    document.getElementById('itemPrice').value = '';
+    window.currentUnitPrice = 0;
+
+    window.renderCart();
+};
+
+window.renderCart = function() {
+    const container = document.getElementById('saleCartContainer');
+    const list = document.getElementById('saleCartList');
+    const totalSpan = document.getElementById('cartTotalPrice');
+
+    if (window.saleCart.length === 0) {
+        container.style.display = 'none';
+        totalSpan.textContent = '0';
+        window.calculateSaleDue();
+        return;
+    }
+
+    list.innerHTML = '';
+    let grandTotal = 0;
+
+    window.saleCart.forEach((item, index) => {
+        grandTotal += item.price;
+        list.innerHTML += `
+            <li style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--border-color);">
+                <span><b>${item.name}</b> (x${item.qty})</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-weight: 600;">₹${item.price}</span>
+                    <button onclick="window.removeFromCart(${index})" style="background: none; border: none; color: var(--danger); cursor: pointer;"><i class="fas fa-times"></i></button>
+                </div>
+            </li>
+        `;
+    });
+
+    totalSpan.textContent = grandTotal;
+    container.style.display = 'block';
+    window.calculateSaleDue();
+};
+
+window.removeFromCart = function(index) {
+    window.saleCart.splice(index, 1);
+    window.renderCart();
+};
+
+window.processSale = function() {
+    const sId = document.getElementById('saleStudentId').value;
+    const editId = document.getElementById('editSaleId').value;
+    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+
+    if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a student!', showConfirmButton: false, timer: 2000}); return; }
+    if (window.saleCart.length === 0) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); return; }
+
+    let cartTotal = 0;
+    let combinedNamesArray = [];
+    window.saleCart.forEach(item => {
+        cartTotal += item.price;
+        combinedNamesArray.push(`${item.name} (x${item.qty})`);
+    });
+
+    const finalItemName = combinedNamesArray.join(', '); 
+    const due = cartTotal - paid;
+    const currentYear = document.getElementById('salesYearFilter').value;
+    const student = students.find(s => s.id == sId);
+
+    if (editId) {
+        const index = salesDataArray.findIndex(s => s.id == editId);
+        if(index > -1) {
+            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: finalItemName, cart: [...window.saleCart], price: cartTotal, paid: paid, due: due };
+        }
+        window.addAccessoryDueToStudent(student.id, parseInt(editId), finalItemName, due); 
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
+    } else {
+        const newSaleId = Date.now();
+        const saleData = {
+            id: newSaleId, studentId: student.id, studentName: student.name, item: finalItemName, cart: [...window.saleCart], price: cartTotal, paid: paid, due: due, date: new Date().toISOString().split('T')[0]
+        };
+        salesDataArray.unshift(saleData);
+        window.addAccessoryDueToStudent(student.id, newSaleId, finalItemName, due); 
+        
+        let stockUpdated = false;
+        window.saleCart.forEach(cartItem => {
+            const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === cartItem.name.toLowerCase());
+            if (stockItem && stockItem.qty >= cartItem.qty) {
+                stockItem.qty -= cartItem.qty; 
+                stockUpdated = true;
+            }
+        });
+        if (stockUpdated) {
+            dbSet('stockData', window.stockInventory).catch(e=>console.log(e)); 
+            window.renderStockTable(); 
+            window.renderInventoryDropdown();
+        }
+
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Completed!', showConfirmButton: false, timer: 1500});
+        setTimeout(() => window.generateSalePDF(saleData, student), 500);
+    }
+
+    window.renderSalesUI();
+    window.cancelSaleEdit();
+    window.syncSalesToFirebase(currentYear);
+};
+
+window.cancelSaleEdit = function() {
+    document.getElementById('saleStudentId').value = '';
+    document.getElementById('saleSelectedName').textContent = '🔍 Click here to search student...';
+    document.getElementById('saleSelectedName').style.color = 'var(--text-muted)';
+    document.getElementById('saleSelectedPhoto').style.display = 'none';
+    document.getElementById('itemName').value = '';
+    document.getElementById('saleQty').value = '1'; 
+    document.getElementById('itemPrice').value = '';
+    document.getElementById('amountPaid').value = '';
+    document.getElementById('editSaleId').value = '';
+    window.currentUnitPrice = 0;
+    window.saleCart = []; 
+    window.renderCart();
+    
+    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-check-circle"></i> Checkout & Send Receipt';
+    document.getElementById('saleProcessBtn').className = 'btn-primary';
+    document.getElementById('saleCancelEditBtn').style.display = 'none';
+};
+
+window.editSaleRecord = function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    
+    const student = students.find(st => st.id == sale.studentId);
+    if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
+
+    if (sale.cart && Array.isArray(sale.cart)) {
+        window.saleCart = [...sale.cart];
+    } else {
+        let extractedName = sale.item; let extractedQty = 1;
+        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
+        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
+        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
+    }
+    
+    window.renderCart();
+    document.getElementById('amountPaid').value = sale.paid;
+    document.getElementById('editSaleId').value = sale.id;
+
+    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
+    document.getElementById('saleProcessBtn').className = 'btn-warning';
+    document.getElementById('saleCancelEditBtn').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.generateSalePDF = async function(sale, student) {
+    Swal.fire({ title: 'Generating Receipt...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    const { jsPDF } = window.jspdf;
+    const cartLength = sale.cart ? sale.cart.length : 1;
+    const pageHeight = Math.max(148, 110 + (cartLength * 8)); 
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [105, pageHeight] });
+
+    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.addImage(instituteLogo, 'JPEG', 12.5, (pageHeight/2)-40, 80, 80);
+        doc.restoreGraphicsState();
+    }
+
+    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.rect(5, 5, 95, pageHeight - 10);
+    let y = 15;
+
+    if (typeof instituteLogo !== 'undefined' && instituteLogo) { doc.addImage(instituteLogo, 'JPEG', 42.5, 8, 20, 20); y = 32; }
+
+    doc.setFontSize(12); doc.setFont("helvetica", "bold");
+    const titleLines = doc.splitTextToSize(typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes', 90);
+    doc.text(titleLines, 52.5, y, {align: "center"});
+    y += (titleLines.length * 5) + 2;
+
+    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+    doc.text("ACCESSORIES CASH MEMO", 52.5, y, {align: "center"});
+    doc.setLineWidth(0.2); doc.line(25, y+1, 80, y+1); y += 10;
+
+    doc.setFontSize(9);
+    doc.text(`Date:`, 12, y); doc.setFont("helvetica", "bold"); doc.text(`${new Date(sale.date).toLocaleDateString('en-IN')}`, 42, y); doc.setFont("helvetica", "normal"); y += 6;
+    doc.text(`Student:`, 12, y); doc.setFont("helvetica", "bold"); doc.text(student.name, 42, y); doc.setFont("helvetica", "normal"); y += 8;
+
+    doc.setFillColor(240, 240, 240);
+    doc.rect(10, y, 85, 6, 'F');
+    doc.setFont("helvetica", "bold");
+    doc.text(`Item Name`, 12, y+4); doc.text(`Qty`, 65, y+4); doc.text(`Price`, 80, y+4);
+    doc.setFont("helvetica", "normal");
+    y += 10;
+
+    if (sale.cart && Array.isArray(sale.cart)) {
+        sale.cart.forEach(item => {
+            doc.text(`${item.name}`, 12, y); doc.text(`x${item.qty}`, 65, y); doc.text(`Rs.${item.price}`, 80, y); y += 6;
+        });
+    } else {
+        doc.text(`${sale.item}`, 12, y); doc.text(`Rs.${sale.price}`, 80, y); y += 6;
+    }
+    doc.line(10, y, 95, y); y += 6;
+
+    doc.setFont("helvetica", "bold");
+    doc.text(`Grand Total:`, 48, y); doc.text(`Rs. ${sale.price}/-`, 75, y); y += 6;
+    doc.setTextColor(0, 128, 0); 
+    doc.text(`Paid Amount:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
+
+    if(sale.due > 0) {
+        doc.setTextColor(200, 0, 0); doc.text(`Current Due:`, 48, y); doc.text(`Rs. ${sale.due}/-`, 75, y); doc.setTextColor(0);
+    } else {
+        doc.setTextColor(0, 128, 0); doc.text(`Current Due:`, 48, y); doc.text(`NIL`, 75, y); doc.setTextColor(0);
+    }
+    y += 15;
+
+    let sigBaseY = pageHeight - 15;
+    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 16, 35, 12); }
+    doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(`Authorized Signature`, 72, sigBaseY, {align:"center"});
+
+    const safeItemName = sale.cart && sale.cart.length > 0 ? "Multiple_Items" : sale.item.replace(/\s+/g, '_');
+    const fileName = `Receipt_${safeItemName}.pdf`;
+    
+    window.tempSaleDoc = doc; window.tempSaleFileName = fileName;
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.tempSalePhone = cleanPhone;
+    
+    let itemsNamesWA = sale.cart ? sale.cart.map(i => `${i.name} (x${i.qty})`).join(', ') : sale.item;
+    let dueMsg = sale.due > 0 ? `\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
+    window.tempSaleMsg = `Hello ${student.name},\nHere is your receipt for *${itemsNamesWA}*.\nTotal: ₹${sale.price}\nPaid: ₹${sale.paid}\nDue: ₹${sale.due}${dueMsg}\n\nThank You!`;
+
+    Swal.close();
+    setTimeout(() => {
+        Swal.fire({
+            title: 'Receipt Generated!', icon: 'success',
+            html: `
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button onclick="window.shareSaleReceiptWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fab fa-whatsapp"></i> Share to WhatsApp</button>
+                    <button onclick="window.sendSaleReceiptSMS()" style="background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-sms"></i> Send SMS</button>
+                    <button onclick="window.downloadSaleReceiptOnly()" style="background:#64748b; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-download"></i> Download Only</button>
+                </div>
+            `,
+            showCloseButton: true,
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#ef4444'
+        });
+    }, 100);
+};
+
+window.resendSaleReceipt = async function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    const student = students.find(st => st.id == sale.studentId);
+    if(sale && student) window.generateSalePDF(sale, student);
+};
+
+window.sendSaleWhatsApp = async function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    const student = students.find(st => st.id == sale.studentId);
+    
+    if(sale && student) {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        let dueMsg = sale.due > 0 ? `\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
+        const msg = `Hello ${student.name},\n\nThis is regarding your purchase of *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}\n*Current Due:* ₹${sale.due}${dueMsg}\n\nRegards,\nSrikanta Banerjee`;
+        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+};
+
+window.sendSaleSMS = async function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    const student = students.find(st => st.id == sale.studentId);
+    
+    if(sale && student) {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if (!cleanPhone) {
+            Swal.fire('Error', 'Student phone number is missing!', 'error');
+            return;
+        }
+        let dueMsg = sale.due > 0 ? `\nPlease clear your due amount of Rs.${sale.due} as soon as possible.` : '';
+        const msg = `Hello ${student.name},\n\nThis is regarding your purchase of ${sale.item}.\n\nTotal Price: Rs.${sale.price}\nAmount Paid: Rs.${sale.paid}\nCurrent Due: Rs.${sale.due}${dueMsg}\n\nRegards,\nSrikanta Banerjee`;
+        
+        window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
+    }
+};
+
+window.sendSaleReceiptSMS = function() {
+    const msg = window.tempSaleMsg;
+    const phone = window.tempSalePhone;
+    
+    if (!phone) {
+        Swal.fire('Error', 'Student phone number is missing!', 'error');
+        return;
+    }
+    
+    window.location.href = `sms:${phone}?body=${encodeURIComponent(msg)}`;
+};
+
 window.shareSaleReceiptWA = async function() {
     const doc = window.tempSaleDoc;
     const fileName = window.tempSaleFileName;
@@ -7046,573 +7566,4 @@ window.downloadSaleReceiptOnly = function() {
     Swal.close();
 };
 
-window.generateSalePDF = async function(sale, student) {
-    Swal.fire({ title: 'Generating Receipt...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [105, 148] });
-
-    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.08 }));
-        doc.addImage(instituteLogo, 'JPEG', 12.5, 34, 80, 80);
-        doc.restoreGraphicsState();
-    }
-
-    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.rect(5, 5, 95, 138);
-    let y = 15;
-
-    if (typeof instituteLogo !== 'undefined' && instituteLogo) { doc.addImage(instituteLogo, 'JPEG', 42.5, 8, 20, 20); y = 32; }
-
-    doc.setFontSize(12); doc.setFont("helvetica", "bold");
-    const titleLines = doc.splitTextToSize(typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes', 90);
-    doc.text(titleLines, 52.5, y, {align: "center"});
-    y += (titleLines.length * 5) + 2;
-
-    doc.setFontSize(10); doc.setFont("helvetica", "normal");
-    doc.text("ACCESSORIES CASH MEMO", 52.5, y, {align: "center"});
-    doc.setLineWidth(0.2); doc.line(25, y+1, 80, y+1); y += 10;
-
-    const labelX = 12; const valueX = 42; const lineH = 7;
-    doc.setFontSize(9);
-
-    doc.text(`Date:`, labelX, y);
-    doc.setFont("helvetica", "bold"); doc.text(`${new Date(sale.date).toLocaleDateString('en-IN')}`, valueX, y); doc.setFont("helvetica", "normal"); y += lineH;
-
-    doc.text(`Student:`, labelX, y);
-    doc.setFont("helvetica", "bold"); doc.text(student.name, valueX, y); doc.setFont("helvetica", "normal"); y += lineH;
-
-    doc.text(`Item Name:`, labelX, y);
-    doc.setFont("helvetica", "bold"); 
-    const itemLines = doc.splitTextToSize(sale.item, 50);
-    doc.text(itemLines, valueX, y); y += (itemLines.length * 4) + 3;
-
-    doc.text(`Total Price:`, labelX, y);
-    doc.setFont("helvetica", "bold"); doc.text(`Rs. ${sale.price}/-`, valueX, y); doc.setFont("helvetica", "normal"); y += lineH;
-
-    doc.text(`Paid Amount:`, labelX, y);
-    doc.setFont("helvetica", "bold"); doc.setTextColor(0, 128, 0); doc.text(`Rs. ${sale.paid}/-`, valueX, y); doc.setTextColor(0); doc.setFont("helvetica", "normal"); y += lineH;
-
-    doc.text(`Current Due:`, labelX, y);
-    if(sale.due > 0) {
-        doc.setFont("helvetica", "bold"); doc.setTextColor(200, 0, 0); doc.text(`Rs. ${sale.due}/-`, valueX, y); doc.setTextColor(0);
-    } else {
-        doc.setFont("helvetica", "bold"); doc.setTextColor(0, 128, 0); doc.text(`NIL (Fully Paid)`, valueX, y); doc.setTextColor(0);
-    }
-    y += lineH + 5;
-
-    let sigBaseY = 135;
-    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 16, 35, 12); }
-    doc.setFontSize(8); doc.setFont("helvetica", "bold");
-    doc.text(`Authorized Signature`, 72, sigBaseY, {align:"center"});
-
-    const fileName = `Receipt_${sale.item.replace(/\s+/g, '_')}.pdf`;
-    
-    window.tempSaleDoc = doc;
-    window.tempSaleFileName = fileName;
-    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-    window.tempSalePhone = cleanPhone;
-    let dueMsg = sale.due > 0 ? `\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-    window.tempSaleMsg = `Hello ${student.name},\nHere is your receipt for *${sale.item}*.\nTotal: ₹${sale.price}\nPaid: ₹${sale.paid}\nDue: ₹${sale.due}${dueMsg}\n\nThank You!`;
-
-    // 🟢 Fix: স্পিনার জোর করে বন্ধ করা হলো
-    Swal.hideLoading();
-    Swal.close();
-
-    // 🟢 Fix: ০.১ সেকেন্ড অপেক্ষা করে নতুন পপআপ খোলা হলো যাতে স্পিনার আর না আসে
-    setTimeout(() => {
-        Swal.fire({
-            title: 'Receipt Generated!',
-            icon: 'success',
-            html: `
-                <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px;">How do you want to share this receipt?</p>
-                <div style="display:flex; flex-direction:column; gap:12px;">
-                    <button onclick="window.shareSaleReceiptWA()" style="background:#25D366; color:white; border:none; padding:14px; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; width:100%; box-shadow: 0 4px 10px rgba(37,211,102,0.3);">
-                        <i class="fab fa-whatsapp" style="font-size:18px; margin-right:5px;"></i> Share to WhatsApp
-                    </button>
-                    <button onclick="window.downloadSaleReceiptOnly()" style="background:#64748b; color:white; border:none; padding:14px; border-radius:8px; font-size:15px; font-weight:bold; cursor:pointer; width:100%;">
-                        <i class="fas fa-download" style="margin-right:5px;"></i> Download Only
-                    </button>
-                </div>
-            `,
-            showConfirmButton: false,
-            showCancelButton: false,
-            showCloseButton: true
-        });
-    }, 100);
-};
-
-window.resendSaleReceipt = async function(saleId) {
-    const sale = salesDataArray.find(s => s.id === saleId);
-    if(!sale) return;
-    const student = students.find(st => st.id == sale.studentId);
-    if(sale && student) window.generateSalePDF(sale, student);
-};
-
-window.sendSaleWhatsApp = async function(saleId) {
-    const sale = salesDataArray.find(s => s.id === saleId);
-    if(!sale) return;
-    const student = students.find(st => st.id == sale.studentId);
-    
-    if(sale && student) {
-        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        let dueMsg = sale.due > 0 ? `\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-        const msg = `Hello ${student.name},\n\nThis is regarding your purchase of *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}\n*Current Due:* ₹${sale.due}${dueMsg}\n\nRegards,\nSrikanta Banerjee`;
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-    }
-};
-// ==========================================
-// 🟢 BOTTOM NAV SCROLL ARROW LOGIC (ID TARGETING FIX)
-// ==========================================
-
-window.scrollBottomNav = function(direction) {
-    const nav = document.querySelector('.bottom-nav');
-    if (!nav) return;
-    
-    const scrollAmount = nav.clientWidth * 0.5; 
-    if (direction === 'left') {
-        nav.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
-    } else {
-        nav.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-    
-    window.flashNavArrows(); 
-};
-
-window.arrowTimeout = null;
-
-window.flashNavArrows = function() {
-    const nav = document.querySelector('.bottom-nav');
-    // 🟢 Fix: Class এর বদলে সরাসরি ID দিয়ে টার্গেট করা হলো
-    const leftArrow = document.getElementById('scrollArrowLeft');
-    const rightArrow = document.getElementById('scrollArrowRight');
-    
-    if (!nav || !leftArrow || !rightArrow) return;
-
-    // ১. ক্লিক বা স্ক্রল করলে অ্যারো আসবে
-    if (nav.scrollLeft > 5) {
-        leftArrow.style.display = 'flex';
-        leftArrow.style.opacity = '0.9';
-    } else {
-        leftArrow.style.display = 'none';
-    }
-
-    if (Math.ceil(nav.scrollLeft + nav.clientWidth) < nav.scrollWidth - 5) {
-        rightArrow.style.display = 'flex';
-        rightArrow.style.opacity = '0.9';
-    } else {
-        rightArrow.style.display = 'none';
-    }
-
-    // ২. ঠিক ২ সেকেন্ড পর ১০০% ফাঁকা হয়ে যাবে
-    clearTimeout(window.arrowTimeout);
-    window.arrowTimeout = setTimeout(() => {
-        if(leftArrow) leftArrow.style.display = 'none';
-        if(rightArrow) rightArrow.style.display = 'none';
-    }, 2000); 
-};
-
-// 🟢 Fix: পেজ লোড সিগন্যালের অপেক্ষা না করে সরাসরি কানেকশন করে দেওয়া হলো
-setTimeout(() => {
-    const nav = document.querySelector('.bottom-nav');
-    if (nav) {
-        // মেনুতে টাচ, ক্লিক বা একটু স্ক্রল (Swipe) করলেই অ্যারো আসবে
-        nav.addEventListener('click', window.flashNavArrows);
-        nav.addEventListener('touchstart', window.flashNavArrows, {passive: true});
-        nav.addEventListener('scroll', window.flashNavArrows, {passive: true}); 
-    }
-}, 500); // পেজ রেডি হওয়ার জন্য আধ সেকেন্ড সময় দেওয়া হলো
-// ==========================================
-// 🟢 STOCK MANAGEMENT LOGIC (ADD, EDIT, DELETE)
-// ==========================================
-
-window.stockInventory = [];
-
-window.openStockModal = function() {
-    window.renderStockTable();
-    document.getElementById('stockModal').style.display = 'flex';
-};
-
-// ১. স্টক সেভ বা আপডেট করা
-window.addStockItem = async function() {
-    const name = document.getElementById('newStockName').value.trim();
-    const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
-    const qty = parseInt(document.getElementById('newStockQty').value) || 0;
-    
-    // এডিট করার জন্য আইডি চেক করা
-    const editIdInput = document.getElementById('editStockId');
-    const editId = editIdInput ? editIdInput.value : '';
-
-    if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
-
-    if (editId) {
-        // 🟡 এডিট মোড: পুরনো আইটেমের নাম, দাম ও সংখ্যা আপডেট করা
-        const index = window.stockInventory.findIndex(i => i.id == editId);
-        if (index > -1) {
-            window.stockInventory[index] = { ...window.stockInventory[index], name, price, qty };
-        }
-    } else {
-        // 🟢 নতুন আইটেম মোড: নতুন তৈরি হবে বা একই নামে থাকলে কোয়ান্টিটি বাড়বে
-        const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-        if (existingIndex > -1) {
-            window.stockInventory[existingIndex].price = price;
-            window.stockInventory[existingIndex].qty += qty;
-        } else {
-            window.stockInventory.push({ id: Date.now(), name, price, qty });
-        }
-    }
-
-    // কাজ শেষ হলে ইনপুট বক্স ফাঁকা করা
-    document.getElementById('newStockName').value = '';
-    document.getElementById('newStockPrice').value = '';
-    document.getElementById('newStockQty').value = '';
-    if(editIdInput) editIdInput.value = '';
-    
-    // বাটন আগের অবস্থায় ফিরিয়ে আনা
-    const btn = document.querySelector('#stockModal .btn-primary');
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-plus"></i> Add / Update Stock';
-        btn.style.background = ''; // ডিফল্ট ব্লু কালার
-    }
-
-    window.renderStockTable();
-    window.renderInventoryDropdown();
-    
-    // ফায়ারবেসে সেভ করা
-    await dbSet('stockData', window.stockInventory);
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
-};
-
-// ২. স্টক এডিট করা (পেন্সিল আইকনে ক্লিক করলে কাজ করবে)
-window.editStockItem = function(id) {
-    const item = window.stockInventory.find(i => i.id === id);
-    if (!item) return;
-
-    // বক্সগুলোতে আগের ডাটা বসিয়ে দেওয়া
-    document.getElementById('newStockName').value = item.name;
-    document.getElementById('newStockPrice').value = item.price;
-    document.getElementById('newStockQty').value = item.qty;
-    
-    // Hidden input এ ID সেট করা (যাতে সেভ করার সময় বুঝতে পারে এটি এডিট হচ্ছে)
-    let editIdInput = document.getElementById('editStockId');
-    if(!editIdInput) {
-        editIdInput = document.createElement('input');
-        editIdInput.type = 'hidden';
-        editIdInput.id = 'editStockId';
-        document.querySelector('#stockModal .form-grid').appendChild(editIdInput);
-    }
-    editIdInput.value = item.id;
-
-    // বাটনের স্টাইল চেঞ্জ করে 'Update' করা
-    const btn = document.querySelector('#stockModal .btn-primary');
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-save"></i> Update Stock Item';
-        btn.style.background = '#f59e0b'; // ওয়ার্নিং/কমলা রং
-    }
-};
-
-// ৩. স্টক ডিলিট করা (ট্র্যাশ আইকনে ক্লিক করলে কাজ করবে)
-window.deleteStockItem = async function(id) {
-    Swal.fire({
-        title: 'Delete Item?',
-        text: "Are you sure you want to remove this item from stock?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, delete it'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            window.stockInventory = window.stockInventory.filter(i => i.id !== id);
-            window.renderStockTable();
-            window.renderInventoryDropdown();
-            await dbSet('stockData', window.stockInventory);
-            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
-        }
-    });
-};
-
-// ৪. স্টক টেবিল দেখানো (Edit ✏️ এবং Delete 🗑️ দুটি বাটন সহ)
-window.renderStockTable = function() {
-    const tbody = document.getElementById('stockTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-
-    if (window.stockInventory.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:gray;">No items in stock.</td></tr>';
-        return;
-    }
-
-    window.stockInventory.forEach(item => {
-        const stockColor = item.qty <= 2 ? 'color: var(--danger); font-weight: bold;' : 'color: var(--success); font-weight: bold;';
-        tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 10px 8px; color: var(--text-main); font-weight: 500;">${item.name}</td>
-                <td style="padding: 10px 8px; color: var(--text-main);">₹${item.price}</td>
-                <td style="padding: 10px 8px; ${stockColor}">${item.qty} pcs</td>
-                <td style="padding: 10px 8px; text-align: center; white-space: nowrap;">
-                    <button onclick="window.editStockItem(${item.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; margin-right:12px; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
-                </td>
-            </tr>
-        `;
-    });
-};
-
-// ডাটা লিস্ট আপডেট করা
-window.renderInventoryDropdown = function() {
-    const datalist = document.getElementById('stockDataList');
-    if(!datalist) return;
-    datalist.innerHTML = '';
-    window.stockInventory.forEach(item => {
-        const option = document.createElement('option');
-        option.value = item.name;
-        datalist.appendChild(option);
-    });
-};
-
-window.currentUnitPrice = 0; // ১ পিসের দাম মনে রাখার জন্য
-
-// 🟢 অটোমেটিক দাম বসানো এবং স্টক চেক করা
-window.autoFillItemPrice = function() {
-    const inputName = document.getElementById('itemName').value.trim();
-    const item = window.stockInventory.find(i => i.name.toLowerCase() === inputName.toLowerCase());
-    
-    if (item) {
-        window.currentUnitPrice = item.price; 
-        window.updateSalePriceCalc(); // Qty অনুযায়ী মোট দাম বসাবে
-        
-        if (item.qty <= 0) {
-            Swal.fire({toast: true, position: 'top-end', icon: 'error', title: 'Out of Stock!', text: 'This item is finished.', showConfirmButton: false, timer: 2500});
-        }
-    }
-};
-
-// 🟢 Qty পরিবর্তন হলে Total Price অটোমেটিক গুণ করা
-window.updateSalePriceCalc = function() {
-    const qty = parseInt(document.getElementById('saleQty').value) || 1;
-    if (window.currentUnitPrice > 0) {
-        document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
-    }
-    window.calculateSaleDue();
-};
-
-window.calculateSaleDue = function() {
-    const price = parseFloat(document.getElementById('itemPrice').value) || 0;
-    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
-    const due = price - paid;
-    
-    const display = document.getElementById('saleDueDisplay');
-    if(display) {
-        if (due > 0) {
-            display.innerHTML = `Current Due: <span style="color:var(--danger);">₹${due}</span>`;
-            display.style.background = 'rgba(239, 68, 68, 0.1)';
-        } else {
-            display.innerHTML = `Current Due: <span style="color:var(--success);">₹0 (Fully Paid)</span>`;
-            display.style.background = 'rgba(16, 185, 129, 0.1)';
-        }
-    }
-};
-
-// 🟢 Qty অনুযায়ী স্টক কমানো এবং সেল প্রসেস করা
-window.processSale = function() {
-    const sId = document.getElementById('saleStudentId').value;
-    const itemNameInput = document.getElementById('itemName').value.trim();
-    const saleQty = parseInt(document.getElementById('saleQty').value) || 1;
-    const price = parseFloat(document.getElementById('itemPrice').value);
-    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
-    const editId = document.getElementById('editSaleId').value;
-
-    if (!sId || !itemNameInput || isNaN(price) || saleQty < 1) {
-        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Fill all details correctly!', showConfirmButton: false, timer: 2000});
-        return;
-    }
-
-    // রিসিটে দেখানোর জন্য আইটেমের নামের সাথে পিস যুক্ত করা (যেমন: Guitar Strings (x2))
-    const finalItemName = saleQty > 1 ? `${itemNameInput} (x${saleQty})` : itemNameInput;
-
-    // 🟢 সেল করার আগে চেক করবে স্টক পর্যাপ্ত আছে কি না
-    if (!editId) {
-        const stockItemCheck = window.stockInventory.find(i => i.name.toLowerCase() === itemNameInput.toLowerCase());
-        if (stockItemCheck) {
-            if (stockItemCheck.qty < saleQty) {
-                Swal.fire('Not Enough Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left.`, 'error');
-                return; // 🚫 স্টক পর্যাপ্ত না থাকলে সেল হবে না
-            }
-        }
-    }
-
-    const student = students.find(s => s.id == sId);
-    const due = price - paid;
-    const currentYear = document.getElementById('salesYearFilter').value;
-
-    if (editId) {
-        const index = salesDataArray.findIndex(s => s.id == editId);
-        if(index > -1) {
-            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: finalItemName, price: price, paid: paid, due: due };
-        }
-        window.addAccessoryDueToStudent(student.id, parseInt(editId), finalItemName, due); 
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
-    } else {
-        const newSaleId = Date.now();
-        const saleData = {
-            id: newSaleId, studentId: student.id, studentName: student.name,
-            item: finalItemName, price: price, paid: paid, due: due, date: new Date().toISOString().split('T')[0]
-        };
-        salesDataArray.unshift(saleData);
-        window.addAccessoryDueToStudent(student.id, newSaleId, finalItemName, due); 
-        
-        // 🟢 স্টক থেকে সঠিক কোয়ান্টিটি মাইনাস করা
-        const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === itemNameInput.toLowerCase());
-        if (stockItem && stockItem.qty >= saleQty) {
-            stockItem.qty -= saleQty; 
-            dbSet('stockData', window.stockInventory).catch(e=>console.log(e)); 
-            window.renderStockTable(); 
-            window.renderInventoryDropdown();
-        }
-
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Saved!', showConfirmButton: false, timer: 1500});
-        setTimeout(() => window.generateSalePDF(saleData, student), 500);
-    }
-
-    window.renderSalesUI();
-    window.cancelSaleEdit();
-    window.syncSalesToFirebase(currentYear);
-};
-
-// 🟢 এডিট ক্যানসেল করার ফাংশন (যেখানে Qty রিসেট হবে)
-window.cancelSaleEdit = function() {
-    document.getElementById('saleStudentId').value = '';
-    document.getElementById('saleSelectedName').textContent = '🔍 Click here to search student...';
-    document.getElementById('saleSelectedName').style.color = 'var(--text-muted)';
-    document.getElementById('saleSelectedPhoto').style.display = 'none';
-    
-    document.getElementById('itemName').value = '';
-    document.getElementById('saleQty').value = '1'; // Qty রিসেট
-    document.getElementById('itemPrice').value = '';
-    document.getElementById('amountPaid').value = '';
-    document.getElementById('editSaleId').value = '';
-    window.currentUnitPrice = 0;
-    
-    const btn = document.getElementById('saleProcessBtn');
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-file-invoice-dollar"></i> Sell & Send Receipt';
-        btn.className = 'btn-primary';
-    }
-    const cancelBtn = document.getElementById('saleCancelEditBtn');
-    if (cancelBtn) cancelBtn.style.display = 'none';
-    
-    window.calculateSaleDue();
-};
-
-window.editSaleRecord = function(saleId) {
-    const sale = salesDataArray.find(s => s.id === saleId);
-    if(!sale) return;
-    
-    const student = students.find(st => st.id == sale.studentId);
-    if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
-
-    // নামের সাথে থাকা (x2) বা (x3) এক্সট্র্যাক্ট করে আসল নাম ও Qty আলাদা করা
-    let extractedName = sale.item;
-    let extractedQty = 1;
-    const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
-    if (match) {
-        extractedName = match[1];
-        extractedQty = parseInt(match[2]);
-    }
-
-    document.getElementById('itemName').value = extractedName;
-    document.getElementById('saleQty').value = extractedQty;
-    document.getElementById('itemPrice').value = sale.price;
-    document.getElementById('amountPaid').value = sale.paid;
-    document.getElementById('editSaleId').value = sale.id;
-
-    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
-    document.getElementById('saleProcessBtn').className = 'btn-warning';
-    document.getElementById('saleCancelEditBtn').style.display = 'block';
-    
-    window.calculateSaleDue();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
-// ==========================================
-// 🟢 RESTORE SALES DATA LOGIC (Full & Final)
-// ==========================================
-window.restoreSalesData = function(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    event.target.value = ''; // ইনপুট ফিল্ড রিসেট করা, যাতে একই ফাইল আবার সিলেক্ট করা যায়
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        try {
-            const json = e.target.result;
-            const importedData = JSON.parse(json);
-
-            // ১. ফাইল চেকিং: ইউজার ভুল করে ফুল ব্যাকআপ (স্টুডেন্ট ডেটা) দিয়ে দিয়েছে কি না
-            if (importedData.students || importedData.attendance) {
-                Swal.fire('Wrong File!', 'এটি স্টুডেন্টদের ফুল ব্যাকআপ ফাইল। দয়া করে "MusicClass_Sales_Backup..." নামের ফাইলটি সিলেক্ট করুন।', 'warning');
-                return;
-            }
-
-            // ২. ডেটা চেকিং: সেলস রেকর্ড ঠিকঠাক আছে কি না
-            if (!importedData || !Array.isArray(importedData.records)) {
-                Swal.fire('Error', 'ফাইলটি সঠিক সেলস ব্যাকআপ নয় বা ফাইলটি করাপ্ট হয়ে গেছে।', 'error');
-                return;
-            }
-
-            // ৩. সাল (Year) বের করা (ফাইলে না থাকলে বর্তমান সাল ধরবে)
-            const restoreYear = importedData.year || document.getElementById('salesYearFilter').value || new Date().getFullYear();
-
-            // ৪. কনফার্মেশন পপআপ
-            Swal.fire({
-                title: `Restore Sales for ${restoreYear}?`,
-                text: `This will replace the current sales records for the year ${restoreYear}.`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#10b981',
-                cancelButtonColor: '#ef4444',
-                confirmButtonText: 'Yes, Restore'
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    // ⏳ লোডিং স্পিনার শুরু
-                    Swal.fire({ 
-                        title: 'Restoring...', 
-                        allowOutsideClick: false, 
-                        didOpen: () => { Swal.showLoading(); } 
-                    });
-
-                    // ৫. ডেটা আপডেট করা
-                    const yearInput = document.getElementById('salesYearFilter');
-                    if(yearInput) yearInput.value = restoreYear;
-                    
-                    salesDataArray = importedData.records; // লোকাল অ্যারে আপডেট
-                    
-                    window.syncSalesToFirebase(restoreYear); // ফায়ারবেসে সেভ করা
-                    
-                    window.renderSalesUI(); // স্ক্রিনের টেবিল আপডেট করা
-
-                    // 🟢 ৬. স্পিনার বন্ধ করে সাকসেস মেসেজ দেখানো (Spinner Fix)
-                    Swal.close(); // প্রথমে স্পিনারটা জোর করে বন্ধ করা
-                    
-                    setTimeout(() => {
-                        Swal.fire({
-                            title: 'Restored!',
-                            text: `Sales data for ${restoreYear} has been restored successfully.`,
-                            icon: 'success',
-                            showConfirmButton: true,
-                            confirmButtonText: 'Close',
-                            confirmButtonColor: '#ef4444', // লাল বাটন
-                            allowOutsideClick: false
-                        });
-                    }, 300); // 0.3 সেকেন্ড গ্যাপ দেওয়া হলো যাতে স্পিনারটা স্মুথলি মুছে যায়
-                }
-            });
-
-        } catch (err) {
-            console.error("Sales Restore Error:", err);
-            Swal.fire('Error', 'Failed to read the backup file. It might be corrupted.', 'error');
-        }
-    };
-    reader.readAsText(file);
-};
+window.processSale = processSale;
