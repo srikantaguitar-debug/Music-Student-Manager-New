@@ -6874,7 +6874,7 @@ window.renderSalesUI = function() {
     });
 
     if (filteredSales.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">No sales found.</td></tr>';
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:12px;">No sales found.</td></tr>';
         return;
     }
     
@@ -6884,18 +6884,19 @@ window.renderSalesUI = function() {
         
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
-                <td style="padding:10px 5px;"><strong>${s.studentName}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.item} <br>📅 ${dateStr}</span></td>
-                <td style="font-weight:bold; padding:10px 5px;">₹${s.price}</td>
-                <td style="padding:10px 5px;">
-                    <span style="color:var(--success); font-size:12px;">Paid: ₹${s.paid}</span><br>
-                    <span style="color:${statusClr}; font-weight:bold; font-size:12px;">Due: ₹${s.due}</span>
-                <td class="action-buttons" style="padding:10px 5px;">
-                    <div style="display: flex; gap: 4px; justify-content: center; flex-wrap: wrap;">
-                       <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt PDF" style="padding:6px; margin:0; background:#8b5cf6; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-file-pdf"></i></button>
-                       <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="padding:6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-edit"></i></button>
-                       <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="padding:6px; margin:0; background:#ef4444; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-trash"></i></button>
-                       <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WhatsApp" style="padding:6px; margin:0; background:#25D366; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fab fa-whatsapp"></i></button>
-                       <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="padding:6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; flex: 1;"><i class="fas fa-sms"></i></button>
+                <td style="padding:6px 4px; font-size:12px;"><strong>${s.studentName}</strong><br><span style="font-size:10px; color:var(--text-muted);">${s.item} <br>📅 ${dateStr}</span></td>
+                <td style="font-weight:bold; padding:6px 4px; font-size:12px;">₹${s.price}</td>
+                <td style="padding:6px 4px; font-size:11px;">
+                    <span style="color:var(--success);">Paid: ₹${s.paid}</span><br>
+                    <span style="color:${statusClr}; font-weight:bold;">Due: ₹${s.due}</span>
+                </td>
+                <td class="action-buttons" style="padding:6px 4px;">
+                    <div style="display: flex; gap: 3px; justify-content: center; flex-wrap: wrap;">
+                       <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="padding:4px 6px; margin:0; background:#8b5cf6; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-file-pdf"></i></button>
+                       <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="padding:4px 6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-edit"></i></button>
+                       <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="padding:4px 6px; margin:0; background:#ef4444; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-trash"></i></button>
+                       <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="padding:4px 6px; margin:0; background:#25D366; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fab fa-whatsapp"></i></button>
+                       <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="padding:4px 6px; margin:0; background:#f59e0b; color:#fff; border:none; border-radius:4px; font-size:10px;"><i class="fas fa-sms"></i></button>
                     </div>
                 </td>
             </tr>`;
@@ -7172,21 +7173,31 @@ window.renderStockTable = function() {
     if(!tbody) return;
     tbody.innerHTML = '';
 
-    if (window.stockInventory.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:gray;">No items in stock.</td></tr>';
+    // 🟢 সার্চ বারের টেক্সট নেওয়া হচ্ছে
+    const searchInput = document.getElementById('searchStockInput');
+    const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // 🟢 সার্চ অনুযায়ী লিস্ট ফিল্টার করা হচ্ছে
+    const filteredStock = window.stockInventory.filter(item => {
+        if (!filterText) return true;
+        return item.name.toLowerCase().includes(filterText);
+    });
+
+    if (filteredStock.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
         return;
     }
 
-    window.stockInventory.forEach(item => {
+    filteredStock.forEach(item => {
         const stockColor = item.qty <= 2 ? 'color: var(--danger); font-weight: bold;' : 'color: var(--success); font-weight: bold;';
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 10px 8px; color: var(--text-main); font-weight: 500;">${item.name}</td>
-                <td style="padding: 10px 8px; color: var(--text-main);">₹${item.price}</td>
-                <td style="padding: 10px 8px; ${stockColor}">${item.qty} pcs</td>
-                <td style="padding: 10px 8px; text-align: center; white-space: nowrap;">
-                    <button onclick="window.editStockItem(${item.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; margin-right:12px; font-size:14px;" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;" title="Delete"><i class="fas fa-trash"></i></button>
+                <td style="padding: 6px 4px; color: var(--text-main); font-weight: 500; font-size: 11px;">${item.name}</td>
+                <td style="padding: 6px 4px; color: var(--text-main); font-size: 11px;">₹${item.price}</td>
+                <td style="padding: 6px 4px; font-size: 11px; ${stockColor}">${item.qty} pcs</td>
+                <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">
+                    <button onclick="window.editStockItem(${item.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; margin-right:8px; font-size:12px;" title="Edit"><i class="fas fa-edit"></i></button>
+                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px;" title="Delete"><i class="fas fa-trash"></i></button>
                 </td>
             </tr>
         `;
@@ -7472,10 +7483,16 @@ window.generateSalePDF = async function(sale, student) {
         Swal.fire({
             title: 'Receipt Generated!', icon: 'success',
             html: `
-                <div style="display:flex; flex-direction:column; gap:10px;">
-                    <button onclick="window.shareSaleReceiptWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fab fa-whatsapp"></i> Share to WhatsApp</button>
-                    <button onclick="window.sendSaleReceiptSMS()" style="background:#f59e0b; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-sms"></i> Send SMS</button>
-                    <button onclick="window.downloadSaleReceiptOnly()" style="background:#64748b; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-download"></i> Download Only</button>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <button onclick="window.shareSaleReceiptWA()" style="background:#25D366; color:white; border:none; padding:10px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; width:100%; box-shadow: 0 2px 5px rgba(37,211,102,0.3);">
+                        <i class="fab fa-whatsapp" style="font-size:15px; margin-right:5px;"></i> Share to WhatsApp
+                    </button>
+                    <button onclick="window.sendSaleReceiptSMS()" style="background:#f59e0b; color:white; border:none; padding:10px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; width:100%; box-shadow: 0 2px 5px rgba(245,158,11,0.3);">
+                        <i class="fas fa-sms" style="font-size:15px; margin-right:5px;"></i> Send SMS
+                    </button>
+                    <button onclick="window.downloadSaleReceiptOnly()" style="background:#64748b; color:white; border:none; padding:10px; border-radius:6px; font-size:13px; font-weight:bold; cursor:pointer; width:100%;">
+                        <i class="fas fa-download" style="margin-right:5px;"></i> Download Only
+                    </button>
                 </div>
             `,
             showCloseButton: true,
