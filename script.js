@@ -5993,76 +5993,80 @@ window.renderPracticeLogTeacher = function(studentId) {
     }
 };
 
-window.deletePracticeLog = function(studentId, logId, context) {
-    Swal.fire({
+window.deletePracticeLog = async function(studentId, logId, context) {
+    const result = await Swal.fire({
         title: 'Delete Practice Log?',
         text: "Are you sure?",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         confirmButtonText: 'Yes, Delete'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const managerUid = urlParams.get('manager');
-            const isStudentPortal = !!managerUid;
-            const targetUid = managerUid ? managerUid : DOC_ID;
-
-            let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
-            if (studentIndex === -1) return;
-            let studentData = students[studentIndex];
-
-            // 🟢 ১. যে লগটি মুছতে হবে, তাকে ডাটাবেস থেকে রিমুভ করার জন্য খুঁজে বের করা হলো
-            const logToDelete = studentData.practice_log.find(log => log.id === logId);
-            if (!logToDelete) return;
-
-            // 🟢 ২. Local Array থেকে মুছে ফেলা হলো (যাতে সাথে সাথে UI থেকে গায়েব হয়ে যায়)
-            studentData.practice_log = studentData.practice_log.filter(log => log.id !== logId);
-            if (typeof window.globalPracticeLogs !== 'undefined') {
-                window.globalPracticeLogs = window.globalPracticeLogs.filter(log => log.id !== logId);
-            }
-
-            // 🟢 ৩. Instant UI Update
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully!', showConfirmButton: false, timer: 1500 });
-            if (context === 'student') {
-                renderPracticeHistoryPortal(studentData);
-            } else {
-                renderPracticeLogTeacher(studentId);
-                if(typeof renderDashboard === 'function') renderDashboard();
-            }
-
-            if (!isStudentPortal) {
-                students[studentIndex] = studentData;
-            }
-
-            // 🟢 ৪. Firebase Update (Legacy Student Doc)
-            db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
-                practice_log: studentData.practice_log
-            }).catch(e => console.log("Delete sync failed.", e));
-
-            // 🟢 ৫. Firebase Update (New Yearly Subcollection) - এখান থেকেই ভূতগুলো আসছিল! 👻
-            let logYear = new Date().getFullYear(); 
-            if(logToDelete.date) {
-                const parts = logToDelete.date.split('/'); // en-IN Format DD/MM/YYYY
-                if (parts.length === 3) logYear = parts[2];
-                else logYear = new Date(logToDelete.date).getFullYear() || logYear;
-            }
-
-            db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(logYear)).update({
-                records: firebase.firestore.FieldValue.arrayRemove(logToDelete)
-            }).catch(e => console.log("Yearly log delete sync failed.", e));
-        }
     });
+
+    if (result.isConfirmed) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const managerUid = urlParams.get('manager');
+        const targetUid = managerUid ? managerUid : DOC_ID;
+
+        let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
+        if (studentIndex === -1) return;
+        let studentData = students[studentIndex];
+
+        // ১. যে লগটি মুছতে হবে সেটি বের করা
+        const logToDelete = studentData.practice_log.find(log => String(log.id) === String(logId));
+        if (!logToDelete) return;
+
+        // ২. Local Array থেকে মুছে ফেলা (যাতে সাথে সাথে UI থেকে গায়েব হয়ে যায়)
+        studentData.practice_log = studentData.practice_log.filter(log => String(log.id) !== String(logId));
+        if (typeof window.globalPracticeLogs !== 'undefined') {
+            window.globalPracticeLogs = window.globalPracticeLogs.filter(log => String(log.id) !== String(logId));
+        }
+
+        // ৩. Instant UI Update
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully!', showConfirmButton: false, timer: 1500 });
+        
+        if (context === 'student') {
+            renderPracticeHistoryPortal(studentData);
+        } else {
+            renderPracticeLogTeacher(studentId);
+            if(typeof renderDashboard === 'function') renderDashboard(); // ড্যাশবোর্ড কাউন্ট আপডেট
+        }
+
+        // ৪. Firebase Update (Main Student Doc)
+        db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+            practice_log: studentData.practice_log
+        }).catch(e => console.log(e));
+
+        // ৫. Firebase Update (Yearly Subcollection) - 🟢 100% Reliable Deletion
+        let logYear = new Date().getFullYear(); 
+        if(logToDelete.date) {
+            const parts = logToDelete.date.split('/');
+            if (parts.length === 3) logYear = parts[2];
+        }
+
+        const yearRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(logYear));
+        
+        try {
+            const yearDoc = await yearRef.get();
+            if (yearDoc.exists) {
+                let records = yearDoc.data().records || [];
+                // ফায়ারবেসের ডেটা থেকে লগটি ফিল্টার করে বাদ দেওয়া হচ্ছে
+                records = records.filter(r => String(r.id) !== String(logId));
+                await yearRef.update({ records: records });
+            }
+        } catch (error) {
+            console.log("Background delete sync failed", error);
+        }
+    }
 };
 
 window.editPracticeLogTeacher = async function(studentId, logId) {
-    const student = students.find(s => s.id === studentId);
+    const student = students.find(s => String(s.id) === String(studentId));
     if (!student) return;
 
-    const logIndex = student.practice_log.findIndex(l => l.id === logId);
+    const logIndex = student.practice_log.findIndex(l => String(l.id) === String(logId));
     if (logIndex === -1) return;
     
-    // পুরানো লগটি কপি করে রাখা হলো যাতে পরে arrayRemove করা যায়
     const oldLog = student.practice_log[logIndex]; 
 
     const { value: formValues } = await Swal.fire({
@@ -6085,43 +6089,48 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
     });
 
     if (formValues) {
-        // নতুন ডেটা দিয়ে লগ আপডেট
         const newLog = { ...oldLog, minutes: formValues.minutes, topic: formValues.topic };
         student.practice_log[logIndex] = newLog;
 
         if (typeof window.globalPracticeLogs !== 'undefined') {
-            const gIndex = window.globalPracticeLogs.findIndex(l => l.id === logId);
+            const gIndex = window.globalPracticeLogs.findIndex(l => String(l.id) === String(logId));
             if (gIndex > -1) window.globalPracticeLogs[gIndex] = newLog;
         }
 
-        try {
-            // পুরানো সিস্টেম আপডেট
-            await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(studentId)).update({
-                practice_log: student.practice_log
-            });
-
-            // 🟢 নতুন সিস্টেম আপডেট (পুরানোটা Remove করে নতুনটা Union করা)
-            let logYear = new Date().getFullYear(); 
-            if(oldLog.date) {
-                const parts = oldLog.date.split('/');
-                if (parts.length === 3) logYear = parts[2];
-                else logYear = new Date(oldLog.date).getFullYear() || logYear;
-            }
-
-            const yearDocRef = db.collection(COLLECTION_NAME).doc(DOC_ID).collection('practice_logs').doc(String(logYear));
-            
-            await yearDocRef.update({
-                records: firebase.firestore.FieldValue.arrayRemove(oldLog)
-            });
-            await yearDocRef.update({
-                records: firebase.firestore.FieldValue.arrayUnion(newLog)
-            });
-
-        } catch(e) { console.log("Will sync later.", e); }
-
+        // ১. Instant UI Update
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Updated successfully!', showConfirmButton: false, timer: 1500 });
         renderPracticeLogTeacher(studentId);
         if(typeof renderDashboard === 'function') renderDashboard();
+
+        // ২. Firebase Update
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetUid = urlParams.get('manager') || DOC_ID;
+
+        db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+            practice_log: student.practice_log
+        }).catch(e => console.log(e));
+
+        // ৩. Firebase Yearly Subcollection Edit - 🟢 100% Reliable Edit
+        let logYear = new Date().getFullYear(); 
+        if(oldLog.date) {
+            const parts = oldLog.date.split('/');
+            if (parts.length === 3) logYear = parts[2];
+        }
+
+        const yearRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(logYear));
+        try {
+            const yearDoc = await yearRef.get();
+            if (yearDoc.exists) {
+                let records = yearDoc.data().records || [];
+                const recIndex = records.findIndex(r => String(r.id) === String(logId));
+                if (recIndex > -1) {
+                    records[recIndex] = newLog;
+                    await yearRef.update({ records: records });
+                }
+            }
+        } catch (error) {
+            console.log("Background edit sync failed", error);
+        }
     }
 };
 // ==========================================
