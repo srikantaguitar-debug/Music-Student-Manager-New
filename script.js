@@ -7449,7 +7449,6 @@ window.generateSalePDF = async function(sale, student) {
 
     const { jsPDF } = window.jspdf;
     
-    // 🟢 ডাইনামিক হাইট ক্যালকুলেশন: আইটেমের নাম বড় হলে PDF এর সাইজ অটোমেটিক বড় হবে
     let estLines = 0;
     if (sale.cart && Array.isArray(sale.cart)) {
         sale.cart.forEach(item => { estLines += Math.ceil(item.name.length / 25); });
@@ -7477,20 +7476,19 @@ window.generateSalePDF = async function(sale, student) {
     y += (titleLines.length * 5) + 2;
 
     doc.setFontSize(10); doc.setFont("helvetica", "normal");
-    doc.text("ACCESSORIES CASH MEMO", 52.5, y, {align: "center"});
+    // 🟢 এখানে CASH MEMO পরিবর্তন করে MONEY RECEIPT করা হয়েছে
+    doc.text("ACCESSORIES MONEY RECEIPT", 52.5, y, {align: "center"});
     doc.setLineWidth(0.2); doc.line(25, y+1, 80, y+1); y += 8; 
 
     doc.setFontSize(9);
     doc.text(`Date:`, 12, y); doc.setFont("helvetica", "bold"); doc.text(`${new Date(sale.date).toLocaleDateString('en-IN')}`, 32, y); doc.setFont("helvetica", "normal"); y += 6;
     
-    // স্টুডেন্টের নাম বড় হলে যাতে ভেঙে নিচে আসে
     doc.text(`Student:`, 12, y); doc.setFont("helvetica", "bold"); 
     const nameLines = doc.splitTextToSize(student.name, 60);
     doc.text(nameLines, 32, y); 
     doc.setFont("helvetica", "normal"); 
     y += (nameLines.length * 4) + 4;
 
-    // 🛒 Cart Items Table
     doc.setFillColor(240, 240, 240);
     doc.rect(10, y, 85, 6, 'F');
     doc.setFont("helvetica", "bold");
@@ -7498,15 +7496,12 @@ window.generateSalePDF = async function(sale, student) {
     doc.setFont("helvetica", "normal");
     y += 10;
 
-    // 🟢 FIX: ওভারল্যাপিং বন্ধ করার জন্য টেক্সট লাইন ব্রেক (Text Wrapping) লজিক
     if (sale.cart && Array.isArray(sale.cart)) {
         sale.cart.forEach(item => {
-            // ৫০ সাইজের বেশি বড় হলে টেক্সট ভেঙে পরের লাইনে যাবে
             const itemLines = doc.splitTextToSize(item.name, 50); 
             doc.text(itemLines, 12, y); 
             doc.text(`x${item.qty}`, 65, y); 
             doc.text(`Rs.${item.price}`, 80, y); 
-            // টেক্সট যতগুলো লাইন নেবে, সেই অনুযায়ী Y পজিশন বাড়বে (ওভারল্যাপ হবে না)
             y += (itemLines.length * 4) + 3; 
         });
     } else {
@@ -7518,13 +7513,11 @@ window.generateSalePDF = async function(sale, student) {
     
     doc.line(10, y, 95, y); y += 6;
 
-    // Totals
     doc.setFont("helvetica", "bold");
     doc.text(`Grand Total:`, 48, y); doc.text(`Rs. ${sale.price}/-`, 75, y); y += 6;
     doc.setTextColor(0, 128, 0); 
     doc.text(`Paid Amount:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
 
-    // Due 0 হলে PDF এ Due কলাম দেখাবে না
     if(sale.due > 0) {
         doc.setTextColor(200, 0, 0); doc.text(`Current Due:`, 48, y); doc.text(`Rs. ${sale.due}/-`, 75, y); doc.setTextColor(0);
         y += 6; 
@@ -7532,12 +7525,15 @@ window.generateSalePDF = async function(sale, student) {
     y += 6;
 
     // Signature
-    let sigBaseY = pageHeight - 15;
-    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 16, 35, 12); }
+    let sigBaseY = pageHeight - 10; // 🟢 'Authorized Signature' লেখাটির Y পজিশন
+    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { 
+        // 🟢 সিগনেচারের ছবিটি 'Authorized Signature' লেখাটির ঠিক উপরে (y পজিশন কমিয়ে) বসানো হলো
+        doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 12, 35, 10); 
+    }
     doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(`Authorized Signature`, 72, sigBaseY, {align:"center"});
 
     const safeItemName = sale.cart && sale.cart.length > 0 ? "Multiple_Items" : sale.item.replace(/\s+/g, '_');
-    const fileName = `Receipt_${safeItemName}.pdf`;
+    const fileName = `Money_Receipt_${safeItemName}.pdf`;
     
     window.tempSaleDoc = doc; window.tempSaleFileName = fileName;
     let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
@@ -7546,7 +7542,8 @@ window.generateSalePDF = async function(sale, student) {
     let itemsNamesWA = sale.cart ? sale.cart.map(i => `${i.name} (x${i.qty})`).join(', ') : sale.item;
     
     let dueMsg = sale.due > 0 ? `\nDue: ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-    window.tempSaleMsg = `Hello ${student.name},\nHere is your receipt for *${itemsNamesWA}*.\nTotal: ₹${sale.price}\nPaid: ₹${sale.paid}${dueMsg}\n\nThank You!`;
+    // 🟢 মেসেজে "Money Receipt" লেখা যোগ করা হয়েছে
+    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for *${itemsNamesWA}*.\nTotal: ₹${sale.price}\nPaid: ₹${sale.paid}${dueMsg}\n\nThank You!`;
 
     Swal.close();
     setTimeout(() => {
@@ -7578,9 +7575,11 @@ window.sendSaleWhatsApp = async function(saleId) {
     if(sale && student) {
         let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
         if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        // 🟢 NEW: Due 0 হলে মেসেজে Due কলাম দেখাবে না
         let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-        const msg = `Hello ${student.name},\n\nThis is regarding your purchase of *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\nSrikanta Banerjee`;
+        
+        // 🟢 Srikanta Banerjee এর জায়গায় INSTITUTE_NAME বসানো হয়েছে
+        const msg = `Hello ${student.name},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\n*${INSTITUTE_NAME}*`;
+        
         window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
     }
 };
@@ -7596,9 +7595,10 @@ window.sendSaleSMS = async function(saleId) {
             Swal.fire('Error', 'Student phone number is missing!', 'error');
             return;
         }
-        // 🟢 NEW: Due 0 হলে SMS এ Due কলাম দেখাবে না
         let dueMsg = sale.due > 0 ? `\nCurrent Due: Rs.${sale.due}\nPlease clear your due amount of Rs.${sale.due} as soon as possible.` : '';
-        const msg = `Hello ${student.name},\n\nThis is regarding your purchase of ${sale.item}.\n\nTotal Price: Rs.${sale.price}\nAmount Paid: Rs.${sale.paid}${dueMsg}\n\nRegards,\nSrikanta Banerjee`;
+        
+        // 🟢 Srikanta Banerjee এর জায়গায় INSTITUTE_NAME বসানো হয়েছে
+        const msg = `Hello ${student.name},\n\nThis is your Money Receipt for ${sale.item}.\n\nTotal Price: Rs.${sale.price}\nAmount Paid: Rs.${sale.paid}${dueMsg}\n\nRegards,\n${INSTITUTE_NAME}`;
         
         window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
     }
