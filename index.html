@@ -513,45 +513,59 @@
         </div>
     </div>
 
+<div class="dashboard-card" style="margin-bottom: 15px;">
+    <div class="form-group" style="margin-bottom: 0;">
+        <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: block;">Select Student</label>
+        <div style="display: flex; align-items: center; gap: 15px; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-input); cursor: pointer;" onclick="window.openSaleStudentSelector()">
+            <img id="saleSelectedPhoto" src="https://via.placeholder.com/35?text=S" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; display: none;">
+            <span id="saleSelectedName" style="font-weight: 600; color: var(--text-muted); font-size: 14px;">🔍 Click here to search student...</span>
+        </div>
+        <input type="hidden" id="saleStudentId" value="">
+    </div>
+</div>
     <div class="dashboard-card">
         <div class="form-group">
-            <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: block;">Search & Select Student</label>
-            <div onclick="openSaleStudentSelector()" style="display:flex; align-items:center; padding:10px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); cursor:pointer; margin-bottom:15px; transition: 0.2s;">
-                <img id="saleSelectedPhoto" src="" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #e2e8f0; margin-right: 12px; display: none;">
-                <div style="flex-grow: 1;">
-                    <div id="saleSelectedName" style="font-weight: bold; font-size: 14px; color: var(--text-muted);">🔍 Click here to search student...</div>
+            <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: block;">Add Items to Cart</label>
+            <div style="display: flex; gap: 10px; margin-bottom:10px;">
+                <div style="flex: 2;">
+                    <input type="text" id="itemName" list="stockDataList" placeholder="Item name..." oninput="window.autoFillItemPrice()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                    <datalist id="stockDataList"></datalist>
                 </div>
-                <input type="hidden" id="saleStudentId" value="">
-                <i class="fas fa-chevron-down" style="color: var(--text-muted);"></i>
+                <div style="flex: 0.8;">
+                    <input type="number" id="saleQty" value="1" min="1" oninput="window.updateSalePriceCalc()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box; font-weight: bold; text-align: center;" placeholder="Qty">
+                </div>
+                <div style="flex: 1;">
+                    <input type="number" id="itemPrice" placeholder="Total ₹" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
+                </div>
             </div>
             
-            <label style="font-size: 12px; color: var(--text-muted); margin-bottom: 5px; display: block;">Item Details (Auto-fills price from stock)</label>
-            <input type="text" id="itemName" list="stockDataList" placeholder="Select or type item name..." oninput="window.autoFillItemPrice()" style="margin-bottom:10px; width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
-            <datalist id="stockDataList"></datalist>
-            
-            <div style="display: flex; gap: 10px; margin-bottom:10px;">
-                <div style="flex: 0.6;">
-                    <label style="font-size:11px; color: var(--text-muted);">Qty</label>
-                    <input type="number" id="saleQty" value="1" min="1" oninput="window.updateSalePriceCalc()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box; font-weight: bold; text-align: center;">
+            <button class="btn-info" onclick="window.addToCart()" style="width:100%; margin-bottom: 15px; padding: 10px; border-radius: 8px; font-weight: bold;"><i class="fas fa-cart-plus"></i> Add to Cart</button>
+
+            <div id="saleCartContainer" style="background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 15px; display: none;">
+                <h4 style="margin: 0 0 10px 0; font-size: 13px; color: var(--primary);"><i class="fas fa-shopping-cart"></i> Shopping Cart</h4>
+                <ul id="saleCartList" style="list-style: none; padding: 0; margin: 0; font-size: 12px; max-height: 120px; overflow-y: auto;"></ul>
+                <div style="border-top: 1px solid var(--border-color); margin-top: 10px; padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-weight: 600;">Cart Total:</span>
+                    <span style="font-weight: bold; font-size: 16px; color: var(--text-main);">₹<span id="cartTotalPrice">0</span></span>
                 </div>
-                <div style="flex: 1.2;">
-                    <label style="font-size:11px; color: var(--text-muted);">Total Price (₹)</label>
-                    <input type="number" id="itemPrice" placeholder="0" oninput="window.calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
-                </div>
-                <div style="flex: 1.2;">
-                    <label style="font-size:11px; color: var(--text-muted);">Paid (₹)</label>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom:15px;">
+                <div style="flex: 1;">
+                    <label style="font-size:11px; color: var(--text-muted);">Amount Paid (₹)</label>
                     <input type="number" id="amountPaid" placeholder="0" oninput="window.calculateSaleDue()" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); box-sizing:border-box;">
                 </div>
+                <div style="flex: 1; display:flex; flex-direction:column; justify-content:flex-end;">
+                     <div id="saleDueDisplay" style="font-weight:bold; color:var(--success); font-size:14px; background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 8px; text-align:center; height: 43px; box-sizing:border-box; display:flex; align-items:center; justify-content:center;">Due: ₹0</div>
+                </div>
             </div>
             
-            <div id="saleDueDisplay" style="margin-bottom:15px; font-weight:bold; color:var(--success); font-size:14px; background: rgba(16, 185, 129, 0.1); padding: 8px; border-radius: 6px;">Due: ₹0</div>
-            
             <input type="hidden" id="editSaleId" value="">
-            <button id="saleProcessBtn" class="btn-primary" onclick="processSale()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none;">
-                <i class="fas fa-file-invoice-dollar"></i> Sell & Send Receipt
+            <button id="saleProcessBtn" class="btn-primary" onclick="processSale()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; font-weight: bold;">
+                <i class="fas fa-check-circle"></i> Checkout & Send Receipt
             </button>
             <button id="saleCancelEditBtn" class="btn-danger" onclick="cancelSaleEdit()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; margin-top: 8px; display: none;">
-                Cancel Edit
+                Cancel
             </button>
         </div>
     </div>
@@ -579,7 +593,7 @@
         </thead>
         <tbody id="salesList"></tbody>
     </table>
-</div> ```
+</div>
 
         <div id="settings" class="tab-content">
              <h3>App Settings</h3>
@@ -934,6 +948,7 @@
                         <label style="font-size: 10px;">Qty</label>
                         <input type="number" id="newStockQty" placeholder="0" style="padding: 8px; font-size: 13px;">
                     </div>
+                    <input type="hidden" id="editStockId" value="">
                 </div>
                 <button class="btn-primary" onclick="window.addStockItem()" style="width: 100%; margin-top: 10px; padding: 10px; font-size: 13px;"><i class="fas fa-plus"></i> Add / Update Stock</button>
             </div>
