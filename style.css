@@ -310,3 +310,8 @@ html, body {
     #qr-reader-box span, #qr-reader-box a { color: var(--text-main) !important; }
     #qr-reader-box button { background-color: var(--primary) !important; color: white !important; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; margin: 5px; }
     #qr-reader-box select { background: var(--bg-input) !important; color: var(--text-main) !important; border: 1px solid var(--border-color) !important; padding: 5px; border-radius: 5px; }
+    /* --- Compact SweetAlert & Action Buttons --- */
+div:where(.swal2-container) .swal2-popup { width: 85% !important; padding: 15px !important; }
+div:where(.swal2-container) .swal2-title { font-size: 18px !important; margin-bottom: 5px !important; }
+div:where(.swal2-container) .swal2-icon { transform: scale(0.6) !important; margin: 5px auto !important; }
+div:where(.swal2-container) .swal2-html-container { font-size: 13px !important; margin: 0 !important; }
