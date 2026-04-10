@@ -392,24 +392,48 @@ s.practice_log = s.combined_practice_logs;
                                 }
 
                                 // ৫. Study Materials Data
-                                let materialsHtml = '';
-                                if (s.study_materials && s.study_materials.length > 0) {
-                                    materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
-                                        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
-                                        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
-                                            <div style="display:flex; align-items:center; gap:10px;">
-                                                <div style="font-size:20px;">${icon}</div>
-                                                <div>
-                                                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
-                                                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
-                                                </div>
-                                            </div>
-                                            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
-                                        </div>`;
-                                    }).join('');
-                                } else {
-                                    materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
-                                }
+let materialsHtml = '';
+if (s.study_materials && s.study_materials.length > 0) {
+    materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
+        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
+        
+        // ইউটিউব লিংক হলে সরাসরি ভিডিও প্লেয়ার (Iframe) তৈরি করবে
+        if (mat.type === 'video' && mat.link.includes('youtu')) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+            const match = mat.link.match(regExp);
+            const videoId = (match && match[2].length === 11) ? match[2] : null;
+            
+            if (videoId) {
+                return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; border:1px solid #e2e8f0;">
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                        <div style="font-size:20px;">${icon}</div>
+                        <div>
+                            <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
+                            <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+                        </div>
+                    </div>
+                    <div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        <iframe src="https://www.youtube.com/embed/${videoId}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                    </div>
+                </div>`;
+            }
+        }
+        
+        // পিডিএফ বা অন্য লিংক হলে আগের মতোই শুধু "View" বাটন দেখাবে
+        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="font-size:20px;">${icon}</div>
+                <div>
+                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
+                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+                </div>
+            </div>
+            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
+        </div>`;
+    }).join('');
+} else {
+    materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
+}
 
 // 🟢 NEW: Active/Inactive Status Check for Portal
 const isStudentActive = isStudentCurrentlyActive(s);
