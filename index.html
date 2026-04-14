@@ -312,8 +312,13 @@
 
         <div id="studentMgmt" class="tab-content">
             
-            <div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-    <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;"><i class="fas fa-bullhorn"></i> Send Notice</button>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <button class="btn-primary" onclick="exportAllStudentsPDF()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px; background-color: #8b5cf6; border: none; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);">
+        <i class="fas fa-file-pdf"></i> Student PDF
+    </button>
+    <button class="btn-info" onclick="openBulkMessageModal()" style="height: 36px; padding: 0 15px; font-size: 13px; border-radius: 6px;">
+        <i class="fas fa-bullhorn"></i> Send Notice
+    </button>
 </div>
 
             <div class="dashboard-card" style="border-color: var(--info);">
