@@ -2313,7 +2313,7 @@ function renderDashboard() {
         !dismissedBirthdays.includes(`${s.id}_${currentYearForCheck}`)
     ); 
     if (birthdayStudents.length > 0) { birthdayList.innerHTML = ''; birthdayStudents.forEach(s => { birthdayList.innerHTML += `<div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-input); padding:10px; border-radius:8px; margin-bottom:5px; border:1px solid #ffe4e6; color:var(--text-main);"><div style="display:flex; align-items:center;"><img src="${s.photo || 'https://via.placeholder.com/40?text=S'}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; border: 2px solid #000 !important;"><div><strong>${s.name}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.class || 'Student'}</span></div></div><div style="display:flex; gap:5px;"><button class="btn-whatsapp btn-like" onclick="sendBirthdayWish('wa', ${s.id})"><i class="fab fa-whatsapp"></i></button><button class="btn-sms btn-like" onclick="sendBirthdayWish('sms', ${s.id})"><i class="fas fa-sms"></i></button><button class="btn-success btn-like" onclick="dismissBirthday(${s.id})" title="Dismiss"><i class="fas fa-check"></i></button></div></div>`; }); birthdayBox.style.display = 'block'; } else { birthdayBox.style.display = 'none'; }
-    // 🟢 NEW: Today's Practice Logs Logic (Updated)
+// 🟢 NEW: Today's Practice Logs Logic (Updated)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
@@ -2335,6 +2335,23 @@ function renderDashboard() {
                 }
             });
         }
+    });
+
+    // 🟢 NEW: লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
+    todaysLogs.sort((a, b) => {
+        const parseTime = (t) => {
+            if (!t) return 0;
+            const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            let h = parseInt(match[1]);
+            let m = parseInt(match[2]);
+            let ampm = match[3].toUpperCase();
+            if (h === 12) h = 0;
+            if (ampm === 'PM') h += 12;
+            return h * 60 + m;
+        };
+        // b.time থেকে a.time বিয়োগ করা হচ্ছে, যাতে নতুন সময় সবার উপরে থাকে
+        return parseTime(b.time) - parseTime(a.time); 
     });
 
     // কতজন ইউনিক স্টুডেন্ট আজ প্র্যাকটিস করেছে তা গোনা
@@ -7864,5 +7881,143 @@ window.autoFillItemPrice = function() {
     } else {
         window.currentUnitPrice = 0;
         document.getElementById('itemPrice').value = '';
+    }
+};
+window.exportAllStudentsPDF = async function() {
+    if (!students || students.length === 0) {
+        Swal.fire('Info', 'No students available to export.', 'info');
+        return;
+    }
+
+    Swal.fire({ title: 'Generating PDF...', text: 'Please wait...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.getHeight();
+        let y = 20;
+
+        // 🟢 PDF Header
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            doc.addImage(instituteLogo, 'JPEG', 15, 10, 15, 15);
+        }
+        doc.setFontSize(16);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0);
+        doc.text(typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes', pageWidth/2, 18, {align: "center"});
+        
+        doc.setFontSize(12);
+        doc.setTextColor(80);
+        doc.text("Complete Student Directory", pageWidth/2, 25, {align: "center"});
+        
+        doc.setDrawColor(200);
+        doc.setLineWidth(0.5);
+        doc.line(15, 30, pageWidth-15, 30);
+        y = 40;
+
+        // 🟢 Student Row Drawing Function (Updated with Address)
+        const drawStudentRow = (s, isActive) => {
+            if (y > pageHeight - 35) { // পেজ শেষ হলে নতুন পেজ নেবে
+                doc.addPage();
+                y = 20;
+            }
+            
+            // Student Photo
+            if (s.photo) {
+                try {
+                    doc.addImage(s.photo, 'JPEG', 15, y, 18, 18);
+                    doc.setDrawColor(0);
+                    doc.setLineWidth(0.3);
+                    doc.rect(15, y, 18, 18);
+                } catch(e) {
+                    doc.setDrawColor(200); doc.setFillColor(240); doc.rect(15, y, 18, 18, 'FD');
+                }
+            } else {
+                doc.setDrawColor(200); doc.setFillColor(240); doc.rect(15, y, 18, 18, 'FD');
+                doc.setFontSize(8); doc.setTextColor(150); doc.text("No Pic", 24, y + 10, {align:'center'});
+            }
+
+            // Student Details
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(0);
+            doc.text(`${s.name} (ID: ${s.serial_no})`, 38, y + 4);
+            
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(9);
+            doc.setTextColor(80);
+            doc.text(`Class: ${s.class || 'N/A'}  |  Phone: ${s.phone || 'N/A'}`, 38, y + 9);
+            
+            let joinDate = s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A';
+            doc.text(`Joined: ${joinDate}  |  Fee: Rs. ${s.fee_amount || 0}`, 38, y + 14);
+
+            // 🟢 NEW: Address Added Here
+            let addressText = s.address ? s.address : 'N/A';
+            // ঠিকানা খুব বড় হলে কেটে ছোট করে দেবে যাতে ডিজাইন নষ্ট না হয়
+            if (addressText.length > 60) addressText = addressText.substring(0, 60) + '...'; 
+            doc.text(`Address: ${addressText}`, 38, y + 19);
+
+            // Active/Inactive Badge
+            doc.setFontSize(9);
+            doc.setFont("helvetica", "bold");
+            if (isActive) {
+                doc.setTextColor(16, 185, 129); // Green
+                doc.text("ACTIVE", pageWidth - 15, y + 9, {align: "right"});
+            } else {
+                doc.setTextColor(239, 68, 68); // Red
+                doc.text("INACTIVE", pageWidth - 15, y + 9, {align: "right"});
+            }
+            
+            // Bottom line for row
+            doc.setDrawColor(230);
+            doc.setLineWidth(0.2);
+            doc.line(15, y + 24, pageWidth-15, y + 24);
+            
+            y += 29; // পরের স্টুডেন্টের জন্য গ্যাপ বাড়ানো হলো
+        };
+
+        // 🟢 Separate Active and Inactive Students
+        const activeStudents = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+        const inactiveStudents = students.filter(s => !window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+
+        // 🟢 Draw Active Students
+        if (activeStudents.length > 0) {
+            doc.setFontSize(13);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(16, 185, 129);
+            doc.text(`Active Students (${activeStudents.length})`, 15, y);
+            y += 8;
+            activeStudents.forEach(s => drawStudentRow(s, true));
+        }
+
+        // 🟢 Draw Inactive Students
+        if (inactiveStudents.length > 0) {
+            y += 5;
+            if (y > pageHeight - 30) { doc.addPage(); y = 20; }
+            doc.setFontSize(13);
+            doc.setFont("helvetica", "bold");
+            doc.setTextColor(239, 68, 68);
+            doc.text(`Inactive Students (${inactiveStudents.length})`, 15, y);
+            y += 8;
+            inactiveStudents.forEach(s => drawStudentRow(s, false));
+        }
+
+        // 🟢 Page Footer
+        const pageCount = doc.getNumberOfPages();
+        for(let i=1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Page ${i} of ${pageCount}  |  Generated on: ${new Date().toLocaleDateString('en-IN')}`, pageWidth/2, pageHeight - 10, {align: 'center'});
+        }
+
+        doc.save(`Student_Directory_${new Date().toISOString().split('T')[0]}.pdf`);
+        Swal.close();
+
+    } catch (error) {
+        console.error(error);
+        Swal.fire('Error', 'Failed to generate PDF. Check console for details.', 'error');
     }
 };
