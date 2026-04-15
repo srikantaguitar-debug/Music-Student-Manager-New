@@ -530,7 +530,7 @@ document.body.innerHTML = `
             <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
         </div>
 
-        <div style="margin-top:-60px; padding:0 20px;">
+        <div style="margin-top:-60px; padding:0 20px; position: relative; z-index: 10;">
             <div style="text-align: center; margin-bottom: 25px;">
                 <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
                 <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
