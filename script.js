@@ -896,7 +896,7 @@ window.loadTheme = function() {
 
             if (isAutoTheme === 'true') {
                 // 🟢 অটো থিম: সপ্তাহের ৭ দিনের জন্য ৭টি আলাদা থিম!
-                const themes = ['light', 'blue', 'green', 'yellow', 'red', 'purple-dark', 'dark'];
+                const themes = ['dark', 'yellow', 'light', 'blue', 'red', 'green', 'purple-dark'];
                 const today = new Date().getDay(); // রবিবার(0) থেকে শনিবার(6)
                 themeToApply = themes[today];
             } else {
@@ -8112,3 +8112,15 @@ window.changePortalTheme = function(themeName) {
     Swal.close();
     loadTheme(); // বাটন টেক্সট আপডেট করার জন্য
 };
+// Service Worker Registration
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+        .then((registration) => {
+            console.log('Service Worker Registered Successfully!');
+        })
+        .catch((error) => {
+            console.log('Service Worker Registration Failed:', error);
+        });
+    });
+}
