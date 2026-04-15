@@ -661,7 +661,7 @@ document.body.innerHTML = `
             <div class="scroller-box">${paidHtml}</div>
         </div></div>
 
-        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.1); border-radius:24px 24px 0 0; box-sizing:border-box;">
+        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.1); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
             <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
                 <i class="fas fa-user-tie" style="font-size: 24px; color: var(--text-main);"></i>
             </button>
