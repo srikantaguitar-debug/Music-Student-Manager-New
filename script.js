@@ -546,7 +546,13 @@ document.body.innerHTML = `
                 
                 ${practiceLogFormHtml}
                 
-                <div id="practiceHistoryPortal" style="margin-top: 15px; max-height: 150px; overflow-y: auto;"></div>
+                <div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
+            <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:14px; font-weight:600;">
+                <i class="fas fa-history" style="color:var(--primary); margin-right:5px;"></i> Recent Practice Logs
+            </h4>
+            <div id="practiceHistoryPortal" class="scroller-box" style="max-height: 250px; overflow-y: auto; background: var(--bg-input); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
+                </div>
+        </div>
             </div>
 
             <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px; margin-top: 25px;">
@@ -878,15 +884,34 @@ window.showHelpOptions = function() {
             });
         }
 
-function loadTheme() {
-            // লোকাল মেমরি থেকে থিম চেক করবে, না পেলে ডিফল্ট 'light' সেট করবে
-            const t = localStorage.getItem('app_theme') || 'light';
-            document.body.setAttribute('data-theme', t);
+window.loadTheme = function() {
+            // অটো থিম চালু আছে কিনা চেক করা (ডিফল্ট: true)
+            let isAutoTheme = localStorage.getItem('auto_theme_enabled');
+            if (isAutoTheme === null) {
+                isAutoTheme = 'true';
+                localStorage.setItem('auto_theme_enabled', 'true');
+            }
+
+            let themeToApply = 'light';
+
+            if (isAutoTheme === 'true') {
+                // 🟢 অটো থিম: সপ্তাহের ৭ দিনের জন্য ৭টি আলাদা থিম!
+                const themes = ['light', 'blue', 'green', 'yellow', 'red', 'purple-dark', 'dark'];
+                const today = new Date().getDay(); // রবিবার(0) থেকে শনিবার(6)
+                themeToApply = themes[today];
+            } else {
+                // 🔴 ম্যানুয়াল থিম: যদি অটো থিম অফ থাকে
+                themeToApply = localStorage.getItem('app_theme') || 'light';
+            }
+
+            // থিম অ্যাপ্লাই করা
+            document.body.setAttribute('data-theme', themeToApply);
             
-            // থিম অনুযায়ী বাটনের আইকন আপডেট করবে (ঐচ্ছিক)
+            // ম্যানেজার অ্যাপের সেটিংস বাটনের টেক্সট আপডেট
             const btn = document.getElementById('themeToggleBtn');
             if (btn) {
-                btn.innerHTML = '<i class="fas fa-palette"></i> Choose Theme';
+                let themeNameDisplay = themeToApply.charAt(0).toUpperCase() + themeToApply.slice(1);
+                btn.innerHTML = `<i class="fas fa-palette"></i> ${isAutoTheme === 'true' ? 'Auto Theme ('+themeNameDisplay+')' : 'Choose Theme'}`;
             }
         }
 
@@ -8021,10 +8046,23 @@ window.exportAllStudentsPDF = async function() {
     }
 };
 window.openThemeSelector = function() {
+    let isAutoTheme = localStorage.getItem('auto_theme_enabled') !== 'false';
+
     Swal.fire({
         title: 'Choose Theme',
         html: `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--border-color);">
+                <span style="font-weight: bold; font-size: 15px; color: var(--text-main);"><i class="fas fa-magic" style="color: var(--primary); margin-right: 5px;"></i> Auto Daily Theme</span>
+                
+                <label style="position: relative; display: inline-block; width: 50px; height: 28px;">
+                    <input type="checkbox" id="autoThemeToggle" ${isAutoTheme ? 'checked' : ''} onchange="toggleAutoTheme(this.checked)" style="opacity: 0; width: 0; height: 0;">
+                    <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: ${isAutoTheme ? 'var(--success)' : 'var(--secondary)'}; border-radius: 34px; transition: .4s;">
+                        <span style="position: absolute; content: ''; height: 20px; width: 20px; left: ${isAutoTheme ? '26px' : '4px'}; bottom: 4px; background-color: white; border-radius: 50%; transition: .4s; box-shadow: 0 2px 5px rgba(0,0,0,0.2);"></span>
+                    </span>
+                </label>
+            </div>
+
+            <div id="manualThemeGrid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; transition: 0.3s; opacity: ${isAutoTheme ? '0.4' : '1'}; pointer-events: ${isAutoTheme ? 'none' : 'auto'};">
                 <button onclick="changePortalTheme('light')" style="background: #f8fafc; color: #1e293b; border: 2px solid #cbd5e1; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">☀️ Light</button>
                 <button onclick="changePortalTheme('dark')" style="background: #1e293b; color: #f1f5f9; border: 2px solid #334155; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🌙 Dark</button>
                 
@@ -8044,8 +8082,33 @@ window.openThemeSelector = function() {
     });
 };
 
+// 🟢 অটো থিম অন/অফ করার লজিক
+window.toggleAutoTheme = function(isChecked) {
+    localStorage.setItem('auto_theme_enabled', isChecked);
+    
+    // সাথে সাথে সুইচ এবং ম্যানুয়াল বাটনগুলোর ডিজাইন আপডেট করা
+    const grid = document.getElementById('manualThemeGrid');
+    if(grid) {
+        grid.style.opacity = isChecked ? '0.4' : '1';
+        grid.style.pointerEvents = isChecked ? 'none' : 'auto';
+    }
+    const toggleBg = document.querySelector('input#autoThemeToggle + span');
+    const toggleCircle = document.querySelector('input#autoThemeToggle + span > span');
+    if(toggleBg && toggleCircle) {
+        toggleBg.style.backgroundColor = isChecked ? 'var(--success)' : 'var(--secondary)';
+        toggleCircle.style.left = isChecked ? '26px' : '4px';
+    }
+    
+    // নতুন সেটিং অনুযায়ী সাথে সাথে থিম লোড করা
+    loadTheme();
+};
+
+// 🔴 ম্যানুয়ালি থিম সিলেক্ট করার লজিক
 window.changePortalTheme = function(themeName) {
-    document.body.setAttribute('data-theme', themeName);
+    localStorage.setItem('auto_theme_enabled', 'false'); // ম্যানুয়াল সিলেক্ট করলে অটো অফ হয়ে যাবে
     localStorage.setItem('app_theme', themeName);
+    document.body.setAttribute('data-theme', themeName);
+    
     Swal.close();
+    loadTheme(); // বাটন টেক্সট আপডেট করার জন্য
 };
