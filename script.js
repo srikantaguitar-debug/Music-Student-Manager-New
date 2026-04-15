@@ -12,10 +12,8 @@
         const db = firebase.firestore();
 
         // --- 3. ENABLE OFFLINE PERSISTENCE (Fast & Offline) ---
-        // WhatsApp বা In-app ব্রাউজারের সমস্যার জন্য স্টুডেন্ট পোর্টালে অফলাইন ক্যাশে বন্ধ রাখা হলো
-        if (!window.location.search.includes('student=')) {
-            db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log(err));
-        }
+        // 🟢 স্টুডেন্ট পোর্টাল সহ পুরো অ্যাপে অফলাইন সাপোর্ট চালু করা হলো
+        db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log("Offline Persistence Error:", err));
 
         const COLLECTION_NAME = 'music_classes';
         let DOC_ID = 'main_data';
@@ -460,8 +458,11 @@ if (isStudentActive) {
     </div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <input type="number" id="practiceMinutes" placeholder="Mins (e.g. 45)" style="width: 35%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
-        <input type="text" id="practiceTopic" placeholder="Topic (Optional)" style="width: 65%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
+        <div style="width: 40%; display: flex; gap: 5px;">
+            <input type="number" id="practiceHours" placeholder="Hrs" min="0" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
+            <input type="number" id="practiceMinutes" placeholder="Mins" min="0" max="59" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
+        </div>
+        <input type="text" id="practiceTopic" placeholder="Topic (Optional)" style="width: 60%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
     </div>
     
     <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;">
@@ -506,36 +507,41 @@ if (isStudentActive) {
     </div>`;
 }
 
-// ৬. HTML Structure
+// ৬. HTML Structure (Themed)
 document.body.innerHTML = `
     <style>
         .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
-        .modal-content-portal { background:#fff; width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        .modal-content-portal { background:var(--bg-card); width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); color: var(--text-main); }
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
         .scroller-box::-webkit-scrollbar { width: 4px; }
-        .scroller-box::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:#94a3b8; background: #f1f5f9; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+        .scroller-box::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 4px; }
+        .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:var(--text-muted); background: var(--bg-input); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
     </style>
     
-    <div style="background: #f4f7f6; min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px;">
-        <div style="background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);">
+    <div style="background: var(--bg-body); min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px; color: var(--text-main); transition: background 0.3s, color 0.3s;">
+        <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); position: relative;">
+            
+            <button onclick="openThemeSelector()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 38px; height: 38px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <i class="fas fa-palette"></i>
+            </button>
+
             <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
             <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
         </div>
 
         <div style="margin-top:-60px; padding:0 20px;">
             <div style="text-align: center; margin-bottom: 25px;">
-                <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid #fff; object-fit:cover; background:#eee; box-shadow:0 8px 16px rgba(0,0,0,0.1);">
-                <h2 style="margin:10px 0 5px 0; color:#1e293b; font-size:20px; font-weight: 700;">${s.name}</h2>
+                <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
                 ${badgeHtml}
                 ${inactiveDetailsHtml}
             </div>
 
             ${noticeHtml}
-            <div style="margin-top: 25px; background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid #10b981;">
-                <h4 style="margin:0 0 15px 0; color:#334155; font-size:16px;">
-                    <i class="fas fa-stopwatch" style="color:#10b981; margin-right:5px;"></i> Daily Practice Log
+            <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
+                <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
+                    <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
                 </h4>
                 
                 ${practiceLogFormHtml}
@@ -543,29 +549,29 @@ document.body.innerHTML = `
                 <div id="practiceHistoryPortal" style="margin-top: 15px; max-height: 150px; overflow-y: auto;"></div>
             </div>
 
-            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px;">
-                <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px; margin-top: 25px;">
+                <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                     <div style="display:flex; align-items:center; gap:15px;">
-                        <div style="background:#eff6ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
-                        <span style="font-size:15px; font-weight:600; color:#334155;">Profile Details</span>
+                        <div style="background:rgba(59, 130, 246, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
+                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Profile Details</span>
                     </div>
-                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
                 </button>
                 
-                <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                     <div style="display:flex; align-items:center; gap:15px;">
-                        <div style="background:#f3e8ff; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
-                        <span style="font-size:15px; font-weight:600; color:#334155;">Attendance History</span>
+                        <div style="background:rgba(168, 85, 247, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
+                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Attendance History</span>
                     </div>
-                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
                 </button>
                 
-                <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:#fff; padding:16px 20px; border-radius:16px; border:none; box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
                     <div style="display:flex; align-items:center; gap:15px;">
-                        <div style="background:#dcfce7; width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
-                        <span style="font-size:15px; font-weight:600; color:#334155;">Payment History</span>
+                        <div style="background:rgba(34, 197, 94, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
+                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Payment History</span>
                     </div>
-                    <i class="fas fa-chevron-right" style="color:#cbd5e1;"></i>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
                 </button>
             </div>
 
@@ -573,41 +579,41 @@ document.body.innerHTML = `
             ${accessoryDuesHtml}
 
             <div style="margin-top: 10px;">
-                <h4 style="margin:0 0 15px 5px; color:#334155; font-size:16px;"><i class="fas fa-book-open" style="color:#6366f1; margin-right:5px;"></i> My Study Materials</h4>
-                <div class="scroller-box" style="background:#fff; border-radius:16px; padding:15px; box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
+                <h4 style="margin:0 0 15px 5px; color:var(--text-main); font-size:16px;"><i class="fas fa-book-open" style="color:var(--primary); margin-right:5px;"></i> My Study Materials</h4>
+                <div class="scroller-box" style="background:var(--bg-card); border-radius:16px; padding:15px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
             </div>
         </div>
 
         <div id="m-teacher" class="modal-portal"><div class="modal-content-portal">
             <div class="close-btn" onclick="document.getElementById('m-teacher').style.display='none'">&times;</div>
-            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Teacher Details</h3>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Teacher Details</h3>
             <div style="text-align: center; padding: 15px 0;">
-                <div style="background:#eff6ff; width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:30px; margin: 0 auto 15px auto; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.2);">
+                <div style="background:rgba(59, 130, 246, 0.1); width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:30px; margin: 0 auto 15px auto;">
                     <i class="fas fa-user-tie"></i>
                 </div>
-                <h2 style="margin: 0 0 5px 0; color: #1e293b;">Srikanta Banerjee</h2>
-                <p style="margin: 0; color: #64748b; font-size: 13px; font-weight: 600;">Owner & Instructor</p>
+                <h2 style="margin: 0 0 5px 0; color: var(--text-main);">Srikanta Banerjee</h2>
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Owner & Instructor</p>
                 
-                <div style="margin-top: 20px; text-align: left; font-size: 14px; color: #334155; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px dashed #cbd5e1; line-height: 1.6;">
+                <div style="margin-top: 20px; text-align: left; font-size: 14px; color: var(--text-main); background: var(--bg-input); padding: 15px; border-radius: 12px; border: 1px dashed var(--border-color); line-height: 1.6;">
                     <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
                         <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 16px; margin-top: 3px;"></i> 
                         <div>
                             <strong>Address:</strong><br>
-                            <span style="color: #475569;">Moyna, Nabagram,<br>Purba Bardhaman</span>
+                            <span style="color: var(--text-muted);">Moyna, Nabagram,<br>Purba Bardhaman</span>
                         </div>
                     </div>
                     <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
                         <i class="fas fa-phone-alt" style="color: #10b981; font-size: 16px; margin-top: 3px;"></i> 
                         <div>
                             <strong>Contact:</strong><br>
-                            <span style="color: #475569;">7001471235 / 9475311199</span>
+                            <span style="color: var(--text-muted);">7001471235 / 9475311199</span>
                         </div>
                     </div>
                     <div style="display: flex; align-items: flex-start; gap: 10px;">
-                        <i class="fas fa-music" style="color: #8b5cf6; font-size: 16px; margin-top: 3px;"></i> 
+                        <i class="fas fa-music" style="color: var(--primary); font-size: 16px; margin-top: 3px;"></i> 
                         <div>
                             <strong>Classes:</strong><br>
-                            <span style="color: #475569;">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span>
+                            <span style="color: var(--text-muted);">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span>
                         </div>
                     </div>
                 </div>
@@ -616,70 +622,60 @@ document.body.innerHTML = `
         
         <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
             <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
-            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Profile Details</h3>
-            <div class="scroller-box" style="font-size: 14px; color: #475569;">
-                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                    <span style="font-weight:600;">Joining Date:</span> <span style="color:#1e293b;">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Profile Details</h3>
+            <div class="scroller-box" style="font-size: 14px; color: var(--text-muted);">
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Joining Date:</span> <span style="color:var(--text-main);">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                    <span style="font-weight:600;">ID No:</span> <span style="color:#1e40af; font-weight:700;">#${s.serial_no}</span>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">ID No:</span> <span style="color:var(--primary); font-weight:700;">#${s.serial_no}</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                    <span style="font-weight:600;">Class:</span> <span style="color:#1e293b;">${s.class || 'N/A'}</span>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Class:</span> <span style="color:var(--text-main);">${s.class || 'N/A'}</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:#10b981; font-weight:700;">₹${s.fee_amount || 500}</span>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:var(--success); font-weight:700;">₹${s.fee_amount || 500}</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                    <span style="font-weight:600;">Phone:</span> <span style="color:#1e293b;">${s.phone || 'N/A'}</span>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Phone:</span> <span style="color:var(--text-main);">${s.phone || 'N/A'}</span>
                 </div>
-                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed #e2e8f0;">
-                    <span style="font-weight:600;">DOB:</span> <span style="color:#1e293b;">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">DOB:</span> <span style="color:var(--text-main);">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; padding: 10px 0;">
-                    <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:#1e293b;">${s.address || 'N/A'}</span>
+                    <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:var(--text-main);">${s.address || 'N/A'}</span>
                 </div>
             </div>
         </div></div>
 
         <div id="m-att" class="modal-portal"><div class="modal-content-portal">
             <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
-            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Attendance History</h3>
-            
-            <div style="margin-bottom: 15px;">
-                ${getPastInactivePeriodsHtml(s)}
-            </div>
-            
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Attendance History</h3>
+            <div style="margin-bottom: 15px;">${getPastInactivePeriodsHtml(s)}</div>
             <div class="scroller-box">${attHtml}</div>
         </div></div>
 
         <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
             <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
-            <h3 style="margin-top:5px; color:#334155; font-size:18px; border-bottom:2px solid #f1f5f9; padding-bottom:10px;">Payment History</h3>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Payment History</h3>
             <div class="scroller-box">${paidHtml}</div>
         </div></div>
 
-        <div style="position:fixed; bottom:0; left:0; width:100%; background:#fff; padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.06); border-radius:24px 24px 0 0; box-sizing:border-box;">
-            
-            <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: #f1f5f9; border: none; border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                <i class="fas fa-user-tie" style="font-size: 24px; color: #000000;"></i>
+        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.1); border-radius:24px 24px 0 0; box-sizing:border-box;">
+            <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-user-tie" style="font-size: 24px; color: var(--text-main);"></i>
             </button>
-            
-            <button onclick="showStudentPortalQR('${studentViewId}')" style="flex: 1.2; height: 45px; background: #3b82f6; color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(59,130,246,0.3); cursor: pointer;">
+            <button onclick="showStudentPortalQR('${studentViewId}')" style="flex: 1.2; height: 45px; background: var(--primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(99,102,241,0.3); cursor: pointer;">
                 QR Code
             </button>
-            
-            <button onclick="showHelpOptions()" style="flex: 1.2; height: 45px; background: #6366f1; color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(99,102,241,0.3); cursor: pointer;">
+            <button onclick="showHelpOptions()" style="flex: 1.2; height: 45px; background: var(--info); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(59,130,246,0.3); cursor: pointer;">
                 Help
             </button>
-            
-            <button onclick="studentPortalLogout('${studentViewId}')" style="flex:1; height: 45px; background: #fff; color: #ef4444; border: 2px solid #fecaca; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
+            <button onclick="studentPortalLogout('${studentViewId}')" style="flex:1; height: 45px; background: var(--bg-card); color: var(--danger); border: 2px solid var(--danger); display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
                 Log Out
             </button>
-
         </div>
     </div>
-</div>
 `;
 
 setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
@@ -882,23 +878,16 @@ window.showHelpOptions = function() {
             });
         }
 
-        function toggleTheme() {
-            const body = document.body;
-            const newTheme = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-            body.setAttribute('data-theme', newTheme);
-            localStorage.setItem('app_theme', newTheme);
-            updateThemeButton(newTheme);
-        }
-
-        function loadTheme() {
+function loadTheme() {
+            // লোকাল মেমরি থেকে থিম চেক করবে, না পেলে ডিফল্ট 'light' সেট করবে
             const t = localStorage.getItem('app_theme') || 'light';
             document.body.setAttribute('data-theme', t);
-            updateThemeButton(t);
-        }
-
-        function updateThemeButton(theme) {
+            
+            // থিম অনুযায়ী বাটনের আইকন আপডেট করবে (ঐচ্ছিক)
             const btn = document.getElementById('themeToggleBtn');
-            if(btn) btn.innerHTML = theme === 'dark' ? '<i class="fas fa-sun"></i> Switch to Light Mode' : '<i class="fas fa-moon"></i> Switch to Dark Mode';
+            if (btn) {
+                btn.innerHTML = '<i class="fas fa-palette"></i> Choose Theme';
+            }
         }
 
         let isPhotoDeletedInEdit = false;
@@ -5693,15 +5682,23 @@ window.submitPracticeLog = function(studentId) {
         }
     }
     
-    const minutes = document.getElementById('practiceMinutes').value;
+    // 🟢 NEW: Hours এবং Minutes হিসাব করা হচ্ছে
+    const hrsInput = document.getElementById('practiceHours');
+    const minsInput = document.getElementById('practiceMinutes');
+    
+    const hrs = hrsInput ? (parseInt(hrsInput.value) || 0) : 0;
+    const rawMins = minsInput ? (parseInt(minsInput.value) || 0) : 0;
+    
+    const totalMinutes = (hrs * 60) + rawMins;
+
     let topic = document.getElementById('practiceTopic').value.trim();
     if (!topic) topic = "Regular Practice"; 
 
     const classSelectEl = document.getElementById('practiceClassSelect');
     const selectedInstrument = classSelectEl ? classSelectEl.value : 'Music';
 
-    if (!minutes || minutes <= 0) {
-        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Enter valid minutes!', showConfirmButton: false, timer: 2000 });
+    if (totalMinutes <= 0) {
+        Swal.fire({ toast: true, position: 'top-end', icon: 'warning', title: 'Enter valid practice time!', showConfirmButton: false, timer: 2000 });
         return;
     }
 
@@ -5725,7 +5722,7 @@ window.submitPracticeLog = function(studentId) {
         studentId: studentId,
         studentName: studentData.name,
         studentPhoto: studentData.photo || '',
-        minutes: parseInt(minutes),
+        minutes: totalMinutes, // 🟢 এখানে totalMinutes সেভ হচ্ছে
         topic: topic,
         instrument: selectedInstrument,
         date: dateStr,
@@ -5733,28 +5730,30 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 Firebase ArrayUnion into Yearly Subcollection
+    // 🟢 Firebase ArrayUnion (অফলাইনে থাকলেও এটি অটোমেটিক ক্যাশে সেভ হবে)
     db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
         records: firebase.firestore.FieldValue.arrayUnion(newLog)
-    }, { merge: true }).catch(e => console.log("Background sync", e));
+    }, { merge: true }).catch(e => console.log("Background sync queued"));
 
     // 🟢 Local Array update for Instant UI
-if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
-if (!studentData.practice_log) studentData.practice_log = [];
-studentData.practice_log.unshift(newLog);
+    if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
+    if (!studentData.practice_log) studentData.practice_log = [];
+    studentData.practice_log.unshift(newLog);
 
-// 🟢 Manager side-এ থাকলে মেইন স্টুডেন্ট ডকুমেন্টে সেভ করবে
-if (!isStudentPortal) {
-    db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
-        practice_log: studentData.practice_log
-    }).catch(e => console.log(e));
-}
+    if (!isStudentPortal) {
+        db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+            practice_log: studentData.practice_log
+        }).catch(e => console.log(e));
+    }
 
-    document.getElementById('practiceMinutes').value = '';
+    // ইনপুট ফিল্ড ফাঁকা করা
+    if (hrsInput) hrsInput.value = '';
+    if (minsInput) minsInput.value = '';
     document.getElementById('practiceTopic').value = '';
     if(timeInputEl) timeInputEl.value = '';
     
-    Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${minutes} minutes!`, icon: 'success', timer: 2000, showConfirmButton: false });
+    let displayTime = hrs > 0 ? `${hrs}h ${rawMins}m` : `${rawMins} mins`;
+    Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${displayTime}!`, icon: 'success', timer: 2000, showConfirmButton: false });
     
     if (isStudentPortal) {
         window.renderPracticeHistoryPortal(studentData); 
@@ -8020,4 +8019,33 @@ window.exportAllStudentsPDF = async function() {
         console.error(error);
         Swal.fire('Error', 'Failed to generate PDF. Check console for details.', 'error');
     }
+};
+window.openThemeSelector = function() {
+    Swal.fire({
+        title: 'Choose Theme',
+        html: `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <button onclick="changePortalTheme('light')" style="background: #f8fafc; color: #1e293b; border: 2px solid #cbd5e1; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">☀️ Light</button>
+                <button onclick="changePortalTheme('dark')" style="background: #1e293b; color: #f1f5f9; border: 2px solid #334155; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🌙 Dark</button>
+                
+                <button onclick="changePortalTheme('blue')" style="background: #e0f2fe; color: #0369a1; border: 2px solid #bae6fd; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🌊 Ocean Blue</button>
+                <button onclick="changePortalTheme('green')" style="background: #dcfce7; color: #166534; border: 2px solid #bbf7d0; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🍃 Nature Green</button>
+                
+                <button onclick="changePortalTheme('red')" style="background: #fee2e2; color: #b91c1c; border: 2px solid #fecaca; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🔴 Ruby Red</button>
+                <button onclick="changePortalTheme('yellow')" style="background: #fef08a; color: #a16207; border: 2px solid #fde047; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🌻 Sunny Yellow</button>
+                
+                <button onclick="changePortalTheme('purple-dark')" style="background: #3b0764; color: #f3e8ff; border: 2px solid #5b21b6; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer; grid-column: span 2;">🌌 Purple Night</button>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-card)',
+        color: 'var(--text-main)'
+    });
+};
+
+window.changePortalTheme = function(themeName) {
+    document.body.setAttribute('data-theme', themeName);
+    localStorage.setItem('app_theme', themeName);
+    Swal.close();
 };
