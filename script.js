@@ -548,7 +548,7 @@ document.body.innerHTML = `
                 
                 <div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
             <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:14px; font-weight:600;">
-                <i class="fas fa-history" style="color:var(--primary); margin-right:5px;"></i> Recent Practice Logs
+                <i class="fas fa-history" style="color:var(--primary); margin-right:5px;"></i> Practice Log
             </h4>
             <div id="practiceHistoryPortal" class="scroller-box" style="max-height: 250px; overflow-y: auto; background: var(--bg-input); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
                 </div>
