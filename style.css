@@ -13,6 +13,63 @@
     .d-rem-btn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.3s; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); flex-shrink: 0; margin-left: 10px; }
     .d-rem-btn:hover { transform: scale(1.1) rotate(10deg); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.4); }
     [data-theme="dark"] .d-rem-icon { background: rgba(251, 191, 36, 0.2); }
+/* =========================================
+       🎨 APP THEMES CSS (ALL COLORS)
+       ========================================= */
+
+    /* 🌊 Ocean Blue Theme */
+    [data-theme="blue"] {
+        --primary: #0ea5e9; --primary-dark: #0284c7; --secondary: #94a3b8;
+        --bg-body: #f0f9ff; --bg-card: #ffffff; --bg-input: #e0f2fe;
+        --text-main: #0f172a; --text-muted: #475569; --border-color: #bae6fd;
+    }
+
+    /* 🍃 Nature Green Theme */
+    [data-theme="green"] {
+        --primary: #10b981; --primary-dark: #059669; --secondary: #9ca3af;
+        --bg-body: #f0fdf4; --bg-card: #ffffff; --bg-input: #dcfce7;
+        --text-main: #064e3b; --text-muted: #166534; --border-color: #bbf7d0;
+    }
+
+    /* 🌌 Purple Night Theme */
+    [data-theme="purple-dark"] {
+        --primary: #a855f7; --primary-dark: #9333ea; --secondary: #a1a1aa;
+        --bg-body: #2e1065; --bg-card: #3b0764; --bg-input: #4c1d95;
+        --text-main: #f3e8ff; --text-muted: #d8b4fe; --border-color: #5b21b6;
+    }
+
+    /* 🔴 Ruby Red Theme */
+    [data-theme="red"] {
+        --primary: #ef4444; --primary-dark: #dc2626; --secondary: #f87171;
+        --bg-body: #fef2f2; --bg-card: #ffffff; --bg-input: #fee2e2;
+        --text-main: #7f1d1d; --text-muted: #991b1b; --border-color: #fecaca;
+    }
+
+    /* 🌻 Sunny Yellow Theme */
+    [data-theme="yellow"] {
+        --primary: #eab308; --primary-dark: #ca8a04; --secondary: #facc15;
+        --bg-body: #fefce8; --bg-card: #ffffff; --bg-input: #fef08a;
+        --text-main: #713f12; --text-muted: #854d0e; --border-color: #fde047;
+    }
+
+    /* ☀️ Default Light Theme (Root) */
+    :root {
+        --primary: #4f46e5; --primary-dark: #4338ca; --secondary: #64748b;
+        --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+        --info: #3b82f6; --pink: #ec4899; 
+        --bg-body: #f3f4f6; --bg-card: #ffffff; --bg-input: #f9fafb;
+        --text-main: #1f2937; --text-muted: #6b7280; --border-color: #e2e8f0;
+        --radius: 12px; --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --nav-height: 70px;
+    }
+
+    /* 🌙 Dark Mode Theme */
+    [data-theme="dark"] {
+        --primary: #6366f1; --primary-dark: #4f46e5; --secondary: #94a3b8;
+        --bg-body: #0f172a; --bg-card: #1e293b; --bg-input: #334155;
+        --text-main: #f1f5f9; --text-muted: #cbd5e1; --border-color: #334155;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
     
     :root {
         --primary: #4f46e5; --primary-dark: #4338ca; --secondary: #64748b;
