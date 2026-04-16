@@ -41,19 +41,31 @@ html, body {
         --text-main: #f3e8ff; --text-muted: #d8b4fe; --border-color: #5b21b6;
     }
 
-    /* 🔴 Ruby Red Theme */
-    [data-theme="red"] {
-        --primary: #ef4444; --primary-dark: #dc2626; --secondary: #f87171;
-        --bg-body: #fef2f2; --bg-card: #ffffff; --bg-input: #fee2e2;
-        --text-main: #7f1d1d; --text-muted: #991b1b; --border-color: #fecaca;
-    }
+/* Yellow-এর পরিবর্তে নতুন Magenta থিম */
+[data-theme="magenta"] {
+    --primary: #d946ef; 
+    --primary-dark: #c026d3; 
+    --secondary: #e879f9;
+    --bg-body: #fdf4ff; 
+    --bg-card: #ffffff; 
+    --bg-input: #fae8ff;
+    --text-main: #701a75; 
+    --text-muted: #86198f; 
+    --border-color: #f5d0fe;
+}
 
-    /* 🌻 Sunny Yellow Theme */
-    [data-theme="yellow"] {
-        --primary: #eab308; --primary-dark: #ca8a04; --secondary: #facc15;
-        --bg-body: #fefce8; --bg-card: #ffffff; --bg-input: #fef08a;
-        --text-main: #713f12; --text-muted: #854d0e; --border-color: #fde047;
-    }
+/* Red-এর পরিবর্তে নতুন Orange Red থিম */
+[data-theme="orange-red"] {
+    --primary: #ff4500; 
+    --primary-dark: #cc3700; 
+    --secondary: #ff7340;
+    --bg-body: #fff5f2; 
+    --bg-card: #ffffff; 
+    --bg-input: #ffe8e0;
+    --text-main: #802300; 
+    --text-muted: #a62d00; 
+    --border-color: #ffc3b3;
+}
 
     /* ☀️ Default Light Theme (Root) */
     :root {
