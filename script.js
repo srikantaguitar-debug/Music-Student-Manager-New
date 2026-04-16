@@ -896,7 +896,7 @@ window.loadTheme = function() {
 
             if (isAutoTheme === 'true') {
                 // 🟢 অটো থিম: সপ্তাহের ৭ দিনের জন্য ৭টি আলাদা থিম!
-                const themes = ['dark', 'yellow', 'light', 'blue', 'red', 'green', 'purple-dark'];
+                const themes = ['dark', 'light', 'green', 'orange-red', 'blue', 'magenta', 'purple-dark'];
                 const today = new Date().getDay(); // রবিবার(0) থেকে শনিবার(6)
                 themeToApply = themes[today];
             } else {
@@ -8069,8 +8069,9 @@ window.openThemeSelector = function() {
                 <button onclick="changePortalTheme('blue')" style="background: #e0f2fe; color: #0369a1; border: 2px solid #bae6fd; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🌊 Ocean Blue</button>
                 <button onclick="changePortalTheme('green')" style="background: #dcfce7; color: #166534; border: 2px solid #bbf7d0; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🍃 Nature Green</button>
                 
-                <button onclick="changePortalTheme('red')" style="background: #fee2e2; color: #b91c1c; border: 2px solid #fecaca; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🔴 Ruby Red</button>
-                <button onclick="changePortalTheme('yellow')" style="background: #fef08a; color: #a16207; border: 2px solid #fde047; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🌻 Sunny Yellow</button>
+                <button onclick="changePortalTheme('magenta')" style="background: #fae8ff; color: #86198f; border: 2px solid #f5d0fe; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🎨 Magenta</button>
+                
+                <button onclick="changePortalTheme('orange-red')" style="background: #ffe8e0; color: #a62d00; border: 2px solid #ffc3b3; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer;">🔥 Orange Red</button>
                 
                 <button onclick="changePortalTheme('purple-dark')" style="background: #3b0764; color: #f3e8ff; border: 2px solid #5b21b6; padding: 12px; border-radius: 12px; font-weight: bold; font-size: 14px; cursor: pointer; grid-column: span 2;">🌌 Purple Night</button>
             </div>
