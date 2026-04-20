@@ -507,6 +507,109 @@ if (isStudentActive) {
     </div>`;
 }
 
+
+// 🟢 স্টুডেন্ট পোর্টালে "গত পিরিয়ডের" (Past Period) রেজাল্ট অনুযায়ী ব্যাজ লজিক (Final Fix)
+let rank = null;
+let rankType = ""; 
+let totalBadgeMins = 0; 
+
+// pLogs থেকে ডেটা নিয়ে চেক করবে (কারণ students অ্যারে পোর্টালে ফাঁকা থাকে)
+let allLogs = [...(pLogs || [])];
+if (s.practice_log) {
+    s.practice_log.forEach(l => {
+        if(!allLogs.some(pl => pl.id === l.id)) allLogs.push({...l, studentId: s.id});
+    });
+}
+
+if (allLogs.length > 0) {
+    const _now = new Date();
+    
+    // --- ১. গত সপ্তাহের ডেট রেঞ্জ (Sunday to Saturday) ---
+    const _lastSunday = new Date(_now);
+    _lastSunday.setDate(_now.getDate() - _now.getDay() - 7);
+    _lastSunday.setHours(0, 0, 0, 0);
+    
+    const _lastSaturday = new Date(_lastSunday);
+    _lastSaturday.setDate(_lastSunday.getDate() + 6);
+    _lastSaturday.setHours(23, 59, 59, 999);
+
+    // --- ২. গত মাসের ডেট রেঞ্জ ---
+    const _firstOfLastMonth = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
+    const _lastOfLastMonth = new Date(_now.getFullYear(), _now.getMonth(), 0, 23, 59, 59);
+
+    // র‍্যাংক এবং টাইম চেক করার ফাংশন
+    function checkRankForPeriod(start, end) {
+        let statsMap = {};
+        allLogs.forEach(log => {
+            const parts = log.date.split('/');
+            let logDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(log.date);
+            logDate.setHours(0,0,0,0);
+            if (logDate >= start && logDate <= end) {
+                if(!statsMap[log.studentId]) statsMap[log.studentId] = 0;
+                statsMap[log.studentId] += (parseInt(log.minutes) || 0);
+            }
+        });
+        
+        if(statsMap[s.id]) totalBadgeMins = statsMap[s.id];
+        
+        let sorted = Object.keys(statsMap).map(id => ({ id: parseInt(id), mins: statsMap[id] })).sort((a,b) => b.mins - a.mins);
+        return sorted.findIndex(st => parseInt(st.id) === parseInt(s.id));
+    }
+
+    // গত সপ্তাহের র‍্যাংক চেক
+    let wIndex = checkRankForPeriod(_lastSunday, _lastSaturday);
+    if (wIndex !== -1 && wIndex < 3) {
+        rank = wIndex + 1;
+        rankType = "Last Week";
+    } else {
+        // গত সপ্তাহে না থাকলে গত মাসের র‍্যাংক চেক
+        let mIndex = checkRankForPeriod(_firstOfLastMonth, _lastOfLastMonth);
+        if (mIndex !== -1 && mIndex < 3) {
+            rank = mIndex + 1;
+            rankType = "Last Month";
+        }
+    }
+}
+
+// 🟢 ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন (মোট টাইম সহ)
+window.showBadgeDetails = function(r, rType, tMins) {
+    let titleText = r === 1 ? 'Champion! 🏆' : (r === 2 ? 'Great Job! 🌟' : 'Well Done! ⭐');
+    
+    // টাইম ফরম্যাট করা (যেমন: 5h 20m)
+    let h = Math.floor(tMins / 60); 
+    let m = tMins % 60;
+    let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+    Swal.fire({
+        title: titleText,
+        html: `<div style="font-size:15px; color:var(--text-main); line-height:1.6;">
+                You secured <b style="color:var(--primary); font-size:18px;">Rank #${r}</b> in <b>${rType}</b>'s practice leaderboard!
+                <br><br>
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 10px; border-radius: 8px; color: #047857; font-weight: bold;">
+                    <i class="fas fa-stopwatch"></i> Total Practice Time: ${timeStr}
+                </div>
+                <br>Keep up the amazing work and keep practicing! 🎸🎹
+               </div>`,
+        icon: 'success',
+        confirmButtonColor: 'var(--primary)',
+        confirmButtonText: 'Awesome!'
+    });
+};
+
+// ব্যাজ ডিজাইন (ক্লিক ইভেন্ট এবং মোট টাইম সহ)
+let badgeOverlay = '';
+if (rank) {
+    let borderColor = rank === 1 ? "#facc15" : (rank === 2 ? "#cbd5e1" : "#fdba74");
+    let medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
+    
+    badgeOverlay = `
+        <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" 
+             style="position:absolute; bottom:0px; right:-8px; font-size:28px; background:#ffffff; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); border: 2.5px solid ${borderColor}; z-index:10; cursor:pointer;" 
+             title="Click for details">
+            ${medalIcon}
+            <span style="position:absolute; top:-10px; background:${borderColor}; color:#000; font-size:8px; font-weight:900; padding:2px 4px; border-radius:8px; white-space:nowrap; border:1px solid #fff;">${rankType.toUpperCase()}</span>
+        </div>`;
+}
 // ৬. HTML Structure (Themed)
 document.body.innerHTML = `
     <style>
@@ -532,7 +635,10 @@ document.body.innerHTML = `
 
         <div style="margin-top:-60px; padding:0 20px; position: relative; z-index: 10;">
             <div style="text-align: center; margin-bottom: 25px;">
-                <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                <div style="position:relative; display:inline-block;">
+                    <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                    ${badgeOverlay}
+                </div>
                 <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
                 ${badgeHtml}
                 ${inactiveDetailsHtml}
@@ -885,35 +991,36 @@ window.showHelpOptions = function() {
         }
 
 window.loadTheme = function() {
-            // অটো থিম চালু আছে কিনা চেক করা (ডিফল্ট: true)
-            let isAutoTheme = localStorage.getItem('auto_theme_enabled');
-            if (isAutoTheme === null) {
-                isAutoTheme = 'true';
-                localStorage.setItem('auto_theme_enabled', 'true');
-            }
+    // অটো থিম চালু আছে কিনা চেক করা (ডিফল্ট: true)
+    let isAutoTheme = localStorage.getItem('auto_theme_enabled');
+    if (isAutoTheme === null) {
+        isAutoTheme = 'true';
+        localStorage.setItem('auto_theme_enabled', 'true');
+    }
 
-            let themeToApply = 'light';
+    let themeToApply = 'light';
 
-            if (isAutoTheme === 'true') {
-                // 🟢 অটো থিম: সপ্তাহের ৭ দিনের জন্য ৭টি আলাদা থিম!
-                const themes = ['dark', 'light', 'green', 'orange-red', 'blue', 'magenta', 'purple-dark'];
-                const today = new Date().getDay(); // রবিবার(0) থেকে শনিবার(6)
-                themeToApply = themes[today];
-            } else {
-                // 🔴 ম্যানুয়াল থিম: যদি অটো থিম অফ থাকে
-                themeToApply = localStorage.getItem('app_theme') || 'light';
-            }
+    if (isAutoTheme === 'true') {
+        // 🟢 আপনার দেওয়া রুটিন অনুযায়ী ৭ দিনের ৭টি থিম
+        // [রবিবার, সোমবার, মঙ্গলবার, বুধবার, বৃহস্পতিবার, শুক্রবার, শনিবার]
+        const themes = ['dark', 'light', 'green', 'orange-red', 'blue', 'magenta', 'purple-dark'];
+        const today = new Date().getDay(); // রবিবার(0) থেকে শনিবার(6)
+        themeToApply = themes[today];
+    } else {
+        // 🔴 ম্যানুয়াল থিম: যদি অটো থিম অফ থাকে
+        themeToApply = localStorage.getItem('app_theme') || 'light';
+    }
 
-            // থিম অ্যাপ্লাই করা
-            document.body.setAttribute('data-theme', themeToApply);
-            
-            // ম্যানেজার অ্যাপের সেটিংস বাটনের টেক্সট আপডেট
-            const btn = document.getElementById('themeToggleBtn');
-            if (btn) {
-                let themeNameDisplay = themeToApply.charAt(0).toUpperCase() + themeToApply.slice(1);
-                btn.innerHTML = `<i class="fas fa-palette"></i> ${isAutoTheme === 'true' ? 'Auto Theme ('+themeNameDisplay+')' : 'Choose Theme'}`;
-            }
-        }
+    // থিম অ্যাপ্লাই করা
+    document.body.setAttribute('data-theme', themeToApply);
+    
+    // ম্যানেজার অ্যাপের সেটিংস বাটনের টেক্সট আপডেট
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+        let themeNameDisplay = themeToApply.charAt(0).toUpperCase() + themeToApply.slice(1);
+        btn.innerHTML = `<i class="fas fa-palette"></i> ${isAutoTheme === 'true' ? 'Auto Theme ('+themeNameDisplay+')' : 'Choose Theme'}`;
+    }
+};
 
         let isPhotoDeletedInEdit = false;
 
@@ -2317,6 +2424,14 @@ function renderReminders() {
 }
 
 function renderDashboard() { 
+    // 🟢 Open Leaderboard Modal Function
+window.openLeaderboardModal = function() {
+    document.getElementById('leaderboardModal').style.display = 'flex';
+    window.renderPracticeLeaderboard(); // পপআপ খোলার সাথে সাথে লিস্ট লোড হবে
+};
+    if (typeof window.renderPracticeLeaderboard === 'function') {
+        window.renderPracticeLeaderboard();
+    }
     const activeStudents = students.filter(s => isStudentCurrentlyActive(s)); 
     document.getElementById('studentStatsSummary').innerHTML = `<div class="clickable-stat" onclick="showCategoryList('active')"><h4>Active</h4><p class="summary-collected">${activeStudents.length}</p></div><div class="clickable-stat" onclick="showCategoryList('inactive')"><h4>Inactive</h4><p class="summary-due">${students.length - activeStudents.length}</p></div><div><h4>Total</h4><p class="summary-total" style="color:var(--text-main);">${students.length}</p></div>`; 
     
@@ -5618,7 +5733,7 @@ function getPracticeStats(student, filter = 'All') {
     now.setHours(0, 0, 0, 0);
     
     const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
+    const diff = now.getDate() - dayOfWeek; // 0 = Sunday, এখান থেকে উইকলি শুরু হবে
     const weekStart = new Date(now);
     weekStart.setDate(diff);
     weekStart.setHours(0, 0, 0, 0);
@@ -7729,7 +7844,6 @@ window.sendSaleSMS = async function(saleId) {
         window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
     }
 };
-
 window.resendSaleReceipt = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
     if(!sale) return;
@@ -7738,6 +7852,18 @@ window.resendSaleReceipt = async function(saleId) {
 };
 
 
+
+window.sendSaleReceiptSMS = function() {
+    const msg = window.tempSaleMsg;
+    const phone = window.tempSalePhone;
+    
+    if (!phone) {
+        Swal.fire('Error', 'Student phone number is missing!', 'error');
+        return;
+    }
+    
+    window.location.href = `sms:${phone}?body=${encodeURIComponent(msg)}`;
+};
 
 window.shareSaleReceiptWA = async function() {
     const doc = window.tempSaleDoc;
@@ -8113,15 +8239,316 @@ window.changePortalTheme = function(themeName) {
     Swal.close();
     loadTheme(); // বাটন টেক্সট আপডেট করার জন্য
 };
-// Service Worker Registration
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-        .then((registration) => {
-            console.log('Service Worker Registered Successfully!');
-        })
-        .catch((error) => {
-            console.log('Service Worker Registration Failed:', error);
-        });
+// ==========================================
+// 🟢 LEADERBOARD, CERTIFICATE & REWARDS LOGIC
+// ==========================================
+// 🟢 সাপ্তাহিক র‍্যাংক ক্যালকুলেশন (রবিবার থেকে শনিবার)
+window.calculateWeeklyRank = function(studentId) {
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+    
+    // বর্তমান সপ্তাহের রবিবারের তারিখ বের করা
+    const sunday = new Date(now);
+    sunday.setDate(now.getDate() - currentDay);
+    sunday.setHours(0, 0, 0, 0);
+
+    // বর্তমান সপ্তাহের শনিবারের তারিখ বের করা
+    const saturday = new Date(sunday);
+    saturday.setDate(sunday.getDate() + 6);
+    saturday.setHours(23, 59, 59, 999);
+
+    let studentStats = [];
+    students.forEach(student => {
+        if (student.practice_log && student.practice_log.length > 0) {
+            let weeklyMins = 0;
+            student.practice_log.forEach(log => {
+                const parts = log.date.split('/');
+                let logDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(log.date);
+                logDate.setHours(0,0,0,0);
+                
+                // শুধুমাত্র এই সপ্তাহের রবিবার থেকে শনিবারের ডেটা নেবে
+                if (logDate >= sunday && logDate <= saturday) {
+                    weeklyMins += (parseInt(log.minutes) || 0);
+                }
+            });
+            if (weeklyMins > 0) studentStats.push({ id: student.id, mins: weeklyMins });
+        }
     });
-}
+
+    studentStats.sort((a, b) => b.mins - a.mins);
+    const rankIndex = studentStats.findIndex(st => st.id === studentId);
+    return (rankIndex !== -1 && rankIndex < 3) ? rankIndex + 1 : null;
+};
+
+// 2. Practice Leaderboard Logic (With Profile Click & Rewards)
+window.renderPracticeLeaderboard = function() {
+    const filter = document.getElementById('leaderboardFilter');
+    if(!filter) return;
+    const filterVal = filter.value;
+    const listContainer = document.getElementById('practiceLeaderboardList');
+    if(!listContainer) return;
+
+    const now = new Date();
+    now.setHours(0,0,0,0);
+
+    let startDate = new Date(now);
+    if (filterVal === 'weekly') {
+        const dayOfWeek = now.getDay();
+        const diff = now.getDate() - dayOfWeek;
+        startDate.setDate(diff);
+    } else if (filterVal === 'monthly') {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filterVal === 'yearly') {
+        startDate = new Date(now.getFullYear(), 0, 1);
+    } else {
+        startDate = new Date(2000, 0, 1); 
+    }
+
+    let studentStats = {};
+    students.forEach(student => {
+        if (student.practice_log && student.practice_log.length > 0) {
+            let totalMins = 0;
+            student.practice_log.forEach(log => {
+                const parts = log.date.split('/');
+                let logDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(log.date);
+                logDate.setHours(0,0,0,0);
+                if (logDate >= startDate && logDate <= now) totalMins += (parseInt(log.minutes) || 0);
+            });
+            if (totalMins > 0) studentStats[student.id] = { student: student, totalMins: totalMins };
+        }
+    });
+
+    let leaderboard = Object.values(studentStats);
+    leaderboard.sort((a, b) => b.totalMins - a.totalMins);
+    leaderboard = leaderboard.slice(0, 10); 
+
+    listContainer.innerHTML = '';
+    if (leaderboard.length === 0) {
+        listContainer.innerHTML = '<p style="text-align:center; color:gray; font-size:13px; padding: 15px;">No practice logged.</p>';
+        return;
+    }
+
+    leaderboard.forEach((item, index) => {
+        const s = item.student;
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        
+        let rankDisplay = `<div style="font-size:14px; font-weight:900; color:gray; width: 30px; text-align: center;">#${index+1}</div>`;
+        if (index === 0) rankDisplay = `<div style="font-size:22px; width: 30px; text-align: center;">🥇</div>`;
+        if (index === 1) rankDisplay = `<div style="font-size:22px; width: 30px; text-align: center;">🥈</div>`;
+        if (index === 2) rankDisplay = `<div style="font-size:22px; width: 30px; text-align: center;">🥉</div>`;
+
+        let h = Math.floor(item.totalMins / 60); let m = item.totalMins % 60;
+        let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+        // 🟢 Top 3 Students Reward Buttons (Mobile View Fixed)
+        let rewardBtns = '';
+        if (index < 3) {
+            rewardBtns = `
+            <div style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
+                <button onclick="window.generatePracticeCertificate(${s.id}, ${index+1}, '${filterVal}', ${item.totalMins})" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(245,158,11,0.3);"><i class="fas fa-award"></i> Certificate</button>
+                <button onclick="window.sendLeaderboardMsg('wa', ${s.id}, ${index+1}, '${filterVal}')" style="background: #25D366; color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i></button>
+                <button onclick="window.sendLeaderboardMsg('sms', ${s.id}, ${index+1}, '${filterVal}')" style="background: #3b82f6; color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: bold;"><i class="fas fa-sms"></i></button>
+            </div>`;
+        }
+
+        // 🟢 লিডারবোর্ড লিস্টের কার্ড ডিজাইন (মোবাইল ভিউ ফিক্সড)
+        listContainer.innerHTML += `
+            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px 8px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border-color); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                
+                <div style="display:flex; align-items:flex-start; gap:8px; flex:1; overflow:hidden;">
+                    <div style="margin-top: 3px; flex-shrink:0;">${rankDisplay}</div>
+                    
+                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid ${index < 3 ? '#f59e0b' : 'var(--primary)'}; cursor:pointer; flex-shrink:0;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">
+                    
+                    <div style="min-width:0; flex:1;">
+                        <div style="font-weight:700; font-size:13px; color:var(--text-main); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">${s.name}</div>
+                        <div style="font-size:10px; color:var(--text-muted);">${s.class || 'Student'}</div>
+                        ${rewardBtns}
+                    </div>
+                </div>
+
+                <div style="background: ${index < 3 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'var(--primary)'}; color: white; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; flex-shrink:0; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:4px; min-width:max-content; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-left:5px;">
+    <i class="fas fa-clock"></i> ${timeStr}
+</div>
+                
+            </div>
+        `;
+    });
+};
+
+// 🟢 1. Send SMS / WA Message for Leaderboard (নির্দিষ্ট মাস ও সাল উল্লেখ সহ)
+window.sendLeaderboardMsg = function(type, studentId, rank, timeRange) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    const now = new Date();
+    let periodText = "";
+    
+    // 🟢 সময় অনুযায়ী ডাইনামিক টেক্সট তৈরি
+    if (timeRange === 'weekly') {
+        const sunday = new Date(now);
+        sunday.setDate(now.getDate() - now.getDay());
+        periodText = `the week of ${sunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}`;
+    } else if (timeRange === 'monthly') {
+        periodText = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); // যেমন: April 2026
+    } else if (timeRange === 'yearly') {
+        periodText = "the year " + now.getFullYear(); // যেমন: the year 2026
+    } else {
+        periodText = "Lifetime";
+    }
+
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    
+    let msg = `🎉 Congratulations ${student.name}!\n\nYou have secured Rank #${rank} in the Practice Leaderboard for *${periodText}*! Keep up the great work and keep practicing. 🎸🎹\n\nRegards,\n${instName}`;
+    
+    if (type === 'wa') {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        if(cleanPhone) window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+        else Swal.fire('Error', 'No phone number found', 'error');
+    } else if (type === 'sms') {
+        if(student.phone) window.open(`sms:${student.phone}?body=${encodeURIComponent(msg)}`, '_self');
+        else Swal.fire('Error', 'No phone number found', 'error');
+    }
+};
+
+// 🟢 2. প্রফেশনাল সার্টিফিকেট জেনারেটর (নির্দিষ্ট মাস ও সাল উল্লেখ সহ)
+window.generatePracticeCertificate = async function(studentId, rank, timeRange, totalMins) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    Swal.fire({ title: 'Generating Certificate...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const width = doc.internal.pageSize.getWidth();
+    const height = doc.internal.pageSize.getHeight();
+    const now = new Date();
+    
+    // 🟢 পিরিয়ড বা মাসের নাম বের করা
+    let periodText = "";
+    if (timeRange === 'weekly') {
+        const sunday = new Date(now);
+        sunday.setDate(now.getDate() - now.getDay());
+        periodText = `Week of ${sunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}`;
+    } else if (timeRange === 'monthly') {
+        periodText = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); // যেমন: April 2026
+    } else if (timeRange === 'yearly') {
+        periodText = "Year " + now.getFullYear(); // যেমন: Year 2026
+    } else {
+        periodText = "Lifetime Achievement";
+    }
+
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, width, height, 'F');
+    
+    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.05 })); 
+        doc.addImage(instituteLogo, 'JPEG', (width / 2) - 60, (height / 2) - 60, 120, 120);
+        doc.restoreGraphicsState();
+    }
+
+    doc.setDrawColor(218, 165, 32); doc.setLineWidth(4); doc.rect(8, 8, width - 16, height - 16);
+    doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.5); doc.rect(11, 11, width - 22, height - 22);
+
+    let y = 22; // শুরু একটু ওপর থেকে হবে
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.setTextColor(184, 134, 11); 
+    const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
+    doc.text(instName, width/2, y, { align: "center" });
+    
+    y += 10; 
+    
+    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+        doc.addImage(instituteLogo, 'JPEG', width/2 - 10, y, 20, 20); // লোগো সাইজ পারফেক্ট করা হলো
+        y += 30; // লোগোর নিচে গ্যাপ
+    } else {
+        y += 15;
+    }
+
+    doc.setFontSize(24); doc.setTextColor(15, 23, 42);
+    doc.text("CERTIFICATE OF ACHIEVEMENT", width/2, y, { align: "center" });
+    
+    y += 12; 
+    doc.setFontSize(14); doc.setFont("helvetica", "italic"); doc.setTextColor(71, 85, 105);
+    doc.text("This certificate is proudly presented to", width/2, y, { align: "center" });
+
+    y += 10; 
+    
+    if(student.photo) {
+        try {
+            doc.addImage(student.photo, 'JPEG', width/2 - 15, y, 30, 30);
+            doc.setDrawColor(184, 134, 11); doc.setLineWidth(1); doc.rect(width/2 - 15, y, 30, 30); 
+            y += 42; 
+        } catch(e) { y += 15; }
+    } else {
+        y += 15;
+    }
+
+    doc.setFontSize(28); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+    doc.text(student.name, width/2, y, { align: "center" });
+
+    y += 12; 
+    
+    doc.setFontSize(14); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+    let h = Math.floor(totalMins / 60); let m = totalMins % 60;
+    let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+    
+    doc.text(`For securing Rank #${rank} during ${periodText}`, width/2, y, { align: "center" });
+    y += 8;
+    doc.setFont("helvetica", "bold");
+    doc.text(`with a total practice time of ${timeStr}.`, width/2, y, { align: "center" });
+
+    const footerY = height - 25; 
+    doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+    doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 30, footerY);
+    
+    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
+        doc.addImage(authorizedSignature, 'PNG', width - 80, footerY - 15, 40, 15);
+    }
+    doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(width - 90, footerY + 1, width - 30, footerY + 1);
+    doc.text("Authorized Signature", width - 60, footerY + 6, { align: "center" });
+
+    const fileName = `Certificate_${student.name.replace(/\s+/g, '_')}.pdf`;
+    window.tempCertDoc = doc; window.tempCertFileName = fileName;
+    
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+    window.tempCertPhone = cleanPhone;
+    
+    // 🟢 হোয়াটসঅ্যাপ মেসেজে নির্দিষ্ট মাস/বছর উল্লেখ থাকবে
+    window.tempCertMsg = `🎉 Congratulations ${student.name}!\n\nHere is your Practice Certificate for *${periodText}*.\nRank: #${rank}\nTotal Time: ${timeStr}\n\nKeep practicing! 🎸🎹\n\nRegards,\n${instName}`;
+
+    Swal.close();
+    setTimeout(() => {
+        Swal.fire({
+            title: 'Certificate Ready!', icon: 'success',
+            html: `<div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                <button onclick="window.shareCertWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fab fa-whatsapp"></i> Share to WhatsApp</button>
+                <button onclick="window.downloadCertOnly()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-download"></i> Download PDF</button>
+            </div>`,
+            showCloseButton: true, showConfirmButton: false, allowOutsideClick: false
+        });
+    }, 100);
+};
+
+window.shareCertWA = async function() {
+    const doc = window.tempCertDoc; const fileName = window.tempCertFileName;
+    const msg = window.tempCertMsg; const phone = window.tempCertPhone;
+    const pdfBlob = doc.output('blob'); const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    Swal.close();
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'Certificate', text: msg }); } 
+        catch(e) { doc.save(fileName); if(phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank'); }
+    } else {
+        doc.save(fileName); if(phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+};
+
+window.downloadCertOnly = function() {
+    window.tempCertDoc.save(window.tempCertFileName);
+    Swal.close();
+};
