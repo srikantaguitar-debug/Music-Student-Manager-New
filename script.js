@@ -7614,11 +7614,9 @@ window.renderStockTable = function() {
     if(!tbody) return;
     tbody.innerHTML = '';
 
-    // 🟢 সার্চ বারের টেক্সট নেওয়া হচ্ছে
     const searchInput = document.getElementById('searchStockInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-    // 🟢 সার্চ অনুযায়ী লিস্ট ফিল্টার করা হচ্ছে
     const filteredStock = window.stockInventory.filter(item => {
         if (!filterText) return true;
         return item.name.toLowerCase().includes(filterText);
@@ -7631,14 +7629,16 @@ window.renderStockTable = function() {
 
     filteredStock.forEach(item => {
         const stockColor = item.qty <= 2 ? 'color: var(--danger); font-weight: bold;' : 'color: var(--success); font-weight: bold;';
+        
+        // 🟢 এখানে আগের সুন্দর বাটন ডিজাইন দেওয়া হলো
         tbody.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 6px 4px; color: var(--text-main); font-weight: 500; font-size: 11px;">${item.name}</td>
-                <td style="padding: 6px 4px; color: var(--text-main); font-size: 11px;">₹${item.price}</td>
-                <td style="padding: 6px 4px; font-size: 11px; ${stockColor}">${item.qty} pcs</td>
-                <td style="padding: 6px 4px; text-align: center; white-space: nowrap;">
-                    <button onclick="window.editStockItem(${item.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; margin-right:8px; font-size:12px;" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button onclick="window.deleteStockItem(${item.id})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:12px;" title="Delete"><i class="fas fa-trash"></i></button>
+                <td style="padding: 8px 4px; color: var(--text-main); font-weight: 500; font-size: 12px;">${item.name}</td>
+                <td style="padding: 8px 4px; color: var(--text-main); font-size: 12px;">₹${item.price}</td>
+                <td style="padding: 8px 4px; font-size: 12px; ${stockColor}">${item.qty} pcs</td>
+                <td style="padding: 8px 4px; text-align: right; white-space: nowrap;">
+                    <button class="btn-warning" onclick="window.editStockItem(${item.id})" style="padding:4px 8px; font-size:10px; border-radius:4px; border:none; color:white; margin-right:4px;"><i class="fas fa-edit"></i> Edit</button>
+                    <button class="btn-danger" onclick="window.deleteStockItem(${item.id})" style="padding:4px 8px; font-size:10px; border-radius:4px; border:none; color:white;"><i class="fas fa-trash"></i> Delete</button>
                 </td>
             </tr>
         `;
