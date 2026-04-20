@@ -8443,7 +8443,7 @@ window.calculateWeeklyRank = function(studentId) {
     return (rankIndex !== -1 && rankIndex < 3) ? rankIndex + 1 : null;
 };
 
-// 🟢 Practice Leaderboard Logic (Ultra-Compact for Mobile Screens)
+// 🟢 Practice Leaderboard Logic (Compact Layout + Publish Fix)
 window.renderPracticeLeaderboard = function() {
     const filter = document.getElementById('leaderboardFilter');
     if(!filter) return;
@@ -8455,6 +8455,7 @@ window.renderPracticeLeaderboard = function() {
     now.setHours(0,0,0,0);
 
     let startDate, endDate;
+    let shortRankType = ""; // 🟢 পাবলিশ করার জন্য পিরিয়ডের নাম
 
     if (filterVal === 'last_week') {
         startDate = new Date(now);
@@ -8463,9 +8464,11 @@ window.renderPracticeLeaderboard = function() {
         endDate = new Date(startDate);
         endDate.setDate(startDate.getDate() + 6);
         endDate.setHours(23, 59, 59, 999);
+        shortRankType = "LAST WEEK";
     } else if (filterVal === 'last_month') {
         startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+        shortRankType = "LAST MONTH";
     } else if (filterVal === 'weekly') {
         const dayOfWeek = now.getDay();
         const diff = now.getDate() - dayOfWeek;
@@ -8474,18 +8477,22 @@ window.renderPracticeLeaderboard = function() {
         startDate.setHours(0, 0, 0, 0);
         endDate = new Date(now);
         endDate.setHours(23, 59, 59, 999);
+        shortRankType = "THIS WEEK";
     } else if (filterVal === 'monthly') {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
         endDate = new Date(now);
         endDate.setHours(23, 59, 59, 999);
+        shortRankType = "THIS MONTH";
     } else if (filterVal === 'yearly') {
         startDate = new Date(now.getFullYear(), 0, 1);
         endDate = new Date(now);
         endDate.setHours(23, 59, 59, 999);
+        shortRankType = "THIS YEAR";
     } else {
         startDate = new Date(2000, 0, 1); 
         endDate = new Date(now);
         endDate.setHours(23, 59, 59, 999);
+        shortRankType = "LIFETIME";
     }
 
     let studentStats = {};
@@ -8509,8 +8516,18 @@ window.renderPracticeLeaderboard = function() {
     listContainer.innerHTML = '';
     if (leaderboard.length === 0) {
         listContainer.innerHTML = '<p style="text-align:center; color:gray; font-size:12px; padding: 15px;">No practice logged for this period.</p>';
+        window.currentTop3ForPublish = []; // 🟢 রিসেট করা হলো যদি ডেটা না থাকে
         return;
     }
+
+    // 🟢 ম্যাজিক ফিক্স: পাবলিশ করার জন্য ডেটা গ্লোবাল ভেরিয়েবলে সেভ করা হচ্ছে
+    window.currentTop3ForPublish = leaderboard.slice(0, 3).map((item, index) => ({
+        id: item.student.id,
+        name: item.student.name,
+        photo: item.student.photo,
+        rank: index + 1
+    }));
+    window.currentPublishPeriod = shortRankType;
 
     leaderboard.forEach((item, index) => {
         const s = item.student;
@@ -8524,7 +8541,6 @@ window.renderPracticeLeaderboard = function() {
         let themeColor = isTop3 ? '#f59e0b' : '#4f46e5';
         let shadowColor = isTop3 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(79, 70, 229, 0.3)';
 
-        // 🟢 Rank Icon (সাইজ একটু ছোট করা হয়েছে)
         let rankHtml = '';
         if (index === 0) {
             rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#facc15"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
@@ -8536,7 +8552,6 @@ window.renderPracticeLeaderboard = function() {
             rankHtml = `<span style="font-size: 14px; font-weight: 800; color: #64748b;">#${index+1}</span>`;
         }
 
-        // 🟢 Reward Buttons (প্যাডিং এবং ফন্ট সাইজ কমিয়ে ফিট করা হয়েছে)
         let buttonsHtml = '';
         if (isTop3) {
             buttonsHtml = `
@@ -8548,33 +8563,26 @@ window.renderPracticeLeaderboard = function() {
             `;
         }
 
-        // 🟢 Final Card Output (সবকিছুর সাইজ ব্যালান্স করা হয়েছে)
         listContainer.innerHTML += `
         <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid var(--border-color); box-shadow:0 2px 4px rgba(0,0,0,0.04); width:100%; box-sizing:border-box;">
-            
             <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
-                
                 <div style="width:22px; flex-shrink:0; display:flex; justify-content:center; align-items:center;">
                     ${rankHtml}
                 </div>
-
                 <div style="flex-shrink:0;">
                     <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid ${themeColor}; background:white;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">
                 </div>
-
                 <div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;">
                     <div style="font-weight:700; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">${s.name}</div>
                     <div style="font-size:10px; color:var(--text-muted); margin-bottom:${isTop3 ? '2px' : '0'};">${s.class || 'Guitar'}</div>
                     ${buttonsHtml}
                 </div>
             </div>
-
             <div style="flex-shrink:0; margin-left:6px;">
                 <div style="background:${themeColor}; color:white; padding:4px 8px; border-radius:15px; font-size:11px; font-weight:700; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px ${shadowColor}; letter-spacing:0.5px;">
                     <i class="fas fa-clock" style="font-size:10px;"></i> ${timeStr}
                 </div>
             </div>
-
         </div>
         `;
     });
