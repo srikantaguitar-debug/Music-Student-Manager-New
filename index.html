@@ -992,24 +992,27 @@
         </div>
     </div>
     <div id="leaderboardModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <span class="close-button" onclick="closeModal('leaderboardModal')">&times;</span>
+        <div class="modal-content" style="max-width: 500px; padding: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: #d97706; display: flex; align-items: center; gap: 10px; font-size: 22px;">
+                    <i class="fas fa-trophy" style="color: #f59e0b;"></i> Practice Leaderboard
+                </h2>
+                <span class="close-button" onclick="closeModal('leaderboardModal')" style="font-size: 28px; line-height: 1;">&times;</span>
+            </div>
             
-            <h2 style="margin: 0 0 15px 0; color: #d97706; border-bottom: 2px solid #fde68a; padding-bottom: 10px; display: flex; align-items: center; gap: 10px;">
-                <i class="fas fa-trophy" style="color: #f59e0b;"></i> Practice Leaderboard
-            </h2>
-            
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--bg-input); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
-                <span style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Select Time Range:</span>
-                <select id="leaderboardFilter" onchange="window.renderPracticeLeaderboard()" style="padding: 6px 10px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: bold; outline: none; cursor: pointer;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: var(--bg-input); padding: 12px 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                <span style="font-size: 14px; font-weight: 600; color: var(--text-muted);">Select Time Range:</span>
+                <select id="leaderboardFilter" onchange="window.renderPracticeLeaderboard()" style="padding: 8px 10px; font-size: 13px; font-weight: bold; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); outline: none; cursor: pointer;">
+                    <option value="last_week">Last Week</option>
                     <option value="weekly">This Week</option>
+                    <option value="last_month">Last Month</option>
                     <option value="monthly" selected>This Month</option>
                     <option value="yearly">This Year</option>
                     <option value="all">Lifetime</option>
                 </select>
             </div>
             
-            <div id="practiceLeaderboardList" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">
+            <div id="practiceLeaderboardList" style="display: flex; flex-direction: column; gap: 10px; max-height: 60vh; overflow-y: auto; padding-right: 5px;">
                 </div>
         </div>
     </div>
