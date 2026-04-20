@@ -240,6 +240,42 @@ s.practice_log = s.combined_practice_logs;
                             
                             if (s.allow_profile_view !== false) {
                                 
+// 🟢 Hall of Fame (Published Leaderboard) UI
+let hallOfFameHtml = '';
+if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
+    const pubData = globalData.published_leaderboard;
+    
+    let cardsHtml = pubData.topStudents.map(st => {
+        let badge = st.rank === 1 ? '🥇' : (st.rank === 2 ? '🥈' : '🥉');
+        let color = st.rank === 1 ? '#facc15' : (st.rank === 2 ? '#cbd5e1' : '#fdba74');
+        return `
+            <div style="text-align: center; flex: 1;">
+                <div style="position: relative; display: inline-block;">
+                    <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 55px; height: 55px; border-radius: 50%; border: 2.5px solid ${color}; object-fit: cover; background: white;">
+                    <div style="position: absolute; bottom: -5px; right: -5px; font-size: 16px; background: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid ${color};">${badge}</div>
+                </div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 10px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
+            </div>
+        `;
+    }).join('');
+
+    hallOfFameHtml = `
+        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 15px 10px; margin-bottom: 25px; border: 1px solid #fde68a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1;"><i class="fas fa-trophy"></i></div>
+            
+            <div style="text-align: center; margin-bottom: 15px; position: relative; z-index: 2;">
+                <h4 style="margin: 0; color: #b45309; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-crown" style="color: #f59e0b; font-size: 20px;"></i> Hall of Fame
+                </h4>
+                <span style="font-size: 10px; color: #92400e; font-weight: 800; background: #fde68a; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">TOP PRACTICE - ${pubData.period}</span>
+            </div>
+            
+            <div style="display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2;">
+                ${cardsHtml}
+            </div>
+        </div>
+    `;
+}
                                 // ১. Personal Notice
                                 let noticeHtml = '';
                                 if (s.personal_notice && s.personal_notice.trim() !== '') {
@@ -644,6 +680,8 @@ document.body.innerHTML = `
                 ${inactiveDetailsHtml}
             </div>
 
+            ${hallOfFameHtml}
+            
             ${noticeHtml}
             <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
                 <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
@@ -8388,7 +8426,7 @@ window.calculateWeeklyRank = function(studentId) {
     return (rankIndex !== -1 && rankIndex < 3) ? rankIndex + 1 : null;
 };
 
-// 2. Practice Leaderboard Logic (With Profile Click & Rewards)
+// 🟢 Practice Leaderboard Logic (Ultra-Compact for Mobile Screens)
 window.renderPracticeLeaderboard = function() {
     const filter = document.getElementById('leaderboardFilter');
     if(!filter) return;
@@ -8399,17 +8437,38 @@ window.renderPracticeLeaderboard = function() {
     const now = new Date();
     now.setHours(0,0,0,0);
 
-    let startDate = new Date(now);
-    if (filterVal === 'weekly') {
+    let startDate, endDate;
+
+    if (filterVal === 'last_week') {
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() - now.getDay() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+    } else if (filterVal === 'last_month') {
+        startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        endDate = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+    } else if (filterVal === 'weekly') {
         const dayOfWeek = now.getDay();
         const diff = now.getDate() - dayOfWeek;
+        startDate = new Date(now);
         startDate.setDate(diff);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
     } else if (filterVal === 'monthly') {
         startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
     } else if (filterVal === 'yearly') {
         startDate = new Date(now.getFullYear(), 0, 1);
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
     } else {
         startDate = new Date(2000, 0, 1); 
+        endDate = new Date(now);
+        endDate.setHours(23, 59, 59, 999);
     }
 
     let studentStats = {};
@@ -8420,7 +8479,7 @@ window.renderPracticeLeaderboard = function() {
                 const parts = log.date.split('/');
                 let logDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(log.date);
                 logDate.setHours(0,0,0,0);
-                if (logDate >= startDate && logDate <= now) totalMins += (parseInt(log.minutes) || 0);
+                if (logDate >= startDate && logDate <= endDate) totalMins += (parseInt(log.minutes) || 0);
             });
             if (totalMins > 0) studentStats[student.id] = { student: student, totalMins: totalMins };
         }
@@ -8432,7 +8491,7 @@ window.renderPracticeLeaderboard = function() {
 
     listContainer.innerHTML = '';
     if (leaderboard.length === 0) {
-        listContainer.innerHTML = '<p style="text-align:center; color:gray; font-size:13px; padding: 15px;">No practice logged.</p>';
+        listContainer.innerHTML = '<p style="text-align:center; color:gray; font-size:12px; padding: 15px;">No practice logged for this period.</p>';
         return;
     }
 
@@ -8440,48 +8499,98 @@ window.renderPracticeLeaderboard = function() {
         const s = item.student;
         const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
         
-        let rankDisplay = `<div style="font-size:14px; font-weight:900; color:gray; width: 30px; text-align: center;">#${index+1}</div>`;
-        if (index === 0) rankDisplay = `<div style="font-size:22px; width: 30px; text-align: center;">🥇</div>`;
-        if (index === 1) rankDisplay = `<div style="font-size:22px; width: 30px; text-align: center;">🥈</div>`;
-        if (index === 2) rankDisplay = `<div style="font-size:22px; width: 30px; text-align: center;">🥉</div>`;
-
         let h = Math.floor(item.totalMins / 60); let m = item.totalMins % 60;
         let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
 
-        // 🟢 Top 3 Students Reward Buttons (Mobile View Fixed)
-        let rewardBtns = '';
-        if (index < 3) {
-            rewardBtns = `
-            <div style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
-                <button onclick="window.generatePracticeCertificate(${s.id}, ${index+1}, '${filterVal}', ${item.totalMins})" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: bold; box-shadow: 0 2px 4px rgba(245,158,11,0.3);"><i class="fas fa-award"></i> Certificate</button>
-                <button onclick="window.sendLeaderboardMsg('wa', ${s.id}, ${index+1}, '${filterVal}')" style="background: #25D366; color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: bold;"><i class="fab fa-whatsapp"></i></button>
-                <button onclick="window.sendLeaderboardMsg('sms', ${s.id}, ${index+1}, '${filterVal}')" style="background: #3b82f6; color: white; border: none; padding: 4px 6px; border-radius: 4px; font-size: 9px; cursor: pointer; font-weight: bold;"><i class="fas fa-sms"></i></button>
-            </div>`;
+        let isTop3 = index < 3;
+        
+        let themeColor = isTop3 ? '#f59e0b' : '#4f46e5';
+        let shadowColor = isTop3 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(79, 70, 229, 0.3)';
+
+        // 🟢 Rank Icon (সাইজ একটু ছোট করা হয়েছে)
+        let rankHtml = '';
+        if (index === 0) {
+            rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#facc15"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
+        } else if (index === 1) {
+            rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#cbd5e1"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text></svg>`;
+        } else if (index === 2) {
+            rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#d97706"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text></svg>`;
+        } else {
+            rankHtml = `<span style="font-size: 14px; font-weight: 800; color: #64748b;">#${index+1}</span>`;
         }
 
-        // 🟢 লিডারবোর্ড লিস্টের কার্ড ডিজাইন (মোবাইল ভিউ ফিক্সড)
+        // 🟢 Reward Buttons (প্যাডিং এবং ফন্ট সাইজ কমিয়ে ফিট করা হয়েছে)
+        let buttonsHtml = '';
+        if (isTop3) {
+            buttonsHtml = `
+            <div style="display:flex; gap:4px; align-items:center; margin-top:4px; flex-wrap:wrap;">
+                <button onclick="window.generatePracticeCertificate(${s.id}, ${index+1}, '${filterVal}', ${item.totalMins})" style="background:#f59e0b; color:white; border:none; padding:3px 6px; border-radius:4px; font-size:9px; font-weight:bold; display:flex; align-items:center; gap:3px; cursor:pointer;"><i class="fas fa-award"></i> Cert</button>
+                <button onclick="window.sendLeaderboardMsg('wa', ${s.id}, ${index+1}, '${filterVal}')" style="background:#25D366; color:white; border:none; padding:3px 6px; border-radius:4px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fab fa-whatsapp"></i></button>
+                <button onclick="window.sendLeaderboardMsg('sms', ${s.id}, ${index+1}, '${filterVal}')" style="background:#3b82f6; color:white; border:none; padding:3px 6px; border-radius:4px; font-size:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fas fa-sms"></i></button>
+            </div>
+            `;
+        }
+
+        // 🟢 Final Card Output (সবকিছুর সাইজ ব্যালান্স করা হয়েছে)
         listContainer.innerHTML += `
-            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px 8px; border-radius:10px; margin-bottom:8px; border:1px solid var(--border-color); box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px; border-radius:10px; margin-bottom:10px; border:1px solid var(--border-color); box-shadow:0 2px 4px rgba(0,0,0,0.04); width:100%; box-sizing:border-box;">
+            
+            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:0;">
                 
-                <div style="display:flex; align-items:flex-start; gap:8px; flex:1; overflow:hidden;">
-                    <div style="margin-top: 3px; flex-shrink:0;">${rankDisplay}</div>
-                    
-                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid ${index < 3 ? '#f59e0b' : 'var(--primary)'}; cursor:pointer; flex-shrink:0;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">
-                    
-                    <div style="min-width:0; flex:1;">
-                        <div style="font-weight:700; font-size:13px; color:var(--text-main); cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">${s.name}</div>
-                        <div style="font-size:10px; color:var(--text-muted);">${s.class || 'Student'}</div>
-                        ${rewardBtns}
-                    </div>
+                <div style="width:22px; flex-shrink:0; display:flex; justify-content:center; align-items:center;">
+                    ${rankHtml}
                 </div>
 
-                <div style="background: ${index < 3 ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'var(--primary)'}; color: white; padding: 6px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; flex-shrink:0; white-space:nowrap; display:flex; align-items:center; justify-content:center; gap:4px; min-width:max-content; box-shadow: 0 2px 5px rgba(0,0,0,0.2); margin-left:5px;">
-    <i class="fas fa-clock"></i> ${timeStr}
-</div>
-                
+                <div style="flex-shrink:0;">
+                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid ${themeColor}; background:white;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">
+                </div>
+
+                <div style="flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center;">
+                    <div style="font-weight:700; font-size:13px; color:var(--text-main); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer;" onclick="closeModal('leaderboardModal'); showStudentDetails(${s.id})">${s.name}</div>
+                    <div style="font-size:10px; color:var(--text-muted); margin-bottom:${isTop3 ? '2px' : '0'};">${s.class || 'Guitar'}</div>
+                    ${buttonsHtml}
+                </div>
             </div>
+
+            <div style="flex-shrink:0; margin-left:6px;">
+                <div style="background:${themeColor}; color:white; padding:4px 8px; border-radius:15px; font-size:11px; font-weight:700; display:flex; align-items:center; gap:4px; box-shadow:0 2px 4px ${shadowColor}; letter-spacing:0.5px;">
+                    <i class="fas fa-clock" style="font-size:10px;"></i> ${timeStr}
+                </div>
+            </div>
+
+        </div>
         `;
     });
+
+    // 🟢 Publish & Hide Buttons
+    listContainer.innerHTML += `
+        <div style="display: flex; gap: 10px; margin-top: 15px; border-top: 2px dashed var(--border-color); padding-top: 15px;">
+            <button onclick="publishLeaderboardToPortal()" style="flex: 1; padding: 12px; border-radius: 8px; border: none; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);">
+                <i class="fas fa-bullhorn"></i> Publish Top 3 to Portal
+            </button>
+            <button onclick="clearPublishedLeaderboard()" style="padding: 12px; border-radius: 8px; border: none; background: var(--bg-input); color: var(--danger); font-weight: bold; cursor: pointer; border: 1px solid var(--danger);">
+                <i class="fas fa-eye-slash"></i> Hide
+            </button>
+        </div>
+    `;
+};
+
+// 🟢 Firebase-এ সেভ করার ফাংশন
+window.publishLeaderboardToPortal = async function() {
+    if(!window.currentTop3ForPublish || window.currentTop3ForPublish.length === 0) {
+        Swal.fire('Info', 'No students to publish!', 'info'); return;
+    }
+    const dataToSave = {
+        period: window.currentPublishPeriod,
+        topStudents: window.currentTop3ForPublish
+    };
+    await dbSet('published_leaderboard', dataToSave);
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Published to Student Portals!', showConfirmButton: false, timer: 2000});
+};
+
+window.clearPublishedLeaderboard = async function() {
+    await dbDelete('published_leaderboard');
+    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Hidden from Portals', showConfirmButton: false, timer: 2000});
 };
 
 // 🟢 1. Send SMS / WA Message for Leaderboard (নির্দিষ্ট মাস ও সাল উল্লেখ সহ)
@@ -8492,15 +8601,22 @@ window.sendLeaderboardMsg = function(type, studentId, rank, timeRange) {
     const now = new Date();
     let periodText = "";
     
-    // 🟢 সময় অনুযায়ী ডাইনামিক টেক্সট তৈরি
-    if (timeRange === 'weekly') {
+// 🟢 সময় অনুযায়ী ডাইনামিক টেক্সট তৈরি
+    if (timeRange === 'last_week') {
+        const sunday = new Date(now);
+        sunday.setDate(now.getDate() - now.getDay() - 7);
+        periodText = `the week of ${sunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}`;
+    } else if (timeRange === 'last_month') {
+        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        periodText = `${lastMonth.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`;
+    } else if (timeRange === 'weekly') {
         const sunday = new Date(now);
         sunday.setDate(now.getDate() - now.getDay());
         periodText = `the week of ${sunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'})}`;
     } else if (timeRange === 'monthly') {
-        periodText = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); // যেমন: April 2026
+        periodText = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
     } else if (timeRange === 'yearly') {
-        periodText = "the year " + now.getFullYear(); // যেমন: the year 2026
+        periodText = "the year " + now.getFullYear(); 
     } else {
         periodText = "Lifetime";
     }
