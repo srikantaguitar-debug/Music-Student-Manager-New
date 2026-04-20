@@ -1875,43 +1875,47 @@ async function addStudent() {
     } 
 }
 
-// 🟢 NEW: Attendance Yearly Sub-collection Sync
+// 🟢 NEW: Attendance Monthly Sub-collection Sync (Fix for 1MB Limit)
 window.syncAttendanceToFirebase = async function() {
     const user = firebase.auth().currentUser;
     const targetUid = new URLSearchParams(window.location.search).get('manager') || (user ? user.uid : DOC_ID);
     if (!targetUid) return;
 
-    let yearlyAtt = {};
+    let monthlyAtt = {};
     Object.keys(attendance).forEach(date => {
-        const year = date.split('-')[0] || date.split('/')[2];
-        let y = (year && year.length === 4) ? year : new Date(date).getFullYear().toString();
-        if(!yearlyAtt[y]) yearlyAtt[y] = {};
-        yearlyAtt[y][date] = attendance[date];
+        // Date থেকে YYYY-MM (বছর ও মাস) বের করা
+        let monthStr = "";
+        if (date.includes('-')) {
+            monthStr = date.substring(0, 7); // YYYY-MM
+        } else if (date.includes('/')) {
+            const parts = date.split('/');
+            monthStr = `${parts[2]}-${parts[1]}`;
+        }
+        
+        if (monthStr) {
+            if(!monthlyAtt[monthStr]) monthlyAtt[monthStr] = {};
+            monthlyAtt[monthStr][date] = attendance[date];
+        }
     });
     
     let promises = [];
-    for (const y of Object.keys(yearlyAtt)) {
-        promises.push(db.collection(COLLECTION_NAME).doc(targetUid).collection('attendance').doc(y).set({ records: yearlyAtt[y] }, { merge: true }));
+    for (const m of Object.keys(monthlyAtt)) {
+        promises.push(db.collection(COLLECTION_NAME).doc(targetUid).collection('attendance').doc(m).set({ records: monthlyAtt[m] }, { merge: true }));
     }
     await Promise.all(promises);
 };
 
-// 🟢 NEW: Fees Yearly Sub-collection Sync
+// 🟢 NEW: Fees Monthly Sub-collection Sync
 window.syncFeesToFirebase = async function() {
     const user = firebase.auth().currentUser;
     const targetUid = new URLSearchParams(window.location.search).get('manager') || (user ? user.uid : DOC_ID);
     if (!targetUid) return;
 
-    let yearlyFees = {};
-    Object.keys(fees).forEach(month => {
-        const year = month.split('-')[0];
-        if(!yearlyFees[year]) yearlyFees[year] = {};
-        yearlyFees[year][month] = fees[month];
-    });
-    
     let promises = [];
-    for (const y of Object.keys(yearlyFees)) {
-        promises.push(db.collection(COLLECTION_NAME).doc(targetUid).collection('fees').doc(y).set({ records: yearlyFees[y] }, { merge: true }));
+    for (const monthStr of Object.keys(fees)) {
+        let monthlyFee = {};
+        monthlyFee[monthStr] = fees[monthStr];
+        promises.push(db.collection(COLLECTION_NAME).doc(targetUid).collection('fees').doc(monthStr).set({ records: monthlyFee }, { merge: true }));
     }
     await Promise.all(promises);
 };
@@ -3998,9 +4002,9 @@ window.markAttendance = async function(studentId, status) {
 
             const user = firebase.auth().currentUser;
             if(user) {
-                const year = date.split('-')[0];
+                const monthStr = date.substring(0, 7); // YYYY-MM
                 const deletePath = `records.${date}.${studentId}`;
-                db.collection(COLLECTION_NAME).doc(user.uid).collection('attendance').doc(year).update({
+                db.collection(COLLECTION_NAME).doc(user.uid).collection('attendance').doc(monthStr).update({
                     [deletePath]: firebase.firestore.FieldValue.delete()
                 }).catch(e => console.log("Delete queued for offline sync."));
             }
@@ -4341,9 +4345,9 @@ async function unmarkFee(studentId, month) {
 
             const user = firebase.auth().currentUser;
             if (user) {
-                const year = month.split('-')[0];
                 const fieldPath = `records.${month}.${studentId}`;
-                db.collection(COLLECTION_NAME).doc(user.uid).collection('fees').doc(year).update({
+                // ফিস এর month ভেরিয়েবলটাই YYYY-MM ফরম্যাটে থাকে, তাই ওটাই ডকুমেন্ট আইডি হবে
+                db.collection(COLLECTION_NAME).doc(user.uid).collection('fees').doc(month).update({
                     [fieldPath]: firebase.firestore.FieldValue.delete()
                 }).catch(err => console.log("Offline mode: Delete queued for sync."));
             }
@@ -6534,31 +6538,30 @@ window.executePermanentDelete = async function(studentId) {
         // ২. ফায়ারবেস ডেটাবেস থেকে স্টুডেন্ট ডকুমেন্ট ডিলিট করা
         await db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).delete();
 
-        // ৩. Yearly Subcollection থেকে ডেটা মুছে ফেলা
-        const updatesByYearAtt = {};
+        // ৩. Monthly Subcollection থেকে ডেটা মুছে ফেলা
+        const updatesByMonthAtt = {};
         for (let date in attendance) {
             if (attendance[date][studentId]) {
                 delete attendance[date][studentId];
-                const year = date.split('-')[0];
-                if(!updatesByYearAtt[year]) updatesByYearAtt[year] = {};
-                updatesByYearAtt[year][`records.${date}.${studentId}`] = firebase.firestore.FieldValue.delete();
+                const monthStr = date.substring(0, 7); // YYYY-MM
+                if(!updatesByMonthAtt[monthStr]) updatesByMonthAtt[monthStr] = {};
+                updatesByMonthAtt[monthStr][`records.${date}.${studentId}`] = firebase.firestore.FieldValue.delete();
             }
         }
-        for (let year in updatesByYearAtt) {
-            db.collection(COLLECTION_NAME).doc(targetUid).collection('attendance').doc(year).update(updatesByYearAtt[year]).catch(e=>console.log(e));
+        for (let month in updatesByMonthAtt) {
+            db.collection(COLLECTION_NAME).doc(targetUid).collection('attendance').doc(month).update(updatesByMonthAtt[month]).catch(e=>console.log(e));
         }
 
-        const updatesByYearFees = {};
+        const updatesByMonthFees = {};
         for (let month in fees) {
             if (fees[month][studentId]) {
                 delete fees[month][studentId];
-                const year = month.split('-')[0];
-                if(!updatesByYearFees[year]) updatesByYearFees[year] = {};
-                updatesByYearFees[year][`records.${month}.${studentId}`] = firebase.firestore.FieldValue.delete();
+                if(!updatesByMonthFees[month]) updatesByMonthFees[month] = {};
+                updatesByMonthFees[month][`records.${month}.${studentId}`] = firebase.firestore.FieldValue.delete();
             }
         }
-        for (let year in updatesByYearFees) {
-            db.collection(COLLECTION_NAME).doc(targetUid).collection('fees').doc(year).update(updatesByYearFees[year]).catch(e=>console.log(e));
+        for (let month in updatesByMonthFees) {
+            db.collection(COLLECTION_NAME).doc(targetUid).collection('fees').doc(month).update(updatesByMonthFees[month]).catch(e=>console.log(e));
         }
 
         // ৪. ডেটাবেস রিফ্রেশ করা এবং UI আপডেট করা
