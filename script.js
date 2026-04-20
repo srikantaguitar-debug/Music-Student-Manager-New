@@ -194,598 +194,690 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.body.innerHTML = ''; 
     document.body.style.background = '#f8fafc';
 
-                // 🟢 Student Portal Rendering Logic (With Crash Fixes & Safety Checks)
-async function renderStudentPortal() {
-    document.body.innerHTML = '<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><i class="fas fa-spinner fa-spin fa-3x" style="color:#6366f1; margin-bottom:15px;"></i><h3 style="color:#1e293b; font-family:Poppins;">Loading Portal...</h3></div>';
+                async function renderStudentPortal() {
+                    document.body.innerHTML = '<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><i class="fas fa-spinner fa-spin fa-3x" style="color:#6366f1; margin-bottom:15px;"></i><h3 style="color:#1e293b; font-family:Poppins;">Loading Portal...</h3></div>';
+                    
+                    try {
+                        const docRef = db.collection('music_classes').doc(managerUid);
+                        const currentYear = new Date().getFullYear();
+                        
+                        // 🟢 FIX: Fetching Data correctly from Sub-collections
+                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
+                            docRef.collection('students').doc(studentViewId).get(),
+                            docRef.get(),
+                            docRef.collection('practice_logs').doc(String(currentYear)).get(),
+                            docRef.collection('attendance').get(),
+                            docRef.collection('fees').get()
+                        ]);
+
+                        if(studentDoc.exists && mainDoc.exists) {
+                            const s = studentDoc.data();
+                            
+                            const pLogs = pLogDoc.exists ? pLogDoc.data().records : [];
+                            const legacyLogs = s.practice_log || [];
+                            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
+                            s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
+
+                            s.practice_log = s.combined_practice_logs;
+                            
+                            // Calculate Accessory Dues HTML
+                            let accessoryDuesHtml = '';
+                            if (s.unpaid_accessories && s.unpaid_accessories.length > 0) {
+                                const totalAccDue = s.unpaid_accessories.reduce((sum, item) => sum + item.due, 0);
+                                const itemsList = s.unpaid_accessories.map(item => item.item).join(', ');
+                                
+                                accessoryDuesHtml = `
+                                <style>@keyframes pulseAccWarning { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }</style>
+                                <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f59e0b; text-align: center; animation: pulseAccWarning 2s infinite;">
+                                    <div style="background: #f59e0b; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
+                                        <i class="fas fa-shopping-bag"></i>
+                                    </div>
+                                    <h4 style="margin:0; color:#b45309; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Accessories Due</h4>
+                                    <p style="margin:8px 0; font-size:32px; font-weight:900; color:#d97706;">₹${totalAccDue}</p>
+                                    <p style="margin:0; font-size:13px; color:#92400e; font-weight: 600;">Pending for: ${itemsList}</p>
+                                </div>`;
+                            }
+                            
+                            const globalData = mainDoc.data();
+                            
+                            // 🟢 FIX: Merging proper data from the new sub-collections
+                            const globalAtt = globalData.attendance || {};
+                            if (attSnap && !attSnap.empty) {
+                                attSnap.forEach(doc => {
+                                    if(doc.data().records) Object.assign(globalAtt, doc.data().records);
+                                });
+                            }
+                            
+                            const globalFees = globalData.fees || {};
+                            if (feeSnap && !feeSnap.empty) {
+                                feeSnap.forEach(doc => {
+                                    if(doc.data().records) Object.assign(globalFees, doc.data().records);
+                                });
+                            }
+                            
+                            if (s.allow_profile_view !== false) {
+                                
+// 🟢 Hall of Fame (Published Leaderboard) UI
+let hallOfFameHtml = '';
+if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
+    const pubData = globalData.published_leaderboard;
     
-    try {
-        const docRef = db.collection('music_classes').doc(managerUid);
-        const currentYear = new Date().getFullYear();
-        
-        // 🟢 Fetching Data Safely
-        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
-            docRef.collection('students').doc(studentViewId).get(),
-            docRef.get(),
-            docRef.collection('practice_logs').doc(String(currentYear)).get(),
-            docRef.collection('attendance').get(),
-            docRef.collection('fees').get()
-        ]);
+    let cardsHtml = pubData.topStudents.map(st => {
+        let badge = st.rank === 1 ? '🥇' : (st.rank === 2 ? '🥈' : '🥉');
+        let color = st.rank === 1 ? '#facc15' : (st.rank === 2 ? '#cbd5e1' : '#fdba74');
+        return `
+            <div style="text-align: center; flex: 1;">
+                <div style="position: relative; display: inline-block;">
+                    <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 55px; height: 55px; border-radius: 50%; border: 2.5px solid ${color}; object-fit: cover; background: white;">
+                    <div style="position: absolute; bottom: -5px; right: -5px; font-size: 16px; background: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid ${color};">${badge}</div>
+                </div>
+                <div style="font-size: 12px; font-weight: 700; margin-top: 10px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
+            </div>
+        `;
+    }).join('');
 
-        if(studentDoc.exists && mainDoc.exists) {
-            const s = studentDoc.data();
-            const globalData = mainDoc.data() || {}; // 🟢 Safety Check
+    hallOfFameHtml = `
+        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 15px 10px; margin-bottom: 25px; border: 1px solid #fde68a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); position: relative; overflow: hidden;">
+            <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1;"><i class="fas fa-trophy"></i></div>
             
-            // 🟢 Practice Log Safety Check
-            const pLogs = (pLogDoc.exists && pLogDoc.data().records) ? pLogDoc.data().records : [];
-            const legacyLogs = s.practice_log || [];
-            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
-            s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
-            s.practice_log = s.combined_practice_logs;
+            <div style="text-align: center; margin-bottom: 15px; position: relative; z-index: 2;">
+                <h4 style="margin: 0; color: #b45309; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-crown" style="color: #f59e0b; font-size: 20px;"></i> Hall of Fame
+                </h4>
+                <span style="font-size: 10px; color: #92400e; font-weight: 800; background: #fde68a; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">TOP PRACTICE - ${pubData.period}</span>
+            </div>
             
-            // 🟢 Accessory Dues HTML
-            let accessoryDuesHtml = '';
-            if (s.unpaid_accessories && s.unpaid_accessories.length > 0) {
-                const totalAccDue = s.unpaid_accessories.reduce((sum, item) => sum + item.due, 0);
-                const itemsList = s.unpaid_accessories.map(item => item.item).join(', ');
-                
-                accessoryDuesHtml = `
-                <style>@keyframes pulseAccWarning { 0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(245, 158, 11, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); } }</style>
-                <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f59e0b; text-align: center; animation: pulseAccWarning 2s infinite;">
-                    <div style="background: #f59e0b; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
-                        <i class="fas fa-shopping-bag"></i>
-                    </div>
-                    <h4 style="margin:0; color:#b45309; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Accessories Due</h4>
-                    <p style="margin:8px 0; font-size:32px; font-weight:900; color:#d97706;">₹${totalAccDue}</p>
-                    <p style="margin:0; font-size:13px; color:#92400e; font-weight: 600;">Pending for: ${itemsList}</p>
-                </div>`;
-            }
-            
-            // 🟢 Attendance & Fees Safety Check
-            const globalAtt = globalData.attendance || {};
-            if (attSnap && !attSnap.empty) {
-                attSnap.forEach(doc => {
-                    if(doc.data().records) Object.assign(globalAtt, doc.data().records);
-                });
-            }
-            
-            const globalFees = globalData.fees || {};
-            if (feeSnap && !feeSnap.empty) {
-                feeSnap.forEach(doc => {
-                    if(doc.data().records) Object.assign(globalFees, doc.data().records);
-                });
-            }
+            <div style="display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2;">
+                ${cardsHtml}
+            </div>
+        </div>
+    `;
+}
+                                // ১. Personal Notice
+                                let noticeHtml = '';
+                                if (s.personal_notice && s.personal_notice.trim() !== '') {
+                                    noticeHtml = `
+                                    <div style="background: linear-gradient(90deg, #fffbeb, #fef3c7); padding: 12px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                                        <i class="fas fa-bell fa-shake" style="color: #d97706;"></i>
+                                        <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
+                                    </div>`;
+                                }
 
-            // 🟢 Hall of Fame (Published Leaderboard) UI
-            let hallOfFameHtml = '';
-            if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
-                const pubData = globalData.published_leaderboard;
-                
-                let cardsHtml = pubData.topStudents.map(st => {
-                    let badge = st.rank === 1 ? '🥇' : (st.rank === 2 ? '🥈' : '🥉');
-                    let color = st.rank === 1 ? '#facc15' : (st.rank === 2 ? '#cbd5e1' : '#fdba74');
-                    return `
-                        <div style="text-align: center; flex: 1;">
-                            <div style="position: relative; display: inline-block;">
-                                <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 55px; height: 55px; border-radius: 50%; border: 2.5px solid ${color}; object-fit: cover; background: white;">
-                                <div style="position: absolute; bottom: -5px; right: -5px; font-size: 16px; background: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid ${color};">${badge}</div>
-                            </div>
-                            <div style="font-size: 12px; font-weight: 700; margin-top: 10px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
-                        </div>
-                    `;
-                }).join('');
+// ২. Attendance Data (ফাঁকা এন্ট্রি হাইড করার লজিক)
+                                let attRecords = [];
+                                Object.keys(globalAtt).forEach(date => { if(globalAtt[date][studentViewId]) attRecords.push({ date, data: globalAtt[date][studentViewId] }); });
+                                attRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
+                                
+                                // 🟢 NEW: শুধুমাত্র আসল ডেটা (Present/Absent বা Note থাকলে) ফিল্টার করা হচ্ছে
+                                let validAttRecords = attRecords.filter(rec => {
+                                    let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : (typeof rec.data === 'string' ? rec.data : null);
+                                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note.trim() : '';
+                                    
+                                    // যদি status বা note-এর যেকোনো একটি থাকে, তবেই লিস্টে দেখাবে
+                                    return (status === 'present' || status === 'absent' || note !== '');
+                                });
 
-                hallOfFameHtml = `
-                    <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 15px 10px; margin-bottom: 25px; border: 1px solid #fde68a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1;"><i class="fas fa-trophy"></i></div>
-                        <div style="text-align: center; margin-bottom: 15px; position: relative; z-index: 2;">
-                            <h4 style="margin: 0; color: #b45309; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <i class="fas fa-crown" style="color: #f59e0b; font-size: 20px;"></i> Hall of Fame
-                            </h4>
-                            <span style="font-size: 10px; color: #92400e; font-weight: 800; background: #fde68a; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">TOP PRACTICE - ${pubData.period}</span>
-                        </div>
-                        <div style="display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2;">
-                            ${cardsHtml}
-                        </div>
-                    </div>
-                `;
-            }
+                                let attHtml = validAttRecords.length > 0 ? validAttRecords.map(rec => {
+                                    let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
+                                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
+                                    let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
+                                    let inst = typeof rec.data === 'object' && rec.data !== null && rec.data.instrument ? rec.data.instrument : ''; 
 
-            if (s.allow_profile_view !== false) {
-                // ১. Personal Notice
-                let noticeHtml = '';
-                if (s.personal_notice && s.personal_notice.trim() !== '') {
-                    noticeHtml = `
-                    <div style="background: linear-gradient(90deg, #fffbeb, #fef3c7); padding: 12px; border-radius: 12px; border-left: 4px solid #f59e0b; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-bell fa-shake" style="color: #d97706;"></i>
-                        <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
-                    </div>`;
-                }
+                                    let clr = status === 'present' ? '#16a34a' : (status === 'absent' ? '#dc2626' : '#f59e0b');
 
-                // ২. Attendance Data
-                let attRecords = [];
-                Object.keys(globalAtt).forEach(date => { if(globalAtt[date][studentViewId]) attRecords.push({ date, data: globalAtt[date][studentViewId] }); });
-                attRecords.sort((a,b) => new Date(b.date) - new Date(a.date));
-                
-                let validAttRecords = attRecords.filter(rec => {
-                    let status = typeof rec.data === 'object' && rec.data !== null ? rec.data.status : (typeof rec.data === 'string' ? rec.data : null);
-                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note.trim() : '';
-                    return (status === 'present' || status === 'absent' || note !== '');
-                });
+                                    const d = new Date(rec.date);
+                                    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+                                    const formattedDate = d.toLocaleDateString('en-IN');
 
-                let attHtml = validAttRecords.length > 0 ? validAttRecords.map(rec => {
-                    let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
-                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
-                    let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
-                    let inst = typeof rec.data === 'object' && rec.data !== null && rec.data.instrument ? rec.data.instrument : ''; 
-                    let clr = status === 'present' ? '#16a34a' : (status === 'absent' ? '#dc2626' : '#f59e0b');
-                    const d = new Date(rec.date);
-                    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
-                    const formattedDate = d.toLocaleDateString('en-IN');
-                    let timeDisplay = time ? formatTime12H(time) : '';
-                    let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
-                    let instBadge = inst ? `<span style="font-size:10px; color:#0ea5e9; background:#e0f2fe; padding:2px 6px; border-radius:4px; margin-left:5px; border:1px solid #bae6fd; font-weight:bold;">${inst}</span>` : '';
-                    let noteDisplay = note ? `<br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>` : '';
+                                    let timeDisplay = time ? formatTime12H(time) : '';
+                                    let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
+                                    
+                                    let instBadge = inst ? `<span style="font-size:10px; color:#0ea5e9; background:#e0f2fe; padding:2px 6px; border-radius:4px; margin-left:5px; border:1px solid #bae6fd; font-weight:bold;">${inst}</span>` : '';
+                                    
+                                    let noteDisplay = note ? `<br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>` : '';
 
-                    return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}${instBadge}
-                            ${noteDisplay}
-                        </div>
-                        <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
-                    </div>`;
-                }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
+                                    return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                                        <div>
+                                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}${instBadge}
+                                            ${noteDisplay}
+                                        </div>
+                                        <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
+                                    </div>`;
+                                }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
 
-                // ৩. Payment Data
-                let feeRecords = [];
-                Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
-                feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
-                
-                let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
-                    let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:#047857; font-weight:600; display:inline-block; margin-top:6px; background:#d1fae5; padding:4px 8px; border-radius:6px; border:1px dashed #34d399;"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
-                    let payDate = rec.data.date ? new Date(rec.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
-                    let monthName = new Date(rec.month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                    
-                    return `
-                    <div style="margin-bottom:15px; padding:16px; background:#f0fdf4; border-radius:14px; border-left:6px solid #22c55e; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);">
-                        <div>
-                            <strong style="color:#166534; font-size:16px; letter-spacing: 0.5px;">${monthName}</strong><br>
-                            <span style="font-size:12px; color:#15803d; display:flex; align-items:center; gap:5px; margin-top:4px; font-weight: 500;">
-                                <i class="fas fa-calendar-check" style="color:#22c55e;"></i> Paid on: ${payDate} (${rec.data.mode || 'Cash'})
-                            </span>
-                            ${txnHtml}
-                        </div>
-                        <div style="font-size:20px; font-weight:800; color:#166534; background:#dcfce7; padding:8px 14px; border-radius:10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">₹${rec.data.amount}</div>
-                    </div>`;
-                }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
-
-                // ৪. Due Data
-                let dueHtml = '';
-                let dueMonthsList = [];
-                const portalNow = new Date();
-                const portalToday = portalNow.getDate();
-                const portalDUE_DATE = 10;
-                
-                let iterDate = new Date(s.joining_date);
-                if (!isNaN(iterDate.getTime())) {
-                    iterDate.setDate(1);
-                    while (iterDate <= portalNow) {
-                        const y = iterDate.getFullYear();
-                        const m = iterDate.getMonth() + 1;
-                        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+// ৩. Payment Data
+                        let feeRecords = [];
+                        Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
+                        feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
                         
-                        let isPastDue = false;
-                        if (y < portalNow.getFullYear()) isPastDue = true;
-                        else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
-                        else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
-
-                        let wasActive = false;
-                        const monthEnd = new Date(y, m, 0, 23, 59, 59);
-                        const joinDate = new Date(s.joining_date);
-                        if (joinDate <= monthEnd) {
-                            const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
-                            let statusAtStart = 'Active'; 
-                            for (let i = 0; i < history.length; i++) { 
-                                if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
-                            }
-                            let changesInMonth = history.filter(h => { 
-                                const d = new Date(h.date); 
-                                return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
-                            });
+                        let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
+                            // ট্রানজ্যাকশন আইডি থাকলে দেখাবে
+                            let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:#047857; font-weight:600; display:inline-block; margin-top:6px; background:#d1fae5; padding:4px 8px; border-radius:6px; border:1px dashed #34d399;"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
                             
-                            if (changesInMonth.length === 0) {
-                                wasActive = (statusAtStart === 'Active');
-                            } else {
-                                const lastChange = changesInMonth[changesInMonth.length - 1];
-                                wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
-                            }
-                        }
-
-                        if (isPastDue && wasActive) {
-                            if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
-                                const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                                dueMonthsList.push(formattedMonth);
-                            }
-                        }
-                        iterDate.setMonth(iterDate.getMonth() + 1);
-                    }
-                }
-
-                if(dueMonthsList.length > 0) {
-                    const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
-                    dueHtml = `
-                    <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
-                    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
-                        <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
-                            <i class="fas fa-exclamation-triangle"></i>
-                        </div>
-                        <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
-                        <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
-                        <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
-                    </div>`;
-                }
-
-                // ৫. Study Materials Data
-                let materialsHtml = '';
-                if (s.study_materials && s.study_materials.length > 0) {
-                    materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
-                        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
-                        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
-                            <div style="display:flex; align-items:center; gap:10px;">
-                                <div style="font-size:20px;">${icon}</div>
+                            // পেমেন্টের তারিখ ফরম্যাট করা (যেমন: 15 Oct, 2023)
+                            let payDate = rec.data.date ? new Date(rec.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+                            
+                            // মাসের নাম ফরম্যাট করা
+                            let monthName = new Date(rec.month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                            
+                            return `
+                            <div style="margin-bottom:15px; padding:16px; background:#f0fdf4; border-radius:14px; border-left:6px solid #22c55e; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);">
                                 <div>
-                                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
-                                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+                                    <strong style="color:#166534; font-size:16px; letter-spacing: 0.5px;">${monthName}</strong><br>
+                                    <span style="font-size:12px; color:#15803d; display:flex; align-items:center; gap:5px; margin-top:4px; font-weight: 500;">
+                                        <i class="fas fa-calendar-check" style="color:#22c55e;"></i> Paid on: ${payDate} (${rec.data.mode || 'Cash'})
+                                    </span>
+                                    ${txnHtml}
                                 </div>
-                            </div>
-                            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
-                        </div>`;
-                    }).join('');
-                } else {
-                    materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
-                }
+                                <div style="font-size:20px; font-weight:800; color:#166534; background:#dcfce7; padding:8px 14px; border-radius:10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">₹${rec.data.amount}</div>
+                            </div>`;
+                        }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
 
-                const isStudentActive = isStudentCurrentlyActive(s);
-                let badgeHtml = '';
-                let inactiveDetailsHtml = '';
-                let practiceLogFormHtml = '';
-
-                if (isStudentActive) {
-                    badgeHtml = `<div style="margin-top: 8px;"><span style="background:#dcfce7; color:#166534; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #bbf7d0; display:inline-block;">Active Student</span></div>`;
-                    
-                    let classList = s.class ? s.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : ['Music'];
-                    const getInstrumentIcon = (name) => {
-                        const n = name.toLowerCase();
-                        if (n.includes('bass guitar') || n.includes('bass')) return '🎸';
-                        if (n.includes('guitar')) return '🎸';
-                        if (n.includes('keyboard') || n.includes('piano')) return '🎹';
-                        if (n.includes('mandolin')) return '🪕';
-                        return '🎵';
-                    };
-
-                    let classOptionsHtml = classList.map(c => `<option value="${c}">${getInstrumentIcon(c)} ${c}</option>`).join('');
-                    let classSelectDisabled = classList.length === 1 
-                        ? 'disabled style="background: #f1f5f9; color: #64748b; font-weight: 600; border: 1px solid #e2e8f0; cursor: not-allowed;"' 
-                        : 'style="background: #ffffff; color: #4f46e5; font-weight: 700; border: 2px solid #a5b4fc; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15); cursor: pointer;"';
-
-                    practiceLogFormHtml = `
-                    <div style="margin-bottom: 15px; position: relative;">
-                        <label style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: block; text-align: left; text-transform: uppercase; letter-spacing: 0.5px;">
-                            <i class="fas fa-music" style="color: #8b5cf6;"></i> Select Subject
-                        </label>
-                        <select id="practiceClassSelect" ${classSelectDisabled} style="width: 100%; padding: 12px 15px; border-radius: 10px; font-size: 15px; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; transition: all 0.3s;">
-                            ${classOptionsHtml}
-                        </select>
-                    </div>
-
-                    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
-                        <span style="font-size: 13px; color: #64748b; font-weight: 600;"><i class="fas fa-clock"></i> Time:</span>
-                        <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; color: #1e293b; background: white;">
-                        <span style="font-size: 10px; color: #94a3b8;">(Optional)</span>
-                    </div>
-
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                        <div style="width: 40%; display: flex; gap: 5px;">
-                            <input type="number" id="practiceHours" placeholder="Hrs" min="0" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
-                            <input type="number" id="practiceMinutes" placeholder="Mins" min="0" max="59" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
-                        </div>
-                        <input type="text" id="practiceTopic" placeholder="Topic (Optional)" style="width: 60%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
-                    </div>
-                    
-                    <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;">
-                        <i class="fas fa-check-circle" style="margin-right: 5px;"></i> Log Practice
-                    </button>`;
-                } else {
-                    badgeHtml = `<div style="margin-top: 8px; display: block;"><span style="background:#fee2e2; color:#991b1b; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #fecaca; display:inline-block;">Inactive Student</span></div>`;
-                    
-                    let inactiveDateText = 'N/A';
-                    let durationText = '';
-                    if (s.status && s.status.history && s.status.history.length > 0) {
-                        const sortedHistory = [...s.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
-                        if (sortedHistory[0].status === 'Inactive') {
-                            const inactiveDate = new Date(sortedHistory[0].date);
-                            inactiveDateText = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-                            
-                            const today = new Date();
-                            let y = today.getFullYear() - inactiveDate.getFullYear();
-                            let m = today.getMonth() - inactiveDate.getMonth();
-                            let d = today.getDate() - inactiveDate.getDate();
-                            if (d < 0) { m--; const lm = new Date(today.getFullYear(), today.getMonth(), 0); d += lm.getDate(); }
-                            if (m < 0) { y--; m += 12; }
-                            
-                            let dur = [];
-                            if (y > 0) dur.push(y + ' Yrs');
-                            if (m > 0) dur.push(m + ' Mths');
-                            if (d > 0) dur.push(d + ' Days');
-                            if (dur.length === 0) dur.push('Today');
-                            durationText = `(Duration: ${dur.join(', ')})`;
-                        }
-                    }
-                    inactiveDetailsHtml = `<div style="margin-top: 12px; font-size: 13px; color: #ef4444; font-weight: 600; background: #fef2f2; padding: 10px 20px; border-radius: 12px; display: inline-block; border: 1px dashed #fca5a5;">Inactive Since: ${inactiveDateText} <br> <span style="font-size:12px; color:#b91c1c;">${durationText}</span></div>`;
-                    
-                    practiceLogFormHtml = `
-                    <div style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px dashed #fca5a5; text-align: center; color: #dc2626;">
-                        <i class="fas fa-lock" style="font-size: 24px; margin-bottom: 8px;"></i>
-                        <div style="font-size: 13px; font-weight: 600;">Practice Logging is Disabled</div>
-                        <div style="font-size: 11px; margin-top: 4px;">You cannot log practice while your status is Inactive. Please contact your teacher to reactivate your profile.</div>
-                    </div>`;
-                }
-
-                // 🟢 Rank Badge Overlay
-                let rank = null;
-                let rankType = ""; 
-                let totalBadgeMins = 0; 
-                let allLogs = [...(pLogs || [])];
-                if (s.practice_log) {
-                    s.practice_log.forEach(l => {
-                        if(!allLogs.some(pl => pl.id === l.id)) allLogs.push({...l, studentId: s.id});
-                    });
-                }
-
-                if (allLogs.length > 0) {
-                    const _now = new Date();
-                    const _lastSunday = new Date(_now);
-                    _lastSunday.setDate(_now.getDate() - _now.getDay() - 7);
-                    _lastSunday.setHours(0, 0, 0, 0);
-                    
-                    const _lastSaturday = new Date(_lastSunday);
-                    _lastSaturday.setDate(_lastSunday.getDate() + 6);
-                    _lastSaturday.setHours(23, 59, 59, 999);
-
-                    const _firstOfLastMonth = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
-                    const _lastOfLastMonth = new Date(_now.getFullYear(), _now.getMonth(), 0, 23, 59, 59);
-
-                    function checkRankForPeriod(start, end) {
-                        let statsMap = {};
-                        allLogs.forEach(log => {
-                            const parts = log.date.split('/');
-                            let logDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(log.date);
-                            logDate.setHours(0,0,0,0);
-                            if (logDate >= start && logDate <= end) {
-                                if(!statsMap[log.studentId]) statsMap[log.studentId] = 0;
-                                statsMap[log.studentId] += (parseInt(log.minutes) || 0);
-                            }
-                        });
-                        
-                        if(statsMap[s.id]) totalBadgeMins = statsMap[s.id];
-                        
-                        let sorted = Object.keys(statsMap).map(id => ({ id: parseInt(id), mins: statsMap[id] })).sort((a,b) => b.mins - a.mins);
-                        return sorted.findIndex(st => parseInt(st.id) === parseInt(s.id));
-                    }
-
-                    let wIndex = checkRankForPeriod(_lastSunday, _lastSaturday);
-                    if (wIndex !== -1 && wIndex < 3) {
-                        rank = wIndex + 1;
-                        rankType = "Last Week";
-                    } else {
-                        let mIndex = checkRankForPeriod(_firstOfLastMonth, _lastOfLastMonth);
-                        if (mIndex !== -1 && mIndex < 3) {
-                            rank = mIndex + 1;
-                            rankType = "Last Month";
-                        }
-                    }
-                }
-
-                let badgeOverlay = '';
-                if (rank) {
-                    let borderColor = rank === 1 ? "#facc15" : (rank === 2 ? "#cbd5e1" : "#fdba74");
-                    let medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
-                    
-                    badgeOverlay = `
-                        <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" 
-                             style="position:absolute; bottom:0px; right:-8px; font-size:28px; background:#ffffff; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); border: 2.5px solid ${borderColor}; z-index:10; cursor:pointer;" 
-                             title="Click for details">
-                            ${medalIcon}
-                            <span style="position:absolute; top:-10px; background:${borderColor}; color:#000; font-size:8px; font-weight:900; padding:2px 4px; border-radius:8px; white-space:nowrap; border:1px solid #fff;">${rankType.toUpperCase()}</span>
-                        </div>`;
-                }
-
-                document.body.innerHTML = `
-                    <style>
-                        .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
-                        .modal-content-portal { background:var(--bg-card); width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); color: var(--text-main); }
-                        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-                        .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
-                        .scroller-box::-webkit-scrollbar { width: 4px; }
-                        .scroller-box::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 4px; }
-                        .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:var(--text-muted); background: var(--bg-input); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
-                    </style>
-                    
-                    <div style="background: var(--bg-body); min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px; color: var(--text-main); transition: background 0.3s, color 0.3s;">
-                        <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); position: relative;">
-                            <button onclick="openThemeSelector()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 38px; height: 38px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-                                <i class="fas fa-palette"></i>
-                            </button>
-                            <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
-                            <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
-                        </div>
-
-                        <div style="margin-top:-60px; padding:0 20px; position: relative; z-index: 10;">
-                            <div style="text-align: center; margin-bottom: 25px;">
-                                <div style="position:relative; display:inline-block;">
-                                    <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
-                                    ${badgeOverlay}
-                                </div>
-                                <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
-                                ${badgeHtml}
-                                ${inactiveDetailsHtml}
-                            </div>
-
-                            ${hallOfFameHtml}
-                            ${noticeHtml}
-
-                            <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
-                                <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
-                                    <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
-                                </h4>
-                                ${practiceLogFormHtml}
-                                <div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
-                                    <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:14px; font-weight:600;">
-                                        <i class="fas fa-history" style="color:var(--primary); margin-right:5px;"></i> Practice Log
-                                    </h4>
-                                    <div id="practiceHistoryPortal" class="scroller-box" style="max-height: 250px; overflow-y: auto; background: var(--bg-input); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px; margin-top: 25px;">
-                                <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                    <div style="display:flex; align-items:center; gap:15px;">
-                                        <div style="background:rgba(59, 130, 246, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
-                                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Profile Details</span>
-                                    </div>
-                                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
-                                </button>
+// ৪. Due Data (Fixed for Standalone Portal View)
+                                let dueHtml = '';
+                                let dueMonthsList = [];
+                                const portalNow = new Date();
+                                const portalToday = portalNow.getDate();
+                                const portalDUE_DATE = 10; // মাসের ১০ তারিখের পর ডিউ দেখাবে
                                 
-                                <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                    <div style="display:flex; align-items:center; gap:15px;">
-                                        <div style="background:rgba(168, 85, 247, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
-                                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Attendance History</span>
-                                    </div>
-                                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
-                                </button>
-                                
-                                <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
-                                    <div style="display:flex; align-items:center; gap:15px;">
-                                        <div style="background:rgba(34, 197, 94, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
-                                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Payment History</span>
-                                    </div>
-                                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
-                                </button>
-                            </div>
+                                let iterDate = new Date(s.joining_date);
+                                if (!isNaN(iterDate.getTime())) {
+                                    iterDate.setDate(1);
+                                    while (iterDate <= portalNow) {
+                                        const y = iterDate.getFullYear();
+                                        const m = iterDate.getMonth() + 1;
+                                        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+                                        
+                                        // ১. চেক করা হচ্ছে মাসটি ডিউ হয়েছে কিনা
+                                        let isPastDue = false;
+                                        if (y < portalNow.getFullYear()) isPastDue = true;
+                                        else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
+                                        else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
 
-                            ${dueHtml}
-                            ${accessoryDuesHtml}
+                                        // ২. চেক করা হচ্ছে স্টুডেন্ট ওই মাসে অ্যাক্টিভ ছিল কিনা
+                                        let wasActive = false;
+                                        const monthEnd = new Date(y, m, 0, 23, 59, 59);
+                                        const joinDate = new Date(s.joining_date);
+                                        if (joinDate <= monthEnd) {
+                                            const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+                                            let statusAtStart = 'Active'; 
+                                            for (let i = 0; i < history.length; i++) { 
+                                                if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
+                                            }
+                                            let changesInMonth = history.filter(h => { 
+                                                const d = new Date(h.date); 
+                                                return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
+                                            });
+                                            
+                                            if (changesInMonth.length === 0) {
+                                                wasActive = (statusAtStart === 'Active');
+                                            } else {
+                                                const lastChange = changesInMonth[changesInMonth.length - 1];
+                                                wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
+                                            }
+                                        }
 
-                            <div style="margin-top: 10px;">
-                                <h4 style="margin:0 0 15px 5px; color:var(--text-main); font-size:16px;"><i class="fas fa-book-open" style="color:var(--primary); margin-right:5px;"></i> My Study Materials</h4>
-                                <div class="scroller-box" style="background:var(--bg-card); border-radius:16px; padding:15px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
-                            </div>
-                        </div>
+                                        // ৩. যদি ডিউ হয় এবং পেমেন্ট না করা থাকে
+                                        if (isPastDue && wasActive) {
+                                            if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
+                                                const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
+                                                dueMonthsList.push(formattedMonth);
+                                            }
+                                        }
+                                        iterDate.setMonth(iterDate.getMonth() + 1);
+                                    }
+                                }
 
-                        <div id="m-teacher" class="modal-portal"><div class="modal-content-portal">
-                            <div class="close-btn" onclick="document.getElementById('m-teacher').style.display='none'">&times;</div>
-                            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Teacher Details</h3>
-                            <div style="text-align: center; padding: 15px 0;">
-                                <div style="background:rgba(59, 130, 246, 0.1); width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:30px; margin: 0 auto 15px auto;">
-                                    <i class="fas fa-user-tie"></i>
-                                </div>
-                                <h2 style="margin: 0 0 5px 0; color: var(--text-main);">Srikanta Banerjee</h2>
-                                <p style="margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Owner & Instructor</p>
-                                <div style="margin-top: 20px; text-align: left; font-size: 14px; color: var(--text-main); background: var(--bg-input); padding: 15px; border-radius: 12px; border: 1px dashed var(--border-color); line-height: 1.6;">
-                                    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                                        <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 16px; margin-top: 3px;"></i> 
-                                        <div><strong>Address:</strong><br><span style="color: var(--text-muted);">Moyna, Nabagram,<br>Purba Bardhaman</span></div>
-                                    </div>
-                                    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                                        <i class="fas fa-phone-alt" style="color: #10b981; font-size: 16px; margin-top: 3px;"></i> 
-                                        <div><strong>Contact:</strong><br><span style="color: var(--text-muted);">7001471235 / 9475311199</span></div>
-                                    </div>
-                                    <div style="display: flex; align-items: flex-start; gap: 10px;">
-                                        <i class="fas fa-music" style="color: var(--primary); font-size: 16px; margin-top: 3px;"></i> 
-                                        <div><strong>Classes:</strong><br><span style="color: var(--text-muted);">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div></div>
-                        
-                        <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
-                            <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
-                            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Profile Details</h3>
-                            <div class="scroller-box" style="font-size: 14px; color: var(--text-muted);">
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                                    <span style="font-weight:600;">Joining Date:</span> <span style="color:var(--text-main);">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                                    <span style="font-weight:600;">ID No:</span> <span style="color:var(--primary); font-weight:700;">#${s.serial_no}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                                    <span style="font-weight:600;">Class:</span> <span style="color:var(--text-main);">${s.class || 'N/A'}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:var(--success); font-weight:700;">₹${s.fee_amount || 500}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                                    <span style="font-weight:600;">Phone:</span> <span style="color:var(--text-main);">${s.phone || 'N/A'}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                                    <span style="font-weight:600;">DOB:</span> <span style="color:var(--text-main);">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
-                                </div>
-                                <div style="display:flex; justify-content:space-between; padding: 10px 0;">
-                                    <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:var(--text-main);">${s.address || 'N/A'}</span>
-                                </div>
-                            </div>
-                        </div></div>
+                                if(dueMonthsList.length > 0) {
+                                    const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
+                                    dueHtml = `
+                                    <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
+                                    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
+                                        <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
+                                            <i class="fas fa-exclamation-triangle"></i>
+                                        </div>
+                                        <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
+                                        <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
+                                        <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
+                                    </div>`;
+                                }
 
-                        <div id="m-att" class="modal-portal"><div class="modal-content-portal">
-                            <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
-                            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Attendance History</h3>
-                            <div style="margin-bottom: 15px;">${getPastInactivePeriodsHtml(s)}</div>
-                            <div class="scroller-box">${attHtml}</div>
-                        </div></div>
+                                // ৫. Study Materials Data
+                                let materialsHtml = '';
+                                if (s.study_materials && s.study_materials.length > 0) {
+                                    materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
+                                        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
+                                        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
+                                            <div style="display:flex; align-items:center; gap:10px;">
+                                                <div style="font-size:20px;">${icon}</div>
+                                                <div>
+                                                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
+                                                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+                                                </div>
+                                            </div>
+                                            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
+                                        </div>`;
+                                    }).join('');
+                                } else {
+                                    materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
+                                }
 
-                        <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
-                            <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
-                            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Payment History</h3>
-                            <div class="scroller-box">${paidHtml}</div>
-                        </div></div>
+// 🟢 NEW: Active/Inactive Status Check for Portal
+const isStudentActive = isStudentCurrentlyActive(s);
+let badgeHtml = '';
+let inactiveDetailsHtml = '';
+let practiceLogFormHtml = '';
 
-                        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.1); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
-                            <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                                <i class="fas fa-user-tie" style="font-size: 24px; color: var(--text-main);"></i>
-                            </button>
-                            <button onclick="showStudentPortalQR('${studentViewId}')" style="flex: 1.2; height: 45px; background: var(--primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(99,102,241,0.3); cursor: pointer;">
-                                QR Code
-                            </button>
-                            <button onclick="showHelpOptions()" style="flex: 1.2; height: 45px; background: var(--info); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(59,130,246,0.3); cursor: pointer;">
-                                Help
-                            </button>
-                            <button onclick="studentPortalLogout('${studentViewId}')" style="flex:1; height: 45px; background: var(--bg-card); color: var(--danger); border: 2px solid var(--danger); display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
-                                Log Out
-                            </button>
-                        </div>
-                    </div>
-                `;
+if (isStudentActive) {
+    // 🟢 অ্যাক্টিভ ব্যাজ (মাঝে থাকবে)
+    badgeHtml = `<div style="margin-top: 8px;"><span style="background:#dcfce7; color:#166534; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #bbf7d0; display:inline-block;">Active Student</span></div>`;
+    
+    // 🟢 NEW: Beautiful Class/Instrument Dropdown Logic (Guitar, Keyboard, Bass Guitar, Mandolin)
+    let classList = s.class ? s.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : ['Music'];
+    
+    // নামের সাথে ডায়নামিক ইমোজি বসানোর লজিক
+    const getInstrumentIcon = (name) => {
+        const n = name.toLowerCase();
+        if (n.includes('bass guitar') || n.includes('bass')) return '🎸';
+        if (n.includes('guitar')) return '🎸';
+        if (n.includes('keyboard') || n.includes('piano')) return '🎹';
+        if (n.includes('mandolin')) return '🪕';
+        return '🎵';
+    };
 
-                setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+    let classOptionsHtml = classList.map(c => `<option value="${c}">${getInstrumentIcon(c)} ${c}</option>`).join('');
+    
+    // যদি ক্লাস ১টি থাকে তাহলে লকড ডিজাইন, আর একাধিক থাকলে প্রিমিয়াম সিলেক্ট ডিজাইন
+    let classSelectDisabled = classList.length === 1 
+        ? 'disabled style="background: #f1f5f9; color: #64748b; font-weight: 600; border: 1px solid #e2e8f0; cursor: not-allowed;"' 
+        : 'style="background: #ffffff; color: #4f46e5; font-weight: 700; border: 2px solid #a5b4fc; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15); cursor: pointer;"';
 
-                // Security Features
-                document.body.style.userSelect = 'none';
-                document.body.style.webkitUserSelect = 'none';
-                document.body.style.webkitTouchCallout = 'none'; 
-                document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
-                document.addEventListener('copy', function(e) { e.preventDefault(); });
-                const allImages = document.querySelectorAll('img');
-                allImages.forEach(img => { img.style.pointerEvents = 'none'; });
+    practiceLogFormHtml = `
+    <div style="margin-bottom: 15px; position: relative;">
+        <label style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: block; text-align: left; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-music" style="color: #8b5cf6;"></i> Select Subject
+        </label>
+        
+        <select id="practiceClassSelect" ${classSelectDisabled} style="width: 100%; padding: 12px 15px; border-radius: 10px; font-size: 15px; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; transition: all 0.3s;">
+            ${classOptionsHtml}
+        </select>
 
-            }
-        } else {
-            document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="studentPortalLogout('${studentViewId}')" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+    </div>
+
+    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
+        <span style="font-size: 13px; color: #64748b; font-weight: 600;"><i class="fas fa-clock"></i> Time:</span>
+        <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; color: #1e293b; background: white;">
+        <span style="font-size: 10px; color: #94a3b8;">(Optional)</span>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <div style="width: 40%; display: flex; gap: 5px;">
+            <input type="number" id="practiceHours" placeholder="Hrs" min="0" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
+            <input type="number" id="practiceMinutes" placeholder="Mins" min="0" max="59" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
+        </div>
+        <input type="text" id="practiceTopic" placeholder="Topic (Optional)" style="width: 60%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
+    </div>
+    
+    <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;">
+        <i class="fas fa-check-circle" style="margin-right: 5px;"></i> Log Practice
+    </button>`;
+} else {
+    // 🟢 ইনঅ্যাক্টিভ ব্যাজ (ঠিক নামের নিচে মাঝে থাকবে) - এখানে display:block দিয়েছি যাতে এটা পুরো লাইন নিয়ে নেয়
+    badgeHtml = `<div style="margin-top: 8px; display: block;"><span style="background:#fee2e2; color:#991b1b; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #fecaca; display:inline-block;">Inactive Student</span></div>`;
+    
+    let inactiveDateText = 'N/A';
+    let durationText = '';
+    if (s.status && s.status.history && s.status.history.length > 0) {
+        const sortedHistory = [...s.status.history].sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (sortedHistory[0].status === 'Inactive') {
+            const inactiveDate = new Date(sortedHistory[0].date);
+            inactiveDateText = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+            
+            const today = new Date();
+            let y = today.getFullYear() - inactiveDate.getFullYear();
+            let m = today.getMonth() - inactiveDate.getMonth();
+            let d = today.getDate() - inactiveDate.getDate();
+            
+            if (d < 0) { m--; const lm = new Date(today.getFullYear(), today.getMonth(), 0); d += lm.getDate(); }
+            if (m < 0) { y--; m += 12; }
+            
+            let dur = [];
+            if (y > 0) dur.push(y + ' Yrs');
+            if (m > 0) dur.push(m + ' Mths');
+            if (d > 0) dur.push(d + ' Days');
+            if (dur.length === 0) dur.push('Today');
+            durationText = `(Duration: ${dur.join(', ')})`;
         }
-    } catch(e) { 
-        console.error("Portal Load Error: ", e); 
-        document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc; padding: 20px; text-align: center;"><h2 style="color:#ef4444;">Connection Error</h2><p style="font-size:12px; color:gray; word-break: break-all;"><b>System info:</b> ${e.message}</p><p>Please check your internet connection.</p><button onclick="window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px; margin-top:10px;">Retry</button></div>`;
+    }
+    // 🟢 ইনঅ্যাক্টিভ ডেট কলাম (ব্যাজের ঠিক নিচে মাঝে থাকবে) - এখানেও display:block দিয়েছি
+    inactiveDetailsHtml = `<div style="margin-top: 12px; font-size: 13px; color: #ef4444; font-weight: 600; background: #fef2f2; padding: 10px 20px; border-radius: 12px; display: inline-block; border: 1px dashed #fca5a5;">Inactive Since: ${inactiveDateText} <br> <span style="font-size:12px; color:#b91c1c;">${durationText}</span></div>`;
+    
+    practiceLogFormHtml = `
+    <div style="background: #fef2f2; padding: 15px; border-radius: 8px; border: 1px dashed #fca5a5; text-align: center; color: #dc2626;">
+        <i class="fas fa-lock" style="font-size: 24px; margin-bottom: 8px;"></i>
+        <div style="font-size: 13px; font-weight: 600;">Practice Logging is Disabled</div>
+        <div style="font-size: 11px; margin-top: 4px;">You cannot log practice while your status is Inactive. Please contact your teacher to reactivate your profile.</div>
+    </div>`;
+}
+
+
+// 🟢 স্টুডেন্ট পোর্টালে "গত পিরিয়ডের" (Past Period) রেজাল্ট অনুযায়ী ব্যাজ লজিক (Final Fix)
+let rank = null;
+let rankType = ""; 
+let totalBadgeMins = 0; 
+
+// pLogs থেকে ডেটা নিয়ে চেক করবে (কারণ students অ্যারে পোর্টালে ফাঁকা থাকে)
+let allLogs = [...(pLogs || [])];
+if (s.practice_log) {
+    s.practice_log.forEach(l => {
+        if(!allLogs.some(pl => pl.id === l.id)) allLogs.push({...l, studentId: s.id});
+    });
+}
+
+if (allLogs.length > 0) {
+    const _now = new Date();
+    
+    // --- ১. গত সপ্তাহের ডেট রেঞ্জ (Sunday to Saturday) ---
+    const _lastSunday = new Date(_now);
+    _lastSunday.setDate(_now.getDate() - _now.getDay() - 7);
+    _lastSunday.setHours(0, 0, 0, 0);
+    
+    const _lastSaturday = new Date(_lastSunday);
+    _lastSaturday.setDate(_lastSunday.getDate() + 6);
+    _lastSaturday.setHours(23, 59, 59, 999);
+
+    // --- ২. গত মাসের ডেট রেঞ্জ ---
+    const _firstOfLastMonth = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
+    const _lastOfLastMonth = new Date(_now.getFullYear(), _now.getMonth(), 0, 23, 59, 59);
+
+    // র‍্যাংক এবং টাইম চেক করার ফাংশন
+    function checkRankForPeriod(start, end) {
+        let statsMap = {};
+        allLogs.forEach(log => {
+            const parts = log.date.split('/');
+            let logDate = parts.length === 3 ? new Date(parts[2], parts[1] - 1, parts[0]) : new Date(log.date);
+            logDate.setHours(0,0,0,0);
+            if (logDate >= start && logDate <= end) {
+                if(!statsMap[log.studentId]) statsMap[log.studentId] = 0;
+                statsMap[log.studentId] += (parseInt(log.minutes) || 0);
+            }
+        });
+        
+        if(statsMap[s.id]) totalBadgeMins = statsMap[s.id];
+        
+        let sorted = Object.keys(statsMap).map(id => ({ id: parseInt(id), mins: statsMap[id] })).sort((a,b) => b.mins - a.mins);
+        return sorted.findIndex(st => parseInt(st.id) === parseInt(s.id));
+    }
+
+    // গত সপ্তাহের র‍্যাংক চেক
+    let wIndex = checkRankForPeriod(_lastSunday, _lastSaturday);
+    if (wIndex !== -1 && wIndex < 3) {
+        rank = wIndex + 1;
+        rankType = "Last Week";
+    } else {
+        // গত সপ্তাহে না থাকলে গত মাসের র‍্যাংক চেক
+        let mIndex = checkRankForPeriod(_firstOfLastMonth, _lastOfLastMonth);
+        if (mIndex !== -1 && mIndex < 3) {
+            rank = mIndex + 1;
+            rankType = "Last Month";
+        }
     }
 }
+
+// 🟢 ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন (মোট টাইম সহ)
+window.showBadgeDetails = function(r, rType, tMins) {
+    let titleText = r === 1 ? 'Champion! 🏆' : (r === 2 ? 'Great Job! 🌟' : 'Well Done! ⭐');
+    
+    // টাইম ফরম্যাট করা (যেমন: 5h 20m)
+    let h = Math.floor(tMins / 60); 
+    let m = tMins % 60;
+    let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+    Swal.fire({
+        title: titleText,
+        html: `<div style="font-size:15px; color:var(--text-main); line-height:1.6;">
+                You secured <b style="color:var(--primary); font-size:18px;">Rank #${r}</b> in <b>${rType}</b>'s practice leaderboard!
+                <br><br>
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 10px; border-radius: 8px; color: #047857; font-weight: bold;">
+                    <i class="fas fa-stopwatch"></i> Total Practice Time: ${timeStr}
+                </div>
+                <br>Keep up the amazing work and keep practicing! 🎸🎹
+               </div>`,
+        icon: 'success',
+        confirmButtonColor: 'var(--primary)',
+        confirmButtonText: 'Awesome!'
+    });
+};
+
+// ব্যাজ ডিজাইন (ক্লিক ইভেন্ট এবং মোট টাইম সহ)
+let badgeOverlay = '';
+if (rank) {
+    let borderColor = rank === 1 ? "#facc15" : (rank === 2 ? "#cbd5e1" : "#fdba74");
+    let medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
+    
+    badgeOverlay = `
+        <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" 
+             style="position:absolute; bottom:0px; right:-8px; font-size:28px; background:#ffffff; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); border: 2.5px solid ${borderColor}; z-index:10; cursor:pointer;" 
+             title="Click for details">
+            ${medalIcon}
+            <span style="position:absolute; top:-10px; background:${borderColor}; color:#000; font-size:8px; font-weight:900; padding:2px 4px; border-radius:8px; white-space:nowrap; border:1px solid #fff;">${rankType.toUpperCase()}</span>
+        </div>`;
+}
+// ৬. HTML Structure (Themed)
+document.body.innerHTML = `
+    <style>
+        .modal-portal { display:none; position:fixed; z-index:20000; left:0; top:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.7); align-items:center; justify-content:center; backdrop-filter: blur(4px); }
+        .modal-content-portal { background:var(--bg-card); width:90%; max-width:400px; padding:25px; border-radius:24px; max-height:80vh; overflow-y:auto; position:relative; animation: slideUp 0.3s ease; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); color: var(--text-main); }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .scroller-box { max-height: 350px; overflow-y: auto; padding-right: 5px; }
+        .scroller-box::-webkit-scrollbar { width: 4px; }
+        .scroller-box::-webkit-scrollbar-thumb { background: var(--secondary); border-radius: 4px; }
+        .close-btn { position:absolute; top:15px; right:20px; font-size:24px; cursor:pointer; color:var(--text-muted); background: var(--bg-input); width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+    </style>
+    
+    <div style="background: var(--bg-body); min-height: 100vh; font-family: 'Poppins', sans-serif; padding-bottom: 100px; color: var(--text-main); transition: background 0.3s, color 0.3s;">
+        <div style="background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); padding: 40px 20px 90px 20px; text-align:center; color:#fff; border-radius: 0 0 35px 35px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); position: relative;">
+            
+            <button onclick="openThemeSelector()" style="position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.2); border: none; color: white; width: 38px; height: 38px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+                <i class="fas fa-palette"></i>
+            </button>
+
+            <h3 style="margin:0; font-size:12px; font-weight:400; opacity:0.9; letter-spacing: 1px;">STUDENT PORTAL</h3>
+            <h2 style="margin:5px 0 0 0; font-size:24px; font-weight:700;">Welcome, ${s.name.split(' ')[0]}!</h2>
+        </div>
+
+        <div style="margin-top:-60px; padding:0 20px; position: relative; z-index: 10;">
+            <div style="text-align: center; margin-bottom: 25px;">
+                <div style="position:relative; display:inline-block;">
+                    <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                    ${badgeOverlay}
+                </div>
+                <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
+                ${badgeHtml}
+                ${inactiveDetailsHtml}
+            </div>
+
+            ${hallOfFameHtml}
+            
+            ${noticeHtml}
+            <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
+                <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
+                    <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
+                </h4>
+                
+                ${practiceLogFormHtml}
+                
+                <div style="margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
+            <h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:14px; font-weight:600;">
+                <i class="fas fa-history" style="color:var(--primary); margin-right:5px;"></i> Practice Log
+            </h4>
+            <div id="practiceHistoryPortal" class="scroller-box" style="max-height: 250px; overflow-y: auto; background: var(--bg-input); padding: 12px; border-radius: 12px; border: 1px solid var(--border-color);">
+                </div>
+        </div>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:12px; margin-bottom: 25px; margin-top: 25px;">
+                <button onclick="document.getElementById('m-profile').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div style="background:rgba(59, 130, 246, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#3b82f6; font-size:18px;"><i class="fas fa-user"></i></div>
+                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Profile Details</span>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
+                </button>
+                
+                <button onclick="document.getElementById('m-att').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div style="background:rgba(168, 85, 247, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#a855f7; font-size:18px;"><i class="fas fa-calendar-check"></i></div>
+                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Attendance History</span>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
+                </button>
+                
+                <button onclick="document.getElementById('m-pay').style.display='flex'" style="width:100%; background:var(--bg-card); padding:16px 20px; border-radius:16px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04); display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                    <div style="display:flex; align-items:center; gap:15px;">
+                        <div style="background:rgba(34, 197, 94, 0.1); width:45px; height:45px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#22c55e; font-size:18px;"><i class="fas fa-receipt"></i></div>
+                        <span style="font-size:15px; font-weight:600; color:var(--text-main);">Payment History</span>
+                    </div>
+                    <i class="fas fa-chevron-right" style="color:var(--text-muted);"></i>
+                </button>
+            </div>
+
+            ${dueHtml}
+            ${accessoryDuesHtml}
+
+            <div style="margin-top: 10px;">
+                <h4 style="margin:0 0 15px 5px; color:var(--text-main); font-size:16px;"><i class="fas fa-book-open" style="color:var(--primary); margin-right:5px;"></i> My Study Materials</h4>
+                <div class="scroller-box" style="background:var(--bg-card); border-radius:16px; padding:15px; border:1px solid var(--border-color); box-shadow:0 4px 15px rgba(0,0,0,0.04);">${materialsHtml}</div>
+            </div>
+        </div>
+
+        <div id="m-teacher" class="modal-portal"><div class="modal-content-portal">
+            <div class="close-btn" onclick="document.getElementById('m-teacher').style.display='none'">&times;</div>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Teacher Details</h3>
+            <div style="text-align: center; padding: 15px 0;">
+                <div style="background:rgba(59, 130, 246, 0.1); width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:30px; margin: 0 auto 15px auto;">
+                    <i class="fas fa-user-tie"></i>
+                </div>
+                <h2 style="margin: 0 0 5px 0; color: var(--text-main);">Srikanta Banerjee</h2>
+                <p style="margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Owner & Instructor</p>
+                
+                <div style="margin-top: 20px; text-align: left; font-size: 14px; color: var(--text-main); background: var(--bg-input); padding: 15px; border-radius: 12px; border: 1px dashed var(--border-color); line-height: 1.6;">
+                    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 16px; margin-top: 3px;"></i> 
+                        <div>
+                            <strong>Address:</strong><br>
+                            <span style="color: var(--text-muted);">Moyna, Nabagram,<br>Purba Bardhaman</span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-phone-alt" style="color: #10b981; font-size: 16px; margin-top: 3px;"></i> 
+                        <div>
+                            <strong>Contact:</strong><br>
+                            <span style="color: var(--text-muted);">7001471235 / 9475311199</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-music" style="color: var(--primary); font-size: 16px; margin-top: 3px;"></i> 
+                        <div>
+                            <strong>Classes:</strong><br>
+                            <span style="color: var(--text-muted);">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div></div>                   
+        
+        <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
+            <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Profile Details</h3>
+            <div class="scroller-box" style="font-size: 14px; color: var(--text-muted);">
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Joining Date:</span> <span style="color:var(--text-main);">${s.joining_date ? new Date(s.joining_date).toLocaleDateString('en-IN') : 'N/A'}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">ID No:</span> <span style="color:var(--primary); font-weight:700;">#${s.serial_no}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Class:</span> <span style="color:var(--text-main);">${s.class || 'N/A'}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:var(--success); font-weight:700;">₹${s.fee_amount || 500}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">Phone:</span> <span style="color:var(--text-main);">${s.phone || 'N/A'}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span style="font-weight:600;">DOB:</span> <span style="color:var(--text-main);">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; padding: 10px 0;">
+                    <span style="font-weight:600;">Address:</span> <span style="text-align: right; max-width: 60%; color:var(--text-main);">${s.address || 'N/A'}</span>
+                </div>
+            </div>
+        </div></div>
+
+        <div id="m-att" class="modal-portal"><div class="modal-content-portal">
+            <div class="close-btn" onclick="document.getElementById('m-att').style.display='none'">&times;</div>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Attendance History</h3>
+            <div style="margin-bottom: 15px;">${getPastInactivePeriodsHtml(s)}</div>
+            <div class="scroller-box">${attHtml}</div>
+        </div></div>
+
+        <div id="m-pay" class="modal-portal"><div class="modal-content-portal">
+            <div class="close-btn" onclick="document.getElementById('m-pay').style.display='none'">&times;</div>
+            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Payment History</h3>
+            <div class="scroller-box">${paidHtml}</div>
+        </div></div>
+
+        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.1); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
+            <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
+                <i class="fas fa-user-tie" style="font-size: 24px; color: var(--text-main);"></i>
+            </button>
+            <button onclick="showStudentPortalQR('${studentViewId}')" style="flex: 1.2; height: 45px; background: var(--primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(99,102,241,0.3); cursor: pointer;">
+                QR Code
+            </button>
+            <button onclick="showHelpOptions()" style="flex: 1.2; height: 45px; background: var(--info); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(59,130,246,0.3); cursor: pointer;">
+                Help
+            </button>
+            <button onclick="studentPortalLogout('${studentViewId}')" style="flex:1; height: 45px; background: var(--bg-card); color: var(--danger); border: 2px solid var(--danger); display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
+                Log Out
+            </button>
+        </div>
+    </div>
+`;
+
+setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+
+        // 🟢 NEW: Security - Disable Copy, Selection, and Right-Click in Student Portal
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        document.body.style.webkitTouchCallout = 'none'; // মোবাইলে লং-প্রেস মেনু বন্ধ করবে
+        
+        // রাইট-ক্লিক মেনু বন্ধ করা
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        // কীবোর্ড বা শর্টকাট দিয়ে কপি করা বন্ধ করা
+        document.addEventListener('copy', function(e) {
+            e.preventDefault();
+        });
+        
+        // পোর্টালে থাকা সমস্ত ছবিতে ক্লিক বা লং-প্রেস বন্ধ করা
+        const allImages = document.querySelectorAll('img');
+        allImages.forEach(img => {
+            img.style.pointerEvents = 'none';
+        });
+                            } else {
+                                document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Profile Hidden</h2><p>Contact manager to enable access.</p><button onclick="studentPortalLogout('${studentViewId}')" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                            }
+                        } else {
+                            document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Student not found.</h2><button onclick="studentPortalLogout('${studentViewId}')" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Go Back</button></div>`;
+                        }
+                    } catch(e) { 
+                        console.error(e); 
+                        document.body.innerHTML = `<div style="display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#f8fafc;"><h2 style="color:#ef4444;">Connection Error</h2><button onclick="window.location.reload();" style="padding:10px 20px; background:#1e293b; color:#fff; border:none; border-radius:8px;">Retry</button></div>`;
+                    }
+                }
 
                 if (localStorage.getItem(`verified_student_${studentViewId}`) === 'true') {
                     renderStudentPortal();
