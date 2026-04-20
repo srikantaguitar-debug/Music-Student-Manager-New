@@ -1106,7 +1106,22 @@ async function initApp() {
 
                 students = loadedStudents || []; 
                 
-                // 🟢 Manager-এর জন্য গ্লোবাল প্র্যাকটিস লগগুলো স্টুডেন্টদের ডেটায় মার্জ করা হচ্ছে
+                // 🟢 Manager-এর জন্য গ্লোবাল প্র্যাকটিস লগ সিঙ্ক (Two-way Sync for Leaderboard Fix)
+                let needsPlogSync = false;
+                
+                // ১. সমস্ত পুরনো লগগুলোকে গ্লোবাল পুলে (pLogs) পাঠানো হচ্ছে
+                students.forEach(st => {
+                    if (st.practice_log && st.practice_log.length > 0) {
+                        st.practice_log.forEach(l => {
+                            if (!window.globalPracticeLogs.some(gl => gl.id === l.id)) {
+                                window.globalPracticeLogs.push({...l, studentId: st.id, studentName: st.name});
+                                needsPlogSync = true;
+                            }
+                        });
+                    }
+                });
+
+                // ২. গ্লোবাল লগগুলোকে আবার স্টুডেন্টদের প্রোফাইলে আপডেট করা হচ্ছে
                 if (window.globalPracticeLogs && window.globalPracticeLogs.length > 0) {
                     window.globalPracticeLogs.forEach(log => {
                         let s = students.find(st => st.id == log.studentId);
@@ -1120,6 +1135,15 @@ async function initApp() {
                     students.forEach(s => {
                         if (s.practice_log) s.practice_log.sort((a,b) => b.id - a.id);
                     });
+                }
+
+                // ৩. যদি পুরনো কোনো লগ নতুন করে সিঙ্ক হয়ে থাকে, তবে তা সাথে সাথে ফায়ারবেসে সেভ করা
+                const currentUser = firebase.auth().currentUser;
+                if (needsPlogSync && currentUser) {
+                    const currentYear = new Date().getFullYear();
+                    db.collection(COLLECTION_NAME).doc(DOC_ID).collection('practice_logs').doc(String(currentYear)).set({
+                        records: window.globalPracticeLogs
+                    }, { merge: true }).catch(e => console.log(e));
                 }
 
                 attendance = {}; 
