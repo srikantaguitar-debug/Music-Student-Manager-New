@@ -8887,3 +8887,82 @@ window.downloadCertOnly = function() {
     window.tempCertDoc.save(window.tempCertFileName);
     Swal.close();
 };
+// 🟢 NEW: Send Notice to Selected Students' Portals
+window.sendBulkNoticeToPortals = async function(isClear = false) {
+    const filter = document.getElementById('bulkMsgFilter').value;
+    let text = document.getElementById('bulkMsgText').value.trim();
+    
+    if (!isClear && !text) {
+        Swal.fire('Error', 'Message cannot be empty. Please write something to send.', 'error');
+        return;
+    }
+
+    if (isClear) {
+        text = ""; // Clear button চাপলে লেখা ফাঁকা করে দেবে
+    }
+
+    // টার্গেট স্টুডেন্ট ফিল্টার করা
+    let targetStudents = students.filter(s => window.isStudentCurrentlyActive(s));
+    if(filter !== 'All') {
+        targetStudents = targetStudents.filter(s => s.class_day === filter);
+    }
+
+    if(targetStudents.length === 0) {
+        Swal.fire('Info', 'No active students found for this selection.', 'info');
+        return;
+    }
+
+    const confirmText = isClear ? `Clear notice from ${targetStudents.length} student portals?` : `Publish this notice to ${targetStudents.length} student portals?`;
+    
+    const result = await Swal.fire({
+        title: isClear ? 'Clear Notice?' : 'Publish Notice?',
+        text: confirmText,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: isClear ? '#ef4444' : '#8b5cf6',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Yes, proceed!'
+    });
+
+    if (result.isConfirmed) {
+        Swal.fire({
+            title: 'Updating Portals...',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const user = firebase.auth().currentUser;
+            const managerUid = urlParams.get('manager') || (user ? user.uid : DOC_ID);
+            
+            let batch = db.batch();
+            let count = 0;
+
+            targetStudents.forEach(st => {
+                // ১. Local Array আপডেট করা (যাতে সাথে সাথে রিফ্রেশ হয়)
+                const studentIndex = students.findIndex(s => s.id === st.id);
+                if (studentIndex > -1) {
+                    students[studentIndex].personal_notice = text;
+                }
+                
+                // ২. Firebase Batch Update-এ যোগ করা
+                const studentRef = db.collection(COLLECTION_NAME).doc(managerUid).collection('students').doc(String(st.id));
+                batch.update(studentRef, { personal_notice: text });
+                count++;
+            });
+
+            // ৩. একসাথে সব ডাটাবেসে সেভ করা (সুপার ফাস্ট)
+            await batch.commit();
+            
+            document.getElementById('bulkMsgText').value = '';
+            closeModal('bulkMsgModal');
+
+            Swal.fire('Success', isClear ? `Notice cleared for ${count} students!` : `Notice published to ${count} portals successfully!`, 'success');
+            
+        } catch (error) {
+            console.error("Error publishing bulk notice:", error);
+            Swal.fire('Error', 'Failed to publish notice. Check your internet connection.', 'error');
+        }
+    }
+};
