@@ -258,41 +258,57 @@ document.addEventListener('DOMContentLoaded', async () => {
                             if (s.allow_profile_view !== false) {
                                 
 // 🟢 Hall of Fame (Published Leaderboard) UI
-let hallOfFameHtml = '';
-if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
-    const pubData = globalData.published_leaderboard;
-    
-    let cardsHtml = pubData.topStudents.map(st => {
-        let badge = st.rank === 1 ? '🥇' : (st.rank === 2 ? '🥈' : '🥉');
-        let color = st.rank === 1 ? '#facc15' : (st.rank === 2 ? '#cbd5e1' : '#fdba74');
-        return `
-            <div style="text-align: center; flex: 1;">
-                <div style="position: relative; display: inline-block;">
-                    <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 55px; height: 55px; border-radius: 50%; border: 2.5px solid ${color}; object-fit: cover; background: white;">
-                    <div style="position: absolute; bottom: -5px; right: -5px; font-size: 16px; background: white; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.2); border: 1px solid ${color};">${badge}</div>
-                </div>
-                <div style="font-size: 12px; font-weight: 700; margin-top: 10px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
-            </div>
-        `;
-    }).join('');
+            let hallOfFameHtml = '';
+            if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
+                const pubData = globalData.published_leaderboard;
+                
+                let cardsHtml = pubData.topStudents.map(st => {
+                    // 🟢 হুবহু ছবির মতো SVG মেডেলগুলো আনা হলো
+                    let rankHtml = '';
+                    if (st.rank === 1) {
+                        rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#facc15"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
+                    } else if (st.rank === 2) {
+                        rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#cbd5e1"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text></svg>`;
+                    } else if (st.rank === 3) {
+                        rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#d97706"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text></svg>`;
+                    }
+                    
+                    let color = st.rank === 1 ? '#facc15' : (st.rank === 2 ? '#cbd5e1' : '#fdba74');
+                    
+                    // 🟢 Time Formatting and Badge
+                    let timeDisplay = '';
+                    if (st.totalMins !== undefined) {
+                        let h = Math.floor(st.totalMins / 60); let m = st.totalMins % 60;
+                        let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                        timeDisplay = `<div style="font-size: 10px; font-weight: 700; color: #b45309; margin-top: 3px; background: #fef3c7; border-radius: 12px; display: inline-block; padding: 2px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"><i class="fas fa-clock" style="font-size:8px;"></i> ${timeStr}</div>`;
+                    }
 
-    hallOfFameHtml = `
-        <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 15px 10px; margin-bottom: 25px; border: 1px solid #fde68a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); position: relative; overflow: hidden;">
-            <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1;"><i class="fas fa-trophy"></i></div>
-            
-            <div style="text-align: center; margin-bottom: 15px; position: relative; z-index: 2;">
-                <h4 style="margin: 0; color: #b45309; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i class="fas fa-crown" style="color: #f59e0b; font-size: 20px;"></i> Hall of Fame
-                </h4>
-                <span style="font-size: 10px; color: #92400e; font-weight: 800; background: #fde68a; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">TOP PRACTICE - ${pubData.period}</span>
-            </div>
-            
-            <div style="display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2;">
-                ${cardsHtml}
-            </div>
-        </div>
-    `;
-}
+                    return `
+                        <div style="text-align: center; flex: 1;">
+                            <div style="position: relative; display: inline-block;">
+                                <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 55px; height: 55px; border-radius: 50%; border: 2.5px solid ${color}; object-fit: cover; background: white;">
+                                <div style="position: absolute; bottom: -8px; right: -8px; display: flex; align-items: center; justify-content: center;">${rankHtml}</div>
+                            </div>
+                            <div style="font-size: 13px; font-weight: 800; margin-top: 12px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
+                            ${timeDisplay} </div>
+                    `;
+                }).join('');
+
+                hallOfFameHtml = `
+                    <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 15px 10px; margin-bottom: 25px; border: 1px solid #fde68a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1;"><i class="fas fa-trophy"></i></div>
+                        <div style="text-align: center; margin-bottom: 15px; position: relative; z-index: 2;">
+                            <h4 style="margin: 0; color: #b45309; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <i class="fas fa-crown" style="color: #f59e0b; font-size: 20px;"></i> Hall of Fame
+                            </h4>
+                            <span style="font-size: 10px; color: #92400e; font-weight: 800; background: #fde68a; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">TOP PRACTICE - ${pubData.period}</span>
+                        </div>
+                        <div style="display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2;">
+                            ${cardsHtml}
+                        </div>
+                    </div>
+                `;
+            }
                                 // ১. Personal Notice
                                 let noticeHtml = '';
                                 if (s.personal_notice && s.personal_notice.trim() !== '') {
@@ -624,7 +640,7 @@ if (allLogs.length > 0) {
     }
 }
 
-// 🟢 ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন (মোট টাইম সহ)
+// 🟢 ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন (Date Range ও মোট টাইম সহ)
 window.showBadgeDetails = function(r, rType, tMins) {
     let titleText = r === 1 ? 'Champion! 🏆' : (r === 2 ? 'Great Job! 🌟' : 'Well Done! ⭐');
     
@@ -633,19 +649,42 @@ window.showBadgeDetails = function(r, rType, tMins) {
     let m = tMins % 60;
     let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
 
+    // 🟢 ডাইনামিক তারিখ (Date Range) বের করার লজিক
+    const now = new Date();
+    let dateRangeStr = "";
+    
+    if (rType === "Last Week") {
+        const lastSunday = new Date(now);
+        lastSunday.setDate(now.getDate() - now.getDay() - 7);
+        const lastSaturday = new Date(lastSunday);
+        lastSaturday.setDate(lastSunday.getDate() + 6);
+        
+        const startStr = lastSunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+        const endStr = lastSaturday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        
+        dateRangeStr = `<div style="font-size:13px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:2px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${startStr} to ${endStr}</div>`;
+    } else if (rType === "Last Month") {
+        const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        dateRangeStr = `<div style="font-size:13px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:2px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${lm.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>`;
+    }
+
     Swal.fire({
         title: titleText,
         html: `<div style="font-size:15px; color:var(--text-main); line-height:1.6;">
                 You secured <b style="color:var(--primary); font-size:18px;">Rank #${r}</b> in <b>${rType}</b>'s practice leaderboard!
+                <br>
+                ${dateRangeStr}
                 <br><br>
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 10px; border-radius: 8px; color: #047857; font-weight: bold;">
-                    <i class="fas fa-stopwatch"></i> Total Practice Time: ${timeStr}
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 12px; border-radius: 12px; color: #047857; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-stopwatch" style="font-size: 20px;"></i> Total Practice Time: ${timeStr}
                 </div>
-                <br>Keep up the amazing work and keep practicing! 🎸🎹
+                <br><span style="color:#64748b; font-size:14px; font-weight:500;">Keep up the amazing work and keep practicing! 🎸🎹</span>
                </div>`,
         icon: 'success',
         confirmButtonColor: 'var(--primary)',
-        confirmButtonText: 'Awesome!'
+        confirmButtonText: 'Awesome!',
+        width: '90%',
+        padding: '20px'
     });
 };
 
@@ -8520,12 +8559,13 @@ window.renderPracticeLeaderboard = function() {
         return;
     }
 
-    // 🟢 ম্যাজিক ফিক্স: পাবলিশ করার জন্য ডেটা গ্লোবাল ভেরিয়েবলে সেভ করা হচ্ছে
+// 🟢 ম্যাজিক ফিক্স: পাবলিশ করার জন্য ডেটা গ্লোবাল ভেরিয়েবলে সেভ করা হচ্ছে (Time সহ)
     window.currentTop3ForPublish = leaderboard.slice(0, 3).map((item, index) => ({
         id: item.student.id,
         name: item.student.name,
         photo: item.student.photo,
-        rank: index + 1
+        rank: index + 1,
+        totalMins: item.totalMins // 🟢 NEW: Practice time added here
     }));
     window.currentPublishPeriod = shortRankType;
 
