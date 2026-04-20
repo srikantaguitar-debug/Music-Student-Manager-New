@@ -640,16 +640,14 @@ if (allLogs.length > 0) {
     }
 }
 
-// 🟢 ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন (Date Range ও মোট টাইম সহ)
+// 🟢 ১. ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন (Compact Mobile Size)
 window.showBadgeDetails = function(r, rType, tMins) {
     let titleText = r === 1 ? 'Champion! 🏆' : (r === 2 ? 'Great Job! 🌟' : 'Well Done! ⭐');
     
-    // টাইম ফরম্যাট করা (যেমন: 5h 20m)
     let h = Math.floor(tMins / 60); 
     let m = tMins % 60;
     let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
 
-    // 🟢 ডাইনামিক তারিখ (Date Range) বের করার লজিক
     const now = new Date();
     let dateRangeStr = "";
     
@@ -658,36 +656,36 @@ window.showBadgeDetails = function(r, rType, tMins) {
         lastSunday.setDate(now.getDate() - now.getDay() - 7);
         const lastSaturday = new Date(lastSunday);
         lastSaturday.setDate(lastSunday.getDate() + 6);
-        
         const startStr = lastSunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
         const endStr = lastSaturday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-        
-        dateRangeStr = `<div style="font-size:13px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:2px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${startStr} to ${endStr}</div>`;
+        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${startStr} to ${endStr}</div>`;
     } else if (rType === "Last Month") {
         const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        dateRangeStr = `<div style="font-size:13px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:2px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${lm.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>`;
+        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${lm.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>`;
     }
 
     Swal.fire({
-        title: titleText,
-        html: `<div style="font-size:15px; color:var(--text-main); line-height:1.6;">
-                You secured <b style="color:var(--primary); font-size:18px;">Rank #${r}</b> in <b>${rType}</b>'s practice leaderboard!
-                <br>
-                ${dateRangeStr}
-                <br><br>
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 12px; border-radius: 12px; color: #047857; font-weight: bold; font-size: 16px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i class="fas fa-stopwatch" style="font-size: 20px;"></i> Total Practice Time: ${timeStr}
+        title: `<span style="font-size: 20px;">${titleText}</span>`,
+        html: `
+            <style>
+                .swal2-icon.swal2-success { transform: scale(0.6); margin: 0 auto 5px auto !important; }
+                div:where(.swal2-container) .swal2-html-container { margin-top: 5px !important; }
+            </style>
+            <div style="font-size:13px; color:var(--text-main); line-height:1.4;">
+                You secured <b style="color:var(--primary); font-size:15px;">Rank #${r}</b> in <b>${rType}</b>!
+                <div style="margin: 6px 0;">${dateRangeStr}</div>
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 8px; border-radius: 8px; color: #047857; font-weight: bold; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px;">
+                    <i class="fas fa-stopwatch"></i> Total Time: ${timeStr}
                 </div>
-                <br><span style="color:#64748b; font-size:14px; font-weight:500;">Keep up the amazing work and keep practicing! 🎸🎹</span>
-               </div>`,
+                <div style="color:#64748b; font-size:11px; font-weight:500; margin-top:8px;">Keep up the amazing work! 🎸🎹</div>
+            </div>`,
         icon: 'success',
         confirmButtonColor: 'var(--primary)',
         confirmButtonText: 'Awesome!',
-        width: '90%',
-        padding: '20px'
+        width: '85%',
+        padding: '10px 10px 15px 10px'
     });
 };
-
 // ব্যাজ ডিজাইন (ক্লিক ইভেন্ট এবং মোট টাইম সহ)
 let badgeOverlay = '';
 if (rank) {
