@@ -200,24 +200,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                     try {
                         const docRef = db.collection('music_classes').doc(managerUid);
                         const currentYear = new Date().getFullYear();
-                        const [studentDoc, mainDoc, pLogDoc] = await Promise.all([
+                        
+                        // 🟢 FIX: Fetching Data correctly from Sub-collections
+                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
                             docRef.collection('students').doc(studentViewId).get(),
                             docRef.get(),
-                            docRef.collection('practice_logs').doc(String(currentYear)).get()
+                            docRef.collection('practice_logs').doc(String(currentYear)).get(),
+                            docRef.collection('attendance').get(),
+                            docRef.collection('fees').get()
                         ]);
 
                         if(studentDoc.exists && mainDoc.exists) {
                             const s = studentDoc.data();
                             
                             const pLogs = pLogDoc.exists ? pLogDoc.data().records : [];
-const legacyLogs = s.practice_log || [];
-s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
-s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
+                            const legacyLogs = s.practice_log || [];
+                            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
+                            s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
 
-// 🟢 UI রেন্ডারিং ফিক্স করার জন্য ডাটা মেইন অবজেক্টে সেট করা হলো
-s.practice_log = s.combined_practice_logs;
+                            s.practice_log = s.combined_practice_logs;
                             
-                            // 🟢 Calculate Accessory Dues HTML
+                            // Calculate Accessory Dues HTML
                             let accessoryDuesHtml = '';
                             if (s.unpaid_accessories && s.unpaid_accessories.length > 0) {
                                 const totalAccDue = s.unpaid_accessories.reduce((sum, item) => sum + item.due, 0);
@@ -234,9 +237,23 @@ s.practice_log = s.combined_practice_logs;
                                     <p style="margin:0; font-size:13px; color:#92400e; font-weight: 600;">Pending for: ${itemsList}</p>
                                 </div>`;
                             }
+                            
                             const globalData = mainDoc.data();
+                            
+                            // 🟢 FIX: Merging proper data from the new sub-collections
                             const globalAtt = globalData.attendance || {};
+                            if (attSnap && !attSnap.empty) {
+                                attSnap.forEach(doc => {
+                                    if(doc.data().records) Object.assign(globalAtt, doc.data().records);
+                                });
+                            }
+                            
                             const globalFees = globalData.fees || {};
+                            if (feeSnap && !feeSnap.empty) {
+                                feeSnap.forEach(doc => {
+                                    if(doc.data().records) Object.assign(globalFees, doc.data().records);
+                                });
+                            }
                             
                             if (s.allow_profile_view !== false) {
                                 
@@ -8636,127 +8653,175 @@ window.sendLeaderboardMsg = function(type, studentId, rank, timeRange) {
     }
 };
 
-// 🟢 2. প্রফেশনাল সার্টিফিকেট জেনারেটর (নির্দিষ্ট মাস ও সাল উল্লেখ সহ)
+// 🟢 ২. সার্টিফিকেট জেনারেট করার ফাংশন (Fix for PDF Generation)
 window.generatePracticeCertificate = async function(studentId, rank, timeRange, totalMins) {
     const student = students.find(s => s.id === studentId);
-    if (!student) return;
-
-    Swal.fire({ title: 'Generating Certificate...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const width = doc.internal.pageSize.getWidth();
-    const height = doc.internal.pageSize.getHeight();
-    const now = new Date();
-    
-    // 🟢 পিরিয়ড বা মাসের নাম বের করা
-    let periodText = "";
-    if (timeRange === 'weekly') {
-        const sunday = new Date(now);
-        sunday.setDate(now.getDate() - now.getDay());
-        periodText = `Week of ${sunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}`;
-    } else if (timeRange === 'monthly') {
-        periodText = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }); // যেমন: April 2026
-    } else if (timeRange === 'yearly') {
-        periodText = "Year " + now.getFullYear(); // যেমন: Year 2026
-    } else {
-        periodText = "Lifetime Achievement";
+    if (!student) {
+        Swal.fire('Error', 'Student not found!', 'error');
+        return;
     }
 
-    doc.setFillColor(255, 255, 255);
-    doc.rect(0, 0, width, height, 'F');
-    
-    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.05 })); 
-        doc.addImage(instituteLogo, 'JPEG', (width / 2) - 60, (height / 2) - 60, 120, 120);
-        doc.restoreGraphicsState();
+    // 🟢 Check if jsPDF is loaded
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire('Error', 'PDF Library is still loading. Please try again in a few seconds.', 'warning');
+        return;
     }
 
-    doc.setDrawColor(218, 165, 32); doc.setLineWidth(4); doc.rect(8, 8, width - 16, height - 16);
-    doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.5); doc.rect(11, 11, width - 22, height - 22);
+    Swal.fire({ 
+        title: 'Generating Certificate...', 
+        text: 'Please wait...', 
+        allowOutsideClick: false, 
+        didOpen: () => { Swal.showLoading(); } 
+    });
 
-    let y = 22; // শুরু একটু ওপর থেকে হবে
-    
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.setTextColor(184, 134, 11); 
-    const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
-    doc.text(instName, width/2, y, { align: "center" });
-    
-    y += 10; 
-    
-    if (typeof instituteLogo !== 'undefined' && instituteLogo) {
-        doc.addImage(instituteLogo, 'JPEG', width/2 - 10, y, 20, 20); // লোগো সাইজ পারফেক্ট করা হলো
-        y += 30; // লোগোর নিচে গ্যাপ
-    } else {
-        y += 15;
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const width = doc.internal.pageSize.getWidth();
+        const height = doc.internal.pageSize.getHeight();
+        const now = new Date();
+        
+        // 🟢 পিরিয়ড বা মাসের নাম বের করা
+        let periodText = "";
+        if (timeRange === 'last_week') {
+            const lastSunday = new Date(now);
+            lastSunday.setDate(now.getDate() - now.getDay() - 7);
+            const lastSaturday = new Date(lastSunday);
+            lastSaturday.setDate(lastSunday.getDate() + 6);
+            periodText = `${lastSunday.getDate()}/${lastSunday.getMonth()+1} to ${lastSaturday.getDate()}/${lastSaturday.getMonth()+1}/${lastSaturday.getFullYear()}`;
+        } else if (timeRange === 'last_month') {
+            const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+            periodText = lm.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        } else if (timeRange === 'weekly') {
+            periodText = "This Week";
+        } else if (timeRange === 'monthly') {
+            periodText = now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+        } else if (timeRange === 'yearly') {
+            periodText = "Year " + now.getFullYear(); 
+        } else {
+            periodText = "Lifetime Achievement";
+        }
+
+        // 🟢 Background and Border
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, width, height, 'F');
+        
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            doc.saveGraphicsState();
+            doc.setGState(new doc.GState({ opacity: 0.05 })); 
+            doc.addImage(instituteLogo, 'JPEG', (width / 2) - 60, (height / 2) - 60, 120, 120);
+            doc.restoreGraphicsState();
+        }
+
+        doc.setDrawColor(218, 165, 32); doc.setLineWidth(4); doc.rect(8, 8, width - 16, height - 16);
+        doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.5); doc.rect(11, 11, width - 22, height - 22);
+
+        let y = 22; 
+        
+        // 🟢 Institute Name
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(22);
+        doc.setTextColor(184, 134, 11); 
+        const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
+        doc.text(instName, width/2, y, { align: "center" });
+        
+        y += 10; 
+        
+        // 🟢 Logo (If available)
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            try {
+                doc.addImage(instituteLogo, 'JPEG', width/2 - 10, y, 20, 20);
+                y += 30;
+            } catch(err) {
+                y += 15; // Fallback if image fails to load
+            }
+        } else {
+            y += 15;
+        }
+
+        // 🟢 Certificate Title
+        doc.setFontSize(24); doc.setTextColor(15, 23, 42);
+        doc.text("CERTIFICATE OF ACHIEVEMENT", width/2, y, { align: "center" });
+        
+        y += 12; 
+        doc.setFontSize(14); doc.setFont("helvetica", "italic"); doc.setTextColor(71, 85, 105);
+        doc.text("This certificate is proudly presented to", width/2, y, { align: "center" });
+
+        y += 10; 
+        
+        // 🟢 Student Photo
+        if(student.photo) {
+            try {
+                doc.addImage(student.photo, 'JPEG', width/2 - 15, y, 30, 30);
+                doc.setDrawColor(184, 134, 11); doc.setLineWidth(1); doc.rect(width/2 - 15, y, 30, 30); 
+                y += 42; 
+            } catch(e) { 
+                y += 15; // Skip photo if cross-origin issue occurs
+            }
+        } else {
+            y += 15;
+        }
+
+        // 🟢 Student Name
+        doc.setFontSize(28); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+        doc.text(student.name, width/2, y, { align: "center" });
+
+        y += 12; 
+        
+        // 🟢 Practice Details
+        doc.setFontSize(14); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+        let h = Math.floor(totalMins / 60); let m = totalMins % 60;
+        let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+        
+        doc.text(`For securing Rank #${rank} during ${periodText}`, width/2, y, { align: "center" });
+        y += 8;
+        doc.setFont("helvetica", "bold");
+        doc.text(`with a total practice time of ${timeStr}.`, width/2, y, { align: "center" });
+
+        // 🟢 Footer (Date & Signature)
+        const footerY = height - 25; 
+        doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+        doc.text(`Date: ${now.toLocaleDateString('en-IN')}`, 30, footerY);
+        
+        if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
+            try {
+                doc.addImage(authorizedSignature, 'PNG', width - 80, footerY - 15, 40, 15);
+            } catch(err) {}
+        }
+        doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(width - 90, footerY + 1, width - 30, footerY + 1);
+        doc.text("Authorized Signature", width - 60, footerY + 6, { align: "center" });
+
+        // 🟢 Save & Prepare for WhatsApp
+        const fileName = `Certificate_${student.name.replace(/\s+/g, '_')}.pdf`;
+        window.tempCertDoc = doc; 
+        window.tempCertFileName = fileName;
+        
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+        window.tempCertPhone = cleanPhone;
+        
+        window.tempCertMsg = `🎉 Congratulations ${student.name}!\n\nHere is your Practice Certificate for *${periodText}*.\nRank: #${rank}\nTotal Time: ${timeStr}\n\nKeep practicing! 🎸🎹\n\nRegards,\n${instName}`;
+
+        Swal.close();
+        setTimeout(() => {
+            Swal.fire({
+                title: 'Certificate Ready!', 
+                icon: 'success',
+                html: `
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                    <button onclick="window.shareCertWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px;"><i class="fab fa-whatsapp"></i> Share to WhatsApp</button>
+                    <button onclick="window.downloadCertOnly()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px;"><i class="fas fa-download"></i> Download PDF</button>
+                </div>`,
+                showCloseButton: true, 
+                showConfirmButton: false, 
+                allowOutsideClick: false
+            });
+        }, 100);
+
+    } catch (error) {
+        console.error("Certificate Generation Error: ", error);
+        Swal.fire('Error', 'Failed to generate Certificate. Check console for details.', 'error');
     }
-
-    doc.setFontSize(24); doc.setTextColor(15, 23, 42);
-    doc.text("CERTIFICATE OF ACHIEVEMENT", width/2, y, { align: "center" });
-    
-    y += 12; 
-    doc.setFontSize(14); doc.setFont("helvetica", "italic"); doc.setTextColor(71, 85, 105);
-    doc.text("This certificate is proudly presented to", width/2, y, { align: "center" });
-
-    y += 10; 
-    
-    if(student.photo) {
-        try {
-            doc.addImage(student.photo, 'JPEG', width/2 - 15, y, 30, 30);
-            doc.setDrawColor(184, 134, 11); doc.setLineWidth(1); doc.rect(width/2 - 15, y, 30, 30); 
-            y += 42; 
-        } catch(e) { y += 15; }
-    } else {
-        y += 15;
-    }
-
-    doc.setFontSize(28); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
-    doc.text(student.name, width/2, y, { align: "center" });
-
-    y += 12; 
-    
-    doc.setFontSize(14); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
-    let h = Math.floor(totalMins / 60); let m = totalMins % 60;
-    let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-    
-    doc.text(`For securing Rank #${rank} during ${periodText}`, width/2, y, { align: "center" });
-    y += 8;
-    doc.setFont("helvetica", "bold");
-    doc.text(`with a total practice time of ${timeStr}.`, width/2, y, { align: "center" });
-
-    const footerY = height - 25; 
-    doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
-    doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`, 30, footerY);
-    
-    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
-        doc.addImage(authorizedSignature, 'PNG', width - 80, footerY - 15, 40, 15);
-    }
-    doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(width - 90, footerY + 1, width - 30, footerY + 1);
-    doc.text("Authorized Signature", width - 60, footerY + 6, { align: "center" });
-
-    const fileName = `Certificate_${student.name.replace(/\s+/g, '_')}.pdf`;
-    window.tempCertDoc = doc; window.tempCertFileName = fileName;
-    
-    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
-    window.tempCertPhone = cleanPhone;
-    
-    // 🟢 হোয়াটসঅ্যাপ মেসেজে নির্দিষ্ট মাস/বছর উল্লেখ থাকবে
-    window.tempCertMsg = `🎉 Congratulations ${student.name}!\n\nHere is your Practice Certificate for *${periodText}*.\nRank: #${rank}\nTotal Time: ${timeStr}\n\nKeep practicing! 🎸🎹\n\nRegards,\n${instName}`;
-
-    Swal.close();
-    setTimeout(() => {
-        Swal.fire({
-            title: 'Certificate Ready!', icon: 'success',
-            html: `<div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
-                <button onclick="window.shareCertWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fab fa-whatsapp"></i> Share to WhatsApp</button>
-                <button onclick="window.downloadCertOnly()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;"><i class="fas fa-download"></i> Download PDF</button>
-            </div>`,
-            showCloseButton: true, showConfirmButton: false, allowOutsideClick: false
-        });
-    }, 100);
 };
 
 window.shareCertWA = async function() {
