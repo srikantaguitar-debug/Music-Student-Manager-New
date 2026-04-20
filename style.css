@@ -1,6 +1,7 @@
 html, body {
         color-scheme: light dark;
     }
+
 @media (max-width: 480px) {
     .practice-inputs { flex-direction: column !important; }
     .practice-inputs input { width: 100% !important; margin-bottom: 10px; }
