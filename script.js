@@ -263,34 +263,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const pubData = globalData.published_leaderboard;
                 
                 let cardsHtml = pubData.topStudents.map(st => {
-                    // 🟢 হুবহু ছবির মতো SVG মেডেলগুলো আনা হলো
-                    let rankHtml = '';
+                    let frameColor = ''; let ribbonColor = ''; let rankText = ''; let titleText = '';
                     if (st.rank === 1) {
-                        rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#facc15"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
+                        frameColor = 'linear-gradient(135deg, #fde047, #d97706)'; // Gold
+                        ribbonColor = 'linear-gradient(to right, #ef4444, #991b1b)'; // Red Ribbon
+                        rankText = '1ST RANK'; titleText = 'Champion';
                     } else if (st.rank === 2) {
-                        rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#cbd5e1"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text></svg>`;
+                        frameColor = 'linear-gradient(135deg, #e2e8f0, #64748b)'; // Silver
+                        ribbonColor = 'linear-gradient(to right, #10b981, #047857)'; // Green Ribbon
+                        rankText = '2ND RANK'; titleText = 'Runner-Up';
                     } else if (st.rank === 3) {
-                        rankHtml = `<svg width="20" height="26" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 2px 2px rgba(0,0,0,0.2));"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#d97706"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text></svg>`;
+                        frameColor = 'linear-gradient(135deg, #fca5a5, #9f1239)'; // Bronze
+                        ribbonColor = 'linear-gradient(to right, #3b82f6, #1e3a8a)'; // Blue Ribbon
+                        rankText = '3RD RANK'; titleText = 'Honorable';
                     }
                     
-                    let color = st.rank === 1 ? '#facc15' : (st.rank === 2 ? '#cbd5e1' : '#fdba74');
-                    
-                    // 🟢 Time Formatting and Badge
                     let timeDisplay = '';
                     if (st.totalMins !== undefined) {
                         let h = Math.floor(st.totalMins / 60); let m = st.totalMins % 60;
                         let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                        timeDisplay = `<div style="font-size: 10px; font-weight: 700; color: #b45309; margin-top: 3px; background: #fef3c7; border-radius: 12px; display: inline-block; padding: 2px 8px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);"><i class="fas fa-clock" style="font-size:8px;"></i> ${timeStr}</div>`;
+                        timeDisplay = `<div style="font-size: 9px; font-weight: 700; color: #166534; margin-top: 4px; background: #dcfce7; border-radius: 8px; display: inline-block; padding: 2px 6px; border: 1px solid #bbf7d0;"><i class="fas fa-clock" style="font-size:8px;"></i> ${timeStr}</div>`;
                     }
 
                     return `
-                        <div style="text-align: center; flex: 1;">
-                            <div style="position: relative; display: inline-block;">
-                                <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 55px; height: 55px; border-radius: 50%; border: 2.5px solid ${color}; object-fit: cover; background: white;">
-                                <div style="position: absolute; bottom: -8px; right: -8px; display: flex; align-items: center; justify-content: center;">${rankHtml}</div>
+                        <div style="text-align: center; flex: 1; margin-top: 15px; position: relative;">
+                            <div style="position: relative; display: inline-block; padding: 4px; background: ${frameColor}; border-radius: 50%; box-shadow: 0 6px 12px rgba(0,0,0,0.2);">
+                                <div style="position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 24px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); z-index: 5;">👑</div>
+                                <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid white; background: white; position: relative; z-index: 2;">
+                                <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: ${ribbonColor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 8px; font-weight: 900; white-space: nowrap; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 5; letter-spacing: 0.5px;">
+                                    ${rankText}
+                                </div>
                             </div>
-                            <div style="font-size: 13px; font-weight: 800; margin-top: 12px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 85px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
-                            ${timeDisplay} </div>
+                            <div style="font-size: 12px; font-weight: 900; margin-top: 12px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
+                            <div style="font-size: 9px; font-weight: 800; color: #b45309; text-transform: uppercase;">${titleText}</div>
+                            ${timeDisplay}
+                        </div>
                     `;
                 }).join('');
 
@@ -686,20 +693,25 @@ window.showBadgeDetails = function(r, rType, tMins) {
         padding: '10px 10px 15px 10px'
     });
 };
-// ব্যাজ ডিজাইন (ক্লিক ইভেন্ট এবং মোট টাইম সহ)
-let badgeOverlay = '';
-if (rank) {
-    let borderColor = rank === 1 ? "#facc15" : (rank === 2 ? "#cbd5e1" : "#fdba74");
-    let medalIcon = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : '🥉');
-    
-    badgeOverlay = `
-        <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" 
-             style="position:absolute; bottom:0px; right:-8px; font-size:28px; background:#ffffff; border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 10px rgba(0,0,0,0.3); border: 2.5px solid ${borderColor}; z-index:10; cursor:pointer;" 
-             title="Click for details">
-            ${medalIcon}
-            <span style="position:absolute; top:-10px; background:${borderColor}; color:#000; font-size:8px; font-weight:900; padding:2px 4px; border-radius:8px; white-space:nowrap; border:1px solid #fff;">${rankType.toUpperCase()}</span>
-        </div>`;
-}
+// ব্যাজ ডিজাইন (ক্লিক ইভেন্ট এবং রিবন ডিজাইন সহ)
+                let badgeOverlay = '';
+                if (rank) {
+                    let frameColor = rank === 1 ? 'linear-gradient(135deg, #fde047, #d97706)' : (rank === 2 ? 'linear-gradient(135deg, #e2e8f0, #64748b)' : 'linear-gradient(135deg, #fca5a5, #9f1239)');
+                    let ribbonColor = rank === 1 ? 'linear-gradient(to right, #ef4444, #991b1b)' : (rank === 2 ? 'linear-gradient(to right, #10b981, #047857)' : 'linear-gradient(to right, #3b82f6, #1e3a8a)');
+                    let rankText = rank === 1 ? '1ST RANK' : (rank === 2 ? '2ND RANK' : '3RD RANK');
+                    
+                    badgeOverlay = `
+                        <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" 
+                             style="position:absolute; bottom:-5px; right:-10px; background:${frameColor}; padding:4px; border-radius:50%; box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;" 
+                             title="Click for details">
+                            <div style="background:white; border-radius:50%; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:22px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));">
+                                👑
+                            </div>
+                            <div style="position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); background:${ribbonColor}; color:white; font-size:7px; font-weight:900; padding:2px 6px; border-radius:4px; white-space:nowrap; border:1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 0.5px;">
+                                ${rankText}
+                            </div>
+                        </div>`;
+                }
 // ৬. HTML Structure (Themed)
 document.body.innerHTML = `
     <style>
