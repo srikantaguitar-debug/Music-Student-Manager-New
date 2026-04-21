@@ -278,7 +278,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     let nameHtml = name ? `<div style="font-size: 12px; font-weight: 900; margin-top: 5px; color: var(--text-main); text-transform: uppercase;">${name.split(' ')[0]}</div>` : '';
 
                     return `
-                    <div ${onClickAttr ? `onclick="${onClickAttr}"` : ''} style="position: relative; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; transform: ${scale}; cursor: ${onClickAttr ? 'pointer' : 'default'}; margin: 0 auto; transition: transform 0.3s;">
+                    <div ${onClickAttr ? `onclick="${onClickAttr}"` : ''} style="position: relative; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; transform: ${scale}; transform-origin: top center; cursor: ${onClickAttr ? 'pointer' : 'default'}; margin: 0 auto; transition: transform 0.3s;">
                         
                         <div style="position: absolute; top: 0; left: 35px; width: 18px; height: 60px; background: linear-gradient(90deg, #1e3a8a, #3b82f6, #1e3a8a); transform: rotate(-20deg); z-index: 1; border-left: 1.5px solid ${conf.gold3}; border-right: 1.5px solid ${conf.gold3}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>
                         <div style="position: absolute; top: 0; right: 35px; width: 18px; height: 60px; background: linear-gradient(90deg, #1e3a8a, #3b82f6, #1e3a8a); transform: rotate(20deg); z-index: 1; border-left: 1.5px solid ${conf.gold3}; border-right: 1.5px solid ${conf.gold3}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>
@@ -322,32 +322,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                     `;
                 };
 
-                // 🟢 Hall of Fame UI
+                // 🟢 Hall of Fame UI (Responsive Fit)
                 let hallOfFameHtml = '';
                 if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
                     const pubData = globalData.published_leaderboard;
                     
                     let cardsHtml = pubData.topStudents.map(st => {
-                        let scale = st.rank === 1 ? 'scale(1.1)' : 'scale(0.9)';
+                        // 🟢 মাপে ছোট করার জন্য Scale কমানো হলো
+                        let scale = st.rank === 1 ? 'scale(0.90)' : 'scale(0.65)';
                         let order = st.rank === 1 ? 2 : (st.rank === 2 ? 1 : 3);
                         let photo = st.photo || 'https://via.placeholder.com/150?text=S';
                         
+                        // 🟢 নেগেটিভ মার্জিন দিয়ে জায়গা বাঁচানো হলো যাতে স্ক্রিনের বাইরে না যায়
+                        let wrapMargin = st.rank === 1 ? 'margin: 0 -5px;' : 'margin: 30px -25px 0 -25px;';
+                        
                         return `
-                        <div style="flex: 1; order: ${order}; margin-top: ${st.rank === 1 ? '0px' : '20px'}; display: flex; justify-content: center; z-index: ${st.rank === 1 ? '10' : '5'};">
+                        <div style="flex: 1; order: ${order}; ${wrapMargin} display: flex; justify-content: center; z-index: ${st.rank === 1 ? '10' : '5'};">
                             ${generateRoyalBadge(st.rank, st.name, photo, st.totalMins, scale, null)}
                         </div>`;
                     }).join('');
 
                     hallOfFameHtml = `
-                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 40px 5px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
+                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 30px 5px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
                             <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
-                            <h4 style="margin: 0 0 25px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
+                            <h4 style="margin: 0 0 20px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
                                 ✨ HALL OF FAME ✨
                             </h4>
-                            <div style="display: flex; justify-content: space-around; align-items: flex-start; position: relative; z-index: 2;">
+                            <div style="display: flex; justify-content: center; align-items: flex-start; position: relative; z-index: 2; width: 100%;">
                                 ${cardsHtml}
                             </div>
-                            <span style="font-size: 10px; color: #fff; font-weight: 800; background: var(--primary); padding: 5px 15px; border-radius: 12px; display: inline-block; margin-top: 30px; position: relative; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">TOP PRACTICE - ${pubData.period}</span>
+                            <span style="font-size: 10px; color: #fff; font-weight: 800; background: var(--primary); padding: 5px 15px; border-radius: 12px; display: inline-block; margin-top: 15px; position: relative; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">TOP PRACTICE - ${pubData.period}</span>
                         </div>
                     `;
                 }
