@@ -763,15 +763,12 @@ document.body.innerHTML = `
         </div>
 
         <div style="margin-top:-60px; padding:0 20px; position: relative; z-index: 10;">
-            <div style="text-align: center; margin-bottom: 25px;">
-                <div style="position:relative; display:inline-block;">
-                    <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
-                    ${badgeOverlay}
-                </div>
-                <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
-                ${badgeHtml}
-                ${inactiveDetailsHtml}
-            </div>
+                        <div style="text-align: center; margin-bottom: 25px;">
+                            ${profileImageBadgeHtml}
+                            <h2 style="margin:10px 0 5px 0; color:var(--text-main); font-size:20px; font-weight: 700;">${s.name}</h2>
+                            ${badgeHtml}
+                            ${inactiveDetailsHtml}
+                        </div>
 
             ${hallOfFameHtml}
             
@@ -9004,4 +9001,114 @@ window.sendBulkNoticeToPortals = async function(isClear = false) {
             Swal.fire('Error', 'Failed to publish notice. Check your internet connection.', 'error');
         }
     }
+};
+// ==========================================
+// 🟢 POPUP FUNCTIONS (MEDAL & BATCH DETAILS)
+// ==========================================
+
+// 🟢 ১. ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন
+window.showBadgeDetails = function(r, rType, tMins) {
+    let titleText = r === 1 ? 'Champion! 🏆' : (r === 2 ? 'Runner-Up! 🌟' : 'Honorable Mention! ⭐');
+    
+    let h = Math.floor(tMins / 60); 
+    let m = tMins % 60;
+    let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
+
+    const now = new Date();
+    let dateRangeStr = "";
+    
+    if (rType === "Last Week") {
+        const lastSunday = new Date(now);
+        lastSunday.setDate(now.getDate() - now.getDay() - 7);
+        const lastSaturday = new Date(lastSunday);
+        lastSaturday.setDate(lastSunday.getDate() + 6);
+        const startStr = lastSunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+        const endStr = lastSaturday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${startStr} to ${endStr}</div>`;
+    } else if (rType === "Last Month") {
+        const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${lm.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>`;
+    } else {
+        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${rType}</div>`;
+    }
+
+    let ribbonColors = r === 1 ? 'linear-gradient(to right, #ef4444, #991b1b)' : (r === 2 ? 'linear-gradient(to right, #10b981, #047857)' : 'linear-gradient(to right, #3b82f6, #1e3a8a)');
+
+    Swal.fire({
+        title: `<span style="font-size: 20px;">${titleText}</span>`,
+        html: `
+            <style>
+                .swal2-icon.swal2-success { transform: scale(0.6); margin: 0 auto 5px auto !important; }
+                div:where(.swal2-container) .swal2-html-container { margin-top: 5px !important; }
+            </style>
+            <div style="font-size:13px; color:var(--text-main); line-height:1.4;">
+                <div style="margin: 10px auto; background: ${ribbonColors}; color: white; padding: 6px 15px; border-radius: 20px; display: inline-block; font-weight: 900; font-size: 14px; letter-spacing: 1px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
+                    ${r === 1 ? '1ST' : (r === 2 ? '2ND' : '3RD')} RANK
+                </div>
+                <div style="margin: 6px 0;">${dateRangeStr}</div>
+                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 8px; border-radius: 8px; color: #047857; font-weight: bold; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px;">
+                    <i class="fas fa-stopwatch"></i> Total Time: ${timeStr}
+                </div>
+                <div style="color:#64748b; font-size:11px; font-weight:500; margin-top:8px;">Keep up the amazing work! 🎸🎹</div>
+            </div>`,
+        icon: 'success',
+        confirmButtonColor: 'var(--primary)',
+        confirmButtonText: 'Awesome!',
+        width: '85%',
+        padding: '10px 10px 15px 10px'
+    });
+};
+
+// 🟢 2. Show Batch Details Popup 
+window.showBatchDetails = function(batchName, studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const stats = getPracticeStats(student, batchName);
+
+    let reasonHtml = `
+        <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 15px; font-size: 13px; color: #334155; text-align: center; line-height: 1.6;">
+            Keep practicing <strong>${batchName}</strong>! You have logged <strong style="color:var(--primary); font-size:15px;">${formatPracticeTime(stats.month)}</strong> this month.
+        </div>
+    `;
+
+    const now = new Date();
+    const firstDayMonth = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+    const todayStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+
+    let html = `
+        <div style="text-align:left; font-family:'Poppins', sans-serif;">
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border-color);">
+                <div>
+                    <div style="font-size:11px; color:var(--text-muted); font-weight:bold; text-transform:uppercase;">Subject / Batch</div>
+                    <h3 style="margin:2px 0 0 0; color:var(--primary); font-size:22px;">${batchName}</h3>
+                </div>
+            </div>
+            ${reasonHtml}
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <div style="background:#f0fdf4; padding:12px; border-radius:10px; border:1px solid #bbf7d0; grid-column: span 2;">
+                    <div style="font-size:11px; color:#166534; font-weight:bold; text-transform:uppercase; margin-bottom:4px;"><i class="fas fa-calendar-check"></i> This Month's Practice</div>
+                    <div style="font-size:11px; color:#15803d; margin-bottom:6px; background:#dcfce7; display:inline-block; padding:3px 8px; border-radius:6px; font-weight:600;">${firstDayMonth} to ${todayStr}</div>
+                    <div style="font-size:24px; font-weight:900; color:#14532d;">${formatPracticeTime(stats.month)}</div>
+                </div>
+                <div style="background:#eff6ff; padding:12px; border-radius:10px; border:1px solid #bfdbfe;">
+                    <div style="font-size:10px; color:#1d4ed8; font-weight:bold; text-transform:uppercase;">Lifetime Total</div>
+                    <div style="font-size:16px; font-weight:900; color:#1e3a8a; margin-top:4px;">${formatPracticeTime(stats.lifetime)}</div>
+                </div>
+                <div style="background:#fefce8; padding:12px; border-radius:10px; border:1px solid #fef08a;">
+                    <div style="font-size:10px; color:#a16207; font-weight:bold; text-transform:uppercase;">Daily Average</div>
+                    <div style="font-size:16px; font-weight:900; color:#713f12; margin-top:4px;">${formatPracticeTime(stats.avg)}</div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    Swal.fire({
+        html: html,
+        showConfirmButton: true,
+        confirmButtonText: 'Awesome!',
+        confirmButtonColor: 'var(--primary)',
+        width: '95%',
+        padding: '15px'
+    });
 };
