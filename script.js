@@ -257,62 +257,78 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             if (s.allow_profile_view !== false) {
                                 
-// 🟢 Hall of Fame (Published Leaderboard) UI
+// 🟢 Hall of Fame - ROYAL ORNATE DESIGN (Matches Uploaded Images)
             let hallOfFameHtml = '';
             if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
                 const pubData = globalData.published_leaderboard;
                 
                 let cardsHtml = pubData.topStudents.map(st => {
-                    let frameColor = ''; let ribbonColor = ''; let rankText = ''; let titleText = '';
+                    let config = {};
                     if (st.rank === 1) {
-                        frameColor = 'linear-gradient(135deg, #fde047, #d97706)'; // Gold
-                        ribbonColor = 'linear-gradient(to right, #ef4444, #991b1b)'; // Red Ribbon
-                        rankText = '1ST RANK'; titleText = 'Champion';
+                        config = { 
+                            order: 2, scale: 'scale(1.25)', margin: '0 5px',
+                            outerGrad: 'linear-gradient(135deg, #fde047 0%, #b45309 50%, #fef08a 100%)', 
+                            innerBg: '#1e3a8a', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', 
+                            rankStr: '1st', title: 'CHAMPION' 
+                        };
                     } else if (st.rank === 2) {
-                        frameColor = 'linear-gradient(135deg, #e2e8f0, #64748b)'; // Silver
-                        ribbonColor = 'linear-gradient(to right, #10b981, #047857)'; // Green Ribbon
-                        rankText = '2ND RANK'; titleText = 'Runner-Up';
+                        config = { 
+                            order: 1, scale: 'scale(1.05)', margin: '15px 0 0 0',
+                            outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', 
+                            innerBg: '#064e3b', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
+                            rankStr: '2nd', title: 'RUNNER-UP' 
+                        };
                     } else if (st.rank === 3) {
-                        frameColor = 'linear-gradient(135deg, #fca5a5, #9f1239)'; // Bronze
-                        ribbonColor = 'linear-gradient(to right, #3b82f6, #1e3a8a)'; // Blue Ribbon
-                        rankText = '3RD RANK'; titleText = 'Honorable';
+                        config = { 
+                            order: 3, scale: 'scale(1.05)', margin: '15px 0 0 0',
+                            outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', 
+                            innerBg: '#4c1d95', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
+                            rankStr: '3rd', title: 'HONORABLE' 
+                        };
                     }
                     
                     let timeDisplay = '';
                     if (st.totalMins !== undefined) {
                         let h = Math.floor(st.totalMins / 60); let m = st.totalMins % 60;
                         let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                        timeDisplay = `<div style="font-size: 9px; font-weight: 700; color: #166534; margin-top: 4px; background: #dcfce7; border-radius: 8px; display: inline-block; padding: 2px 6px; border: 1px solid #bbf7d0;"><i class="fas fa-clock" style="font-size:8px;"></i> ${timeStr}</div>`;
+                        timeDisplay = `<div style="font-size: 8px; font-weight: 800; color: #1e293b; margin-top: 5px; background: rgba(255,255,255,0.9); border-radius: 8px; display: inline-block; padding: 2px 6px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);"><i class="fas fa-clock"></i> ${timeStr}</div>`;
                     }
 
                     return `
-                        <div style="text-align: center; flex: 1; margin-top: 15px; position: relative;">
-                            <div style="position: relative; display: inline-block; padding: 4px; background: ${frameColor}; border-radius: 50%; box-shadow: 0 6px 12px rgba(0,0,0,0.2);">
-                                <div style="position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 24px; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3)); z-index: 5;">👑</div>
-                                <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid white; background: white; position: relative; z-index: 2;">
-                                <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: ${ribbonColor}; color: white; padding: 3px 8px; border-radius: 4px; font-size: 8px; font-weight: 900; white-space: nowrap; border: 1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 5; letter-spacing: 0.5px;">
-                                    ${rankText}
+                        <div style="text-align: center; flex: 1; order: ${config.order}; transform: ${config.scale}; margin: ${config.margin}; position: relative; z-index: ${st.rank === 1 ? '10' : '5'}; transition: all 0.3s;">
+                            
+                            <div style="position: relative; display: inline-block; padding: 4px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.4);">
+                                
+                                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: ${config.outerGrad}; border-radius: 50%; border: 1.5px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 9px; color: #000; box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 10; text-shadow: 1px 1px 0px rgba(255,255,255,0.5);">
+                                    ${config.rankStr}
+                                </div>
+
+                                <div style="padding: 2.5px; background: ${config.innerBg}; border-radius: 50%;">
+                                    <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${config.accent}; background: white;">
+                                </div>
+
+                                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 3px 0; border-radius: 3px; font-size: 7px; font-weight: 900; white-space: nowrap; border: 1px solid ${config.accent}; box-shadow: 0 4px 8px rgba(0,0,0,0.5); z-index: 10; letter-spacing: 0.5px;">
+                                    👑 ${config.title}
                                 </div>
                             </div>
-                            <div style="font-size: 12px; font-weight: 900; margin-top: 12px; color: #78350f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; margin-left: auto; margin-right: auto;">${st.name.split(' ')[0]}</div>
-                            <div style="font-size: 9px; font-weight: 800; color: #b45309; text-transform: uppercase;">${titleText}</div>
+                            
+                            <div style="font-size: 11px; font-weight: 900; margin-top: 18px; color: #f8fafc; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${st.name.split(' ')[0]}</div>
                             ${timeDisplay}
                         </div>
                     `;
                 }).join('');
 
                 hallOfFameHtml = `
-                    <div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-radius: 16px; padding: 15px 10px; margin-bottom: 25px; border: 1px solid #fde68a; box-shadow: 0 4px 15px rgba(245, 158, 11, 0.15); position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -10px; right: -10px; font-size: 80px; opacity: 0.1;"><i class="fas fa-trophy"></i></div>
-                        <div style="text-align: center; margin-bottom: 15px; position: relative; z-index: 2;">
-                            <h4 style="margin: 0; color: #b45309; font-size: 16px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                                <i class="fas fa-crown" style="color: #f59e0b; font-size: 20px;"></i> Hall of Fame
-                            </h4>
-                            <span style="font-size: 10px; color: #92400e; font-weight: 800; background: #fde68a; padding: 3px 10px; border-radius: 12px; display: inline-block; margin-top: 5px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">TOP PRACTICE - ${pubData.period}</span>
-                        </div>
-                        <div style="display: flex; justify-content: center; gap: 10px; position: relative; z-index: 2;">
+                    <div style="background: linear-gradient(135deg, #4c0519 0%, #1e1b4b 100%); border-radius: 16px; padding: 25px 5px 20px 5px; margin-bottom: 25px; border: 2px solid #fbbf24; box-shadow: 0 8px 25px rgba(0,0,0,0.3); text-align: center; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.1) 10%, transparent 10.01%); background-size: 10px 10px; opacity: 0.3;"></div>
+                        
+                        <h4 style="margin: 0 0 25px 0; color: #fde047; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+                            ✨ HALL OF FAME ✨
+                        </h4>
+                        <div style="display: flex; justify-content: space-around; align-items: flex-start; padding: 15px 0; position: relative; z-index: 2;">
                             ${cardsHtml}
                         </div>
+                        <span style="font-size: 9px; color: #1e1b4b; font-weight: 900; background: #fde047; padding: 3px 12px; border-radius: 12px; display: inline-block; margin-top: 20px; position: relative; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">TOP PRACTICE - ${pubData.period}</span>
                     </div>
                 `;
             }
@@ -693,25 +709,36 @@ window.showBadgeDetails = function(r, rType, tMins) {
         padding: '10px 10px 15px 10px'
     });
 };
-// ব্যাজ ডিজাইন (ক্লিক ইভেন্ট এবং রিবন ডিজাইন সহ)
-                let badgeOverlay = '';
-                if (rank) {
-                    let frameColor = rank === 1 ? 'linear-gradient(135deg, #fde047, #d97706)' : (rank === 2 ? 'linear-gradient(135deg, #e2e8f0, #64748b)' : 'linear-gradient(135deg, #fca5a5, #9f1239)');
-                    let ribbonColor = rank === 1 ? 'linear-gradient(to right, #ef4444, #991b1b)' : (rank === 2 ? 'linear-gradient(to right, #10b981, #047857)' : 'linear-gradient(to right, #3b82f6, #1e3a8a)');
-                    let rankText = rank === 1 ? '1ST RANK' : (rank === 2 ? '2ND RANK' : '3RD RANK');
+// 🟢 Student Profile Badge Design (NEW ROYAL ORNATE)
+            let profileImageBadgeHtml = '';
+            if (rank) {
+                let config = {};
+                if (rank === 1) config = { outerGrad: 'linear-gradient(135deg, #fef08a 0%, #b45309 50%, #fef08a 100%)', innerBg: '#1e3a8a', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', rankStr: '1st', title: 'CHAMPION' };
+                else if (rank === 2) config = { outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', innerBg: '#064e3b', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '2nd', title: 'RUNNER-UP' };
+                else config = { outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', innerBg: '#4c1d95', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '3rd', title: 'HONORABLE' };
+
+                profileImageBadgeHtml = `
+                <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" style="position: relative; display: inline-block; padding: 6px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 15px 30px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.3s; transform: scale(1.05); margin-top: 15px;">
                     
-                    badgeOverlay = `
-                        <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" 
-                             style="position:absolute; bottom:-5px; right:-10px; background:${frameColor}; padding:4px; border-radius:50%; box-shadow:0 4px 10px rgba(0,0,0,0.3); cursor:pointer; z-index:10; display:flex; align-items:center; justify-content:center;" 
-                             title="Click for details">
-                            <div style="background:white; border-radius:50%; width:38px; height:38px; display:flex; align-items:center; justify-content:center; font-size:22px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2));">
-                                👑
-                            </div>
-                            <div style="position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); background:${ribbonColor}; color:white; font-size:7px; font-weight:900; padding:2px 6px; border-radius:4px; white-space:nowrap; border:1px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); letter-spacing: 0.5px;">
-                                ${rankText}
-                            </div>
-                        </div>`;
-                }
+                    <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 35px; height: 35px; background: ${config.outerGrad}; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; color: #000; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 10; text-shadow: 1px 1px 0px rgba(255,255,255,0.5);">
+                        ${config.rankStr}
+                    </div>
+
+                    <div style="padding: 4px; background: ${config.innerBg}; border-radius: 50%;">
+                        <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid ${config.accent}; background: white;">
+                    </div>
+
+                    <div style="position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 5px 0; border-radius: 4px; font-size: 10px; font-weight: 900; white-space: nowrap; border: 1.5px solid ${config.accent}; box-shadow: 0 6px 12px rgba(0,0,0,0.5); z-index: 10; letter-spacing: 1px;">
+                        👑 ${config.title}
+                    </div>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 25px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for details</div>`;
+            } else {
+                profileImageBadgeHtml = `
+                <div style="position:relative; display:inline-block;">
+                    <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                </div>`;
+            }
 // ৬. HTML Structure (Themed)
 document.body.innerHTML = `
     <style>
