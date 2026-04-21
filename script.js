@@ -257,7 +257,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             if (s.allow_profile_view !== false) {
                                 
-// 🟢 Hall of Fame - ROYAL ORNATE DESIGN (Matches Uploaded Images)
+// 🟢 Hall of Fame - THEME DYNAMIC ORNATE DESIGN
             let hallOfFameHtml = '';
             if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
                 const pubData = globalData.published_leaderboard;
@@ -268,21 +268,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                         config = { 
                             order: 2, scale: 'scale(1.25)', margin: '0 5px',
                             outerGrad: 'linear-gradient(135deg, #fde047 0%, #b45309 50%, #fef08a 100%)', 
-                            innerBg: '#1e3a8a', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', 
+                            innerBg: 'var(--primary-dark)', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', 
                             rankStr: '1st', title: 'CHAMPION' 
                         };
                     } else if (st.rank === 2) {
                         config = { 
                             order: 1, scale: 'scale(1.05)', margin: '15px 0 0 0',
                             outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', 
-                            innerBg: '#064e3b', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
+                            innerBg: 'var(--primary)', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
                             rankStr: '2nd', title: 'RUNNER-UP' 
                         };
                     } else if (st.rank === 3) {
                         config = { 
                             order: 3, scale: 'scale(1.05)', margin: '15px 0 0 0',
                             outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', 
-                            innerBg: '#4c1d95', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
+                            innerBg: 'var(--primary)', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
                             rankStr: '3rd', title: 'HONORABLE' 
                         };
                     }
@@ -291,15 +291,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (st.totalMins !== undefined) {
                         let h = Math.floor(st.totalMins / 60); let m = st.totalMins % 60;
                         let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                        timeDisplay = `<div style="font-size: 8px; font-weight: 800; color: #1e293b; margin-top: 5px; background: rgba(255,255,255,0.9); border-radius: 8px; display: inline-block; padding: 2px 6px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);"><i class="fas fa-clock"></i> ${timeStr}</div>`;
+                        timeDisplay = `<div style="font-size: 9px; font-weight: 800; color: var(--text-main); margin-top: 6px; background: var(--bg-input); border-radius: 12px; display: inline-block; padding: 3px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border-color);"><i class="fas fa-clock" style="color: var(--primary);"></i> ${timeStr}</div>`;
                     }
 
                     return `
                         <div style="text-align: center; flex: 1; order: ${config.order}; transform: ${config.scale}; margin: ${config.margin}; position: relative; z-index: ${st.rank === 1 ? '10' : '5'}; transition: all 0.3s;">
                             
-                            <div style="position: relative; display: inline-block; padding: 4px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.4);">
+                            <div style="position: relative; display: inline-block; padding: 4px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
                                 
-                                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: ${config.outerGrad}; border-radius: 50%; border: 1.5px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 9px; color: #000; box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 10; text-shadow: 1px 1px 0px rgba(255,255,255,0.5);">
+                                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: ${config.outerGrad}; border-radius: 50%; border: 1.5px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 9px; color: #000; box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 10;">
                                     ${config.rankStr}
                                 </div>
 
@@ -307,28 +307,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${config.accent}; background: white;">
                                 </div>
 
-                                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 3px 0; border-radius: 3px; font-size: 7px; font-weight: 900; white-space: nowrap; border: 1px solid ${config.accent}; box-shadow: 0 4px 8px rgba(0,0,0,0.5); z-index: 10; letter-spacing: 0.5px;">
+                                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 3px 0; border-radius: 3px; font-size: 7px; font-weight: 900; white-space: nowrap; border: 1px solid ${config.accent}; box-shadow: 0 4px 8px rgba(0,0,0,0.4); z-index: 10; letter-spacing: 0.5px;">
                                     👑 ${config.title}
                                 </div>
                             </div>
                             
-                            <div style="font-size: 11px; font-weight: 900; margin-top: 18px; color: #f8fafc; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">${st.name.split(' ')[0]}</div>
+                            <div style="font-size: 12px; font-weight: 800; margin-top: 18px; color: var(--text-main);">${st.name.split(' ')[0]}</div>
                             ${timeDisplay}
                         </div>
                     `;
                 }).join('');
 
                 hallOfFameHtml = `
-                    <div style="background: linear-gradient(135deg, #4c0519 0%, #1e1b4b 100%); border-radius: 16px; padding: 25px 5px 20px 5px; margin-bottom: 25px; border: 2px solid #fbbf24; box-shadow: 0 8px 25px rgba(0,0,0,0.3); text-align: center; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle, rgba(255,255,255,0.1) 10%, transparent 10.01%); background-size: 10px 10px; opacity: 0.3;"></div>
+                    <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 10px 20px 10px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
+                        <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
                         
-                        <h4 style="margin: 0 0 25px 0; color: #fde047; font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2; text-shadow: 0 2px 4px rgba(0,0,0,0.8);">
+                        <h4 style="margin: 0 0 25px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
                             ✨ HALL OF FAME ✨
                         </h4>
                         <div style="display: flex; justify-content: space-around; align-items: flex-start; padding: 15px 0; position: relative; z-index: 2;">
                             ${cardsHtml}
                         </div>
-                        <span style="font-size: 9px; color: #1e1b4b; font-weight: 900; background: #fde047; padding: 3px 12px; border-radius: 12px; display: inline-block; margin-top: 20px; position: relative; z-index: 2; box-shadow: 0 2px 5px rgba(0,0,0,0.5);">TOP PRACTICE - ${pubData.period}</span>
+                        <span style="font-size: 10px; color: #fff; font-weight: 800; background: var(--primary); padding: 5px 15px; border-radius: 12px; display: inline-block; margin-top: 20px; position: relative; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">TOP PRACTICE - ${pubData.period}</span>
                     </div>
                 `;
             }
@@ -709,18 +709,18 @@ window.showBadgeDetails = function(r, rType, tMins) {
         padding: '10px 10px 15px 10px'
     });
 };
-// 🟢 Student Profile Badge Design (NEW ROYAL ORNATE)
+// 🟢 Student Profile Badge Design (THEME DYNAMIC ORNATE)
             let profileImageBadgeHtml = '';
             if (rank) {
                 let config = {};
-                if (rank === 1) config = { outerGrad: 'linear-gradient(135deg, #fef08a 0%, #b45309 50%, #fef08a 100%)', innerBg: '#1e3a8a', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', rankStr: '1st', title: 'CHAMPION' };
-                else if (rank === 2) config = { outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', innerBg: '#064e3b', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '2nd', title: 'RUNNER-UP' };
-                else config = { outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', innerBg: '#4c1d95', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '3rd', title: 'HONORABLE' };
+                if (rank === 1) config = { outerGrad: 'linear-gradient(135deg, #fef08a 0%, #b45309 50%, #fef08a 100%)', innerBg: 'var(--primary-dark)', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', rankStr: '1st', title: 'CHAMPION' };
+                else if (rank === 2) config = { outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', innerBg: 'var(--primary)', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '2nd', title: 'RUNNER-UP' };
+                else config = { outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', innerBg: 'var(--primary)', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '3rd', title: 'HONORABLE' };
 
                 profileImageBadgeHtml = `
-                <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" style="position: relative; display: inline-block; padding: 6px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 15px 30px rgba(0,0,0,0.3); cursor: pointer; transition: transform 0.3s; transform: scale(1.05); margin-top: 15px;">
+                <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" style="position: relative; display: inline-block; padding: 6px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.3s; transform: scale(1.05); margin-top: 15px;">
                     
-                    <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 35px; height: 35px; background: ${config.outerGrad}; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; color: #000; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 10; text-shadow: 1px 1px 0px rgba(255,255,255,0.5);">
+                    <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 35px; height: 35px; background: ${config.outerGrad}; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; color: #000; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 10;">
                         ${config.rankStr}
                     </div>
 
@@ -728,7 +728,7 @@ window.showBadgeDetails = function(r, rType, tMins) {
                         <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid ${config.accent}; background: white;">
                     </div>
 
-                    <div style="position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 5px 0; border-radius: 4px; font-size: 10px; font-weight: 900; white-space: nowrap; border: 1.5px solid ${config.accent}; box-shadow: 0 6px 12px rgba(0,0,0,0.5); z-index: 10; letter-spacing: 1px;">
+                    <div style="position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 5px 0; border-radius: 4px; font-size: 10px; font-weight: 900; white-space: nowrap; border: 1.5px solid ${config.accent}; box-shadow: 0 6px 12px rgba(0,0,0,0.4); z-index: 10; letter-spacing: 1px;">
                         👑 ${config.title}
                     </div>
                 </div>
@@ -9001,114 +9001,4 @@ window.sendBulkNoticeToPortals = async function(isClear = false) {
             Swal.fire('Error', 'Failed to publish notice. Check your internet connection.', 'error');
         }
     }
-};
-// ==========================================
-// 🟢 POPUP FUNCTIONS (MEDAL & BATCH DETAILS)
-// ==========================================
-
-// 🟢 ১. ব্যাজে ক্লিক করলে মেসেজ দেখানোর ফাংশন
-window.showBadgeDetails = function(r, rType, tMins) {
-    let titleText = r === 1 ? 'Champion! 🏆' : (r === 2 ? 'Runner-Up! 🌟' : 'Honorable Mention! ⭐');
-    
-    let h = Math.floor(tMins / 60); 
-    let m = tMins % 60;
-    let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-
-    const now = new Date();
-    let dateRangeStr = "";
-    
-    if (rType === "Last Week") {
-        const lastSunday = new Date(now);
-        lastSunday.setDate(now.getDate() - now.getDay() - 7);
-        const lastSaturday = new Date(lastSunday);
-        lastSaturday.setDate(lastSunday.getDate() + 6);
-        const startStr = lastSunday.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
-        const endStr = lastSaturday.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${startStr} to ${endStr}</div>`;
-    } else if (rType === "Last Month") {
-        const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${lm.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}</div>`;
-    } else {
-        dateRangeStr = `<div style="font-size:11px; color:#475569; margin-top:4px; font-weight:700; background:#f1f5f9; display:inline-block; padding:4px 10px; border-radius:12px; border:1px solid #e2e8f0;">📅 ${rType}</div>`;
-    }
-
-    let ribbonColors = r === 1 ? 'linear-gradient(to right, #ef4444, #991b1b)' : (r === 2 ? 'linear-gradient(to right, #10b981, #047857)' : 'linear-gradient(to right, #3b82f6, #1e3a8a)');
-
-    Swal.fire({
-        title: `<span style="font-size: 20px;">${titleText}</span>`,
-        html: `
-            <style>
-                .swal2-icon.swal2-success { transform: scale(0.6); margin: 0 auto 5px auto !important; }
-                div:where(.swal2-container) .swal2-html-container { margin-top: 5px !important; }
-            </style>
-            <div style="font-size:13px; color:var(--text-main); line-height:1.4;">
-                <div style="margin: 10px auto; background: ${ribbonColors}; color: white; padding: 6px 15px; border-radius: 20px; display: inline-block; font-weight: 900; font-size: 14px; letter-spacing: 1px; border: 2px solid white; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">
-                    ${r === 1 ? '1ST' : (r === 2 ? '2ND' : '3RD')} RANK
-                </div>
-                <div style="margin: 6px 0;">${dateRangeStr}</div>
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 8px; border-radius: 8px; color: #047857; font-weight: bold; font-size: 14px; display: inline-flex; align-items: center; justify-content: center; gap: 5px; margin-top: 4px;">
-                    <i class="fas fa-stopwatch"></i> Total Time: ${timeStr}
-                </div>
-                <div style="color:#64748b; font-size:11px; font-weight:500; margin-top:8px;">Keep up the amazing work! 🎸🎹</div>
-            </div>`,
-        icon: 'success',
-        confirmButtonColor: 'var(--primary)',
-        confirmButtonText: 'Awesome!',
-        width: '85%',
-        padding: '10px 10px 15px 10px'
-    });
-};
-
-// 🟢 2. Show Batch Details Popup 
-window.showBatchDetails = function(batchName, studentId) {
-    const student = students.find(s => s.id === studentId);
-    if (!student) return;
-
-    const stats = getPracticeStats(student, batchName);
-
-    let reasonHtml = `
-        <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 15px; font-size: 13px; color: #334155; text-align: center; line-height: 1.6;">
-            Keep practicing <strong>${batchName}</strong>! You have logged <strong style="color:var(--primary); font-size:15px;">${formatPracticeTime(stats.month)}</strong> this month.
-        </div>
-    `;
-
-    const now = new Date();
-    const firstDayMonth = new Date(now.getFullYear(), now.getMonth(), 1).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-    const todayStr = now.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-
-    let html = `
-        <div style="text-align:left; font-family:'Poppins', sans-serif;">
-            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-input); padding:15px; border-radius:12px; margin-bottom:15px; border:1px solid var(--border-color);">
-                <div>
-                    <div style="font-size:11px; color:var(--text-muted); font-weight:bold; text-transform:uppercase;">Subject / Batch</div>
-                    <h3 style="margin:2px 0 0 0; color:var(--primary); font-size:22px;">${batchName}</h3>
-                </div>
-            </div>
-            ${reasonHtml}
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-                <div style="background:#f0fdf4; padding:12px; border-radius:10px; border:1px solid #bbf7d0; grid-column: span 2;">
-                    <div style="font-size:11px; color:#166534; font-weight:bold; text-transform:uppercase; margin-bottom:4px;"><i class="fas fa-calendar-check"></i> This Month's Practice</div>
-                    <div style="font-size:11px; color:#15803d; margin-bottom:6px; background:#dcfce7; display:inline-block; padding:3px 8px; border-radius:6px; font-weight:600;">${firstDayMonth} to ${todayStr}</div>
-                    <div style="font-size:24px; font-weight:900; color:#14532d;">${formatPracticeTime(stats.month)}</div>
-                </div>
-                <div style="background:#eff6ff; padding:12px; border-radius:10px; border:1px solid #bfdbfe;">
-                    <div style="font-size:10px; color:#1d4ed8; font-weight:bold; text-transform:uppercase;">Lifetime Total</div>
-                    <div style="font-size:16px; font-weight:900; color:#1e3a8a; margin-top:4px;">${formatPracticeTime(stats.lifetime)}</div>
-                </div>
-                <div style="background:#fefce8; padding:12px; border-radius:10px; border:1px solid #fef08a;">
-                    <div style="font-size:10px; color:#a16207; font-weight:bold; text-transform:uppercase;">Daily Average</div>
-                    <div style="font-size:16px; font-weight:900; color:#713f12; margin-top:4px;">${formatPracticeTime(stats.avg)}</div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    Swal.fire({
-        html: html,
-        showConfirmButton: true,
-        confirmButtonText: 'Awesome!',
-        confirmButtonColor: 'var(--primary)',
-        width: '95%',
-        padding: '15px'
-    });
 };
