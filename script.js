@@ -351,60 +351,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                     `;
                 }
-
-                // 🟢 Student's Personal Rank Logic
-                let rank = null; let rankType = ""; let totalBadgeMins = 0; 
-                let allLogs = [...(pLogs || [])];
-                if (s.practice_log) {
-                    s.practice_log.forEach(l => { if(!allLogs.some(pl => pl.id === l.id)) allLogs.push({...l, studentId: s.id}); });
-                }
-
-                if (allLogs.length > 0) {
-                    const _now = new Date();
-                    const _lastSun = new Date(_now); _lastSun.setDate(_now.getDate() - _now.getDay() - 7); _lastSun.setHours(0,0,0,0);
-                    const _lastSat = new Date(_lastSun); _lastSat.setDate(_lastSun.getDate() + 6); _lastSat.setHours(23,59,59,999);
-                    const _firstLastMonth = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
-                    const _lastLastMonth = new Date(_now.getFullYear(), _now.getMonth(), 0, 23, 59, 59);
-
-                    function checkRank(start, end) {
-                        let statsMap = {};
-                        allLogs.forEach(log => {
-                            const parts = log.date.split('/'); let logDate = parts.length === 3 ? new Date(parts[2], parts[1]-1, parts[0]) : new Date(log.date);
-                            logDate.setHours(0,0,0,0);
-                            if (logDate >= start && logDate <= end) {
-                                if(!statsMap[log.studentId]) statsMap[log.studentId] = 0;
-                                statsMap[log.studentId] += (parseInt(log.minutes) || 0);
-                            }
-                        });
-                        if(statsMap[s.id]) totalBadgeMins = statsMap[s.id];
-                        let sorted = Object.keys(statsMap).map(id => ({ id: parseInt(id), mins: statsMap[id] })).sort((a,b) => b.mins - a.mins);
-                        return sorted.findIndex(st => parseInt(st.id) === parseInt(s.id));
-                    }
-
-                    let wIndex = checkRank(_lastSun, _lastSat);
-                    if (wIndex !== -1 && wIndex < 3) { rank = wIndex + 1; rankType = "Last Week"; }
-                    else { 
-                        let mIndex = checkRank(_firstLastMonth, _lastLastMonth); 
-                        if (mIndex !== -1 && mIndex < 3) { rank = mIndex + 1; rankType = "Last Month"; }
-                    }
-                }
-
-                // 🟢 Student Profile Badge Display
-                let profileImageBadgeHtml = '';
-                if (rank) {
-                    let photo = s.photo || 'https://via.placeholder.com/150?text=S';
-                    let clickAttr = `window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})`;
-                    profileImageBadgeHtml = `
-                    <div style="margin-top: 25px; margin-bottom: 25px;">
-                        ${generateRoyalBadge(rank, null, photo, null, 'scale(1.1)', clickAttr)}
-                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for details</div>
-                    </div>`;
-                } else {
-                    profileImageBadgeHtml = `
-                    <div style="position:relative; display:inline-block; margin-bottom: 10px;">
-                        <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
-                    </div>`;
-                }
                                 // ১. Personal Notice
                                 let noticeHtml = '';
                                 if (s.personal_notice && s.personal_notice.trim() !== '') {
@@ -782,33 +728,19 @@ window.showBadgeDetails = function(r, rType, tMins) {
         padding: '10px 10px 15px 10px'
     });
 };
-// 🟢 Student Profile Badge Design (THEME DYNAMIC ORNATE)
+// 🟢 Student Profile Badge Design (EXACT IMAGE MATCH)
             let profileImageBadgeHtml = '';
             if (rank) {
-                let config = {};
-                if (rank === 1) config = { outerGrad: 'linear-gradient(135deg, #fef08a 0%, #b45309 50%, #fef08a 100%)', innerBg: 'var(--primary-dark)', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', rankStr: '1st', title: 'CHAMPION' };
-                else if (rank === 2) config = { outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', innerBg: 'var(--primary)', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '2nd', title: 'RUNNER-UP' };
-                else config = { outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', innerBg: 'var(--primary)', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', rankStr: '3rd', title: 'HONORABLE' };
-
+                let photo = s.photo || 'https://via.placeholder.com/150?text=S';
+                let clickAttr = `window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})`;
                 profileImageBadgeHtml = `
-                <div onclick="window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})" style="position: relative; display: inline-block; padding: 6px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 10px 25px rgba(0,0,0,0.2); cursor: pointer; transition: transform 0.3s; transform: scale(1.05); margin-top: 15px;">
-                    
-                    <div style="position: absolute; top: -15px; left: 50%; transform: translateX(-50%); width: 35px; height: 35px; background: ${config.outerGrad}; border-radius: 50%; border: 2px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 14px; color: #000; box-shadow: 0 4px 8px rgba(0,0,0,0.3); z-index: 10;">
-                        ${config.rankStr}
-                    </div>
-
-                    <div style="padding: 4px; background: ${config.innerBg}; border-radius: 50%;">
-                        <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 2px solid ${config.accent}; background: white;">
-                    </div>
-
-                    <div style="position: absolute; bottom: -12px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 5px 0; border-radius: 4px; font-size: 10px; font-weight: 900; white-space: nowrap; border: 1.5px solid ${config.accent}; box-shadow: 0 6px 12px rgba(0,0,0,0.4); z-index: 10; letter-spacing: 1px;">
-                        👑 ${config.title}
-                    </div>
-                </div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 25px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for details</div>`;
+                <div style="margin-top: 25px; margin-bottom: 25px;">
+                    ${generateRoyalBadge(rank, null, photo, null, 'scale(1.1)', clickAttr)}
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for details</div>
+                </div>`;
             } else {
                 profileImageBadgeHtml = `
-                <div style="position:relative; display:inline-block;">
+                <div style="position:relative; display:inline-block; margin-bottom: 10px;">
                     <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
                 </div>`;
             }
