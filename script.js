@@ -257,81 +257,154 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             if (s.allow_profile_view !== false) {
                                 
-// 🟢 Hall of Fame - THEME DYNAMIC ORNATE DESIGN
-            let hallOfFameHtml = '';
-            if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
-                const pubData = globalData.published_leaderboard;
-                
-                let cardsHtml = pubData.topStudents.map(st => {
-                    let config = {};
-                    if (st.rank === 1) {
-                        config = { 
-                            order: 2, scale: 'scale(1.25)', margin: '0 5px',
-                            outerGrad: 'linear-gradient(135deg, #fde047 0%, #b45309 50%, #fef08a 100%)', 
-                            innerBg: 'var(--primary-dark)', accent: '#fde047', ribbonGrad: 'linear-gradient(to bottom, #dc2626, #7f1d1d)', 
-                            rankStr: '1st', title: 'CHAMPION' 
-                        };
-                    } else if (st.rank === 2) {
-                        config = { 
-                            order: 1, scale: 'scale(1.05)', margin: '15px 0 0 0',
-                            outerGrad: 'linear-gradient(135deg, #f8fafc 0%, #64748b 50%, #f8fafc 100%)', 
-                            innerBg: 'var(--primary)', accent: '#cbd5e1', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
-                            rankStr: '2nd', title: 'RUNNER-UP' 
-                        };
-                    } else if (st.rank === 3) {
-                        config = { 
-                            order: 3, scale: 'scale(1.05)', margin: '15px 0 0 0',
-                            outerGrad: 'linear-gradient(135deg, #fed7aa 0%, #9a3412 50%, #fed7aa 100%)', 
-                            innerBg: 'var(--primary)', accent: '#fca5a5', ribbonGrad: 'linear-gradient(to bottom, #1d4ed8, #1e3a8a)', 
-                            rankStr: '3rd', title: 'HONORABLE' 
-                        };
+// 🟢 NEW: AI IMAGE EXACT MATCH BADGE GENERATOR
+                const generateRoyalBadge = (rank, name, photoUrl, timeMins, scale, onClickAttr) => {
+                    let conf = {};
+                    if (rank === 1) {
+                        conf = { gold1: '#fef08a', gold2: '#b45309', gold3: '#fde047', goldDark: '#78350f', textColor1: '#7f1d1d', textColor2: '#4c1d95', rankText: '1st', placeText: '1ST PLACE', ribbonText: '#4c0519' };
+                    } else if (rank === 2) {
+                        conf = { gold1: '#f8fafc', gold2: '#475569', gold3: '#e2e8f0', goldDark: '#1e293b', textColor1: '#1e3a8a', textColor2: '#064e3b', rankText: '2nd', placeText: '2ND PLACE', ribbonText: '#0f172a' };
+                    } else {
+                        conf = { gold1: '#fed7aa', gold2: '#9a3412', gold3: '#fdba74', goldDark: '#451a03', textColor1: '#4c1d95', textColor2: '#7f1d1d', rankText: '3rd', placeText: '3RD PLACE', ribbonText: '#451a03' };
                     }
-                    
-                    let timeDisplay = '';
-                    if (st.totalMins !== undefined) {
-                        let h = Math.floor(st.totalMins / 60); let m = st.totalMins % 60;
+
+                    let timeHtml = '';
+                    if (timeMins !== undefined && timeMins !== null) {
+                        let h = Math.floor(timeMins / 60); let m = timeMins % 60;
                         let timeStr = h > 0 ? `${h}h ${m}m` : `${m}m`;
-                        timeDisplay = `<div style="font-size: 9px; font-weight: 800; color: var(--text-main); margin-top: 6px; background: var(--bg-input); border-radius: 12px; display: inline-block; padding: 3px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border-color);"><i class="fas fa-clock" style="color: var(--primary);"></i> ${timeStr}</div>`;
+                        timeHtml = `<div style="font-size: 9px; font-weight: 800; color: var(--text-main); margin-top: 5px; background: var(--bg-input); border-radius: 12px; display: inline-block; padding: 3px 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid var(--border-color);"><i class="fas fa-clock" style="color: var(--primary);"></i> ${timeStr}</div>`;
                     }
+
+                    let nameHtml = name ? `<div style="font-size: 12px; font-weight: 900; margin-top: 5px; color: var(--text-main); text-transform: uppercase;">${name.split(' ')[0]}</div>` : '';
 
                     return `
-                        <div style="text-align: center; flex: 1; order: ${config.order}; transform: ${config.scale}; margin: ${config.margin}; position: relative; z-index: ${st.rank === 1 ? '10' : '5'}; transition: all 0.3s;">
+                    <div ${onClickAttr ? `onclick="${onClickAttr}"` : ''} style="position: relative; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; transform: ${scale}; cursor: ${onClickAttr ? 'pointer' : 'default'}; margin: 0 auto; transition: transform 0.3s;">
+                        
+                        <div style="position: absolute; top: 0; left: 35px; width: 18px; height: 60px; background: linear-gradient(90deg, #1e3a8a, #3b82f6, #1e3a8a); transform: rotate(-20deg); z-index: 1; border-left: 1.5px solid ${conf.gold3}; border-right: 1.5px solid ${conf.gold3}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>
+                        <div style="position: absolute; top: 0; right: 35px; width: 18px; height: 60px; background: linear-gradient(90deg, #1e3a8a, #3b82f6, #1e3a8a); transform: rotate(20deg); z-index: 1; border-left: 1.5px solid ${conf.gold3}; border-right: 1.5px solid ${conf.gold3}; box-shadow: 0 4px 6px rgba(0,0,0,0.3);"></div>
+
+                        <div style="position: absolute; top: -5px; left: 50%; transform: translateX(-50%); width: 36px; height: 36px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, ${conf.gold1}, ${conf.gold2}); border: 2px solid ${conf.gold3}; box-shadow: 0 4px 8px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.6); z-index: 3; display: flex; justify-content: center; align-items: center;">
+                            <span style="font-size: 14px; font-weight: 900; color: #fff; text-shadow: 1px 1px 2px ${conf.goldDark}, -1px -1px 0 ${conf.gold3};">${conf.rankText}</span>
+                        </div>
+
+                        <div style="position: absolute; top: 35px; width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, ${conf.gold3}, ${conf.gold2}, ${conf.gold3}); padding: 5px; box-shadow: 0 10px 20px rgba(0,0,0,0.4); z-index: 4;">
                             
-                            <div style="position: relative; display: inline-block; padding: 4px; background: ${config.outerGrad}; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.2);">
-                                
-                                <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; background: ${config.outerGrad}; border-radius: 50%; border: 1.5px solid white; display: flex; justify-content: center; align-items: center; font-weight: 900; font-size: 9px; color: #000; box-shadow: 0 3px 6px rgba(0,0,0,0.3); z-index: 10;">
-                                    ${config.rankStr}
-                                </div>
-
-                                <div style="padding: 2.5px; background: ${config.innerBg}; border-radius: 50%;">
-                                    <img src="${st.photo || 'https://via.placeholder.com/60?text=S'}" style="width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 1.5px solid ${config.accent}; background: white;">
-                                </div>
-
-                                <div style="position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%); width: 115%; background: ${config.ribbonGrad}; color: white; padding: 3px 0; border-radius: 3px; font-size: 7px; font-weight: 900; white-space: nowrap; border: 1px solid ${config.accent}; box-shadow: 0 4px 8px rgba(0,0,0,0.4); z-index: 10; letter-spacing: 0.5px;">
-                                    👑 ${config.title}
-                                </div>
+                            <div style="width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, #fff, #f1f5f9); border: 2px solid ${conf.gold2}; position: relative; overflow: hidden;">
+                                <svg viewBox="0 0 100 100" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 5;">
+                                    <path id="curve1-${rank}" d="M 12 55 A 38 38 0 0 1 88 55" fill="transparent" />
+                                    <path id="curve2-${rank}" d="M 22 58 A 28 28 0 0 1 78 58" fill="transparent" />
+                                    <text font-family="Arial, sans-serif" font-weight="900" font-size="10" fill="${conf.textColor1}" letter-spacing="1">
+                                        <textPath href="#curve1-${rank}" startOffset="50%" text-anchor="middle">WINNERS BATCH</textPath>
+                                    </text>
+                                    <text font-family="Arial, sans-serif" font-weight="900" font-size="7" fill="${conf.textColor2}" letter-spacing="0.5">
+                                        <textPath href="#curve2-${rank}" startOffset="50%" text-anchor="middle">${conf.placeText}</textPath>
+                                    </text>
+                                </svg>
+                                <img src="${photoUrl}" style="position: absolute; top: 60%; left: 50%; transform: translate(-50%, -50%); width: 55px; height: 55px; border-radius: 50%; border: 2px solid ${conf.gold2}; z-index: 6; object-fit: cover; background: #fff; box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
                             </div>
                             
-                            <div style="font-size: 12px; font-weight: 800; margin-top: 18px; color: var(--text-main);">${st.name.split(' ')[0]}</div>
-                            ${timeDisplay}
+                            <div style="position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 26px; filter: drop-shadow(0 2px 3px rgba(0,0,0,0.6)); z-index: 10;">👑</div>
+                        </div>
+
+                        <div style="position: absolute; top: 135px; z-index: 6; width: 135px; background: linear-gradient(to right, ${conf.gold2}, ${conf.gold3}, ${conf.gold2}); padding: 5px 0; text-align: center; border: 1.5px solid ${conf.goldDark}; border-radius: 4px; box-shadow: 0 5px 10px rgba(0,0,0,0.4);">
+                            <div style="font-size: 7px; font-weight: 900; color: ${conf.ribbonText}; text-transform: uppercase; letter-spacing: 0.5px;">Student Achievement</div>
+                        </div>
+
+                        <div style="position: absolute; top: 160px; z-index: 5; font-size: 6px; color: var(--text-main); font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">
+                            ★ Academic Excellence ★
+                        </div>
+
+                        <div style="position: absolute; top: 170px; width: 100%; text-align: center; z-index: 1;">
+                            ${nameHtml}
+                            ${timeHtml}
+                        </div>
+                    </div>
+                    `;
+                };
+
+                // 🟢 Hall of Fame UI
+                let hallOfFameHtml = '';
+                if (globalData.published_leaderboard && globalData.published_leaderboard.topStudents && globalData.published_leaderboard.topStudents.length > 0) {
+                    const pubData = globalData.published_leaderboard;
+                    
+                    let cardsHtml = pubData.topStudents.map(st => {
+                        let scale = st.rank === 1 ? 'scale(1.1)' : 'scale(0.9)';
+                        let order = st.rank === 1 ? 2 : (st.rank === 2 ? 1 : 3);
+                        let photo = st.photo || 'https://via.placeholder.com/150?text=S';
+                        
+                        return `
+                        <div style="flex: 1; order: ${order}; margin-top: ${st.rank === 1 ? '0px' : '20px'}; display: flex; justify-content: center; z-index: ${st.rank === 1 ? '10' : '5'};">
+                            ${generateRoyalBadge(st.rank, st.name, photo, st.totalMins, scale, null)}
+                        </div>`;
+                    }).join('');
+
+                    hallOfFameHtml = `
+                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 40px 5px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
+                            <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
+                            <h4 style="margin: 0 0 25px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
+                                ✨ HALL OF FAME ✨
+                            </h4>
+                            <div style="display: flex; justify-content: space-around; align-items: flex-start; position: relative; z-index: 2;">
+                                ${cardsHtml}
+                            </div>
+                            <span style="font-size: 10px; color: #fff; font-weight: 800; background: var(--primary); padding: 5px 15px; border-radius: 12px; display: inline-block; margin-top: 30px; position: relative; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">TOP PRACTICE - ${pubData.period}</span>
                         </div>
                     `;
-                }).join('');
+                }
 
-                hallOfFameHtml = `
-                    <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 10px 20px 10px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
-                        <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
-                        
-                        <h4 style="margin: 0 0 25px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
-                            ✨ HALL OF FAME ✨
-                        </h4>
-                        <div style="display: flex; justify-content: space-around; align-items: flex-start; padding: 15px 0; position: relative; z-index: 2;">
-                            ${cardsHtml}
-                        </div>
-                        <span style="font-size: 10px; color: #fff; font-weight: 800; background: var(--primary); padding: 5px 15px; border-radius: 12px; display: inline-block; margin-top: 20px; position: relative; z-index: 2; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">TOP PRACTICE - ${pubData.period}</span>
-                    </div>
-                `;
-            }
+                // 🟢 Student's Personal Rank Logic
+                let rank = null; let rankType = ""; let totalBadgeMins = 0; 
+                let allLogs = [...(pLogs || [])];
+                if (s.practice_log) {
+                    s.practice_log.forEach(l => { if(!allLogs.some(pl => pl.id === l.id)) allLogs.push({...l, studentId: s.id}); });
+                }
+
+                if (allLogs.length > 0) {
+                    const _now = new Date();
+                    const _lastSun = new Date(_now); _lastSun.setDate(_now.getDate() - _now.getDay() - 7); _lastSun.setHours(0,0,0,0);
+                    const _lastSat = new Date(_lastSun); _lastSat.setDate(_lastSun.getDate() + 6); _lastSat.setHours(23,59,59,999);
+                    const _firstLastMonth = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
+                    const _lastLastMonth = new Date(_now.getFullYear(), _now.getMonth(), 0, 23, 59, 59);
+
+                    function checkRank(start, end) {
+                        let statsMap = {};
+                        allLogs.forEach(log => {
+                            const parts = log.date.split('/'); let logDate = parts.length === 3 ? new Date(parts[2], parts[1]-1, parts[0]) : new Date(log.date);
+                            logDate.setHours(0,0,0,0);
+                            if (logDate >= start && logDate <= end) {
+                                if(!statsMap[log.studentId]) statsMap[log.studentId] = 0;
+                                statsMap[log.studentId] += (parseInt(log.minutes) || 0);
+                            }
+                        });
+                        if(statsMap[s.id]) totalBadgeMins = statsMap[s.id];
+                        let sorted = Object.keys(statsMap).map(id => ({ id: parseInt(id), mins: statsMap[id] })).sort((a,b) => b.mins - a.mins);
+                        return sorted.findIndex(st => parseInt(st.id) === parseInt(s.id));
+                    }
+
+                    let wIndex = checkRank(_lastSun, _lastSat);
+                    if (wIndex !== -1 && wIndex < 3) { rank = wIndex + 1; rankType = "Last Week"; }
+                    else { 
+                        let mIndex = checkRank(_firstLastMonth, _lastLastMonth); 
+                        if (mIndex !== -1 && mIndex < 3) { rank = mIndex + 1; rankType = "Last Month"; }
+                    }
+                }
+
+                // 🟢 Student Profile Badge Display
+                let profileImageBadgeHtml = '';
+                if (rank) {
+                    let photo = s.photo || 'https://via.placeholder.com/150?text=S';
+                    let clickAttr = `window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})`;
+                    profileImageBadgeHtml = `
+                    <div style="margin-top: 25px; margin-bottom: 25px;">
+                        ${generateRoyalBadge(rank, null, photo, null, 'scale(1.1)', clickAttr)}
+                        <div style="font-size: 10px; color: var(--text-muted); margin-top: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for details</div>
+                    </div>`;
+                } else {
+                    profileImageBadgeHtml = `
+                    <div style="position:relative; display:inline-block; margin-bottom: 10px;">
+                        <img src="${s.photo || 'https://via.placeholder.com/150'}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
+                    </div>`;
+                }
                                 // ১. Personal Notice
                                 let noticeHtml = '';
                                 if (s.personal_notice && s.personal_notice.trim() !== '') {
