@@ -6149,43 +6149,9 @@ window.submitPracticeLog = function(studentId) {
     Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${displayTime}!`, icon: 'success', timer: 2000, showConfirmButton: false });
     
     if (isStudentPortal) {
-        window.renderPracticeHistoryPortal(studentData); 
-    } else {
-        window.renderPracticeLogTeacher(studentId);
-        window.renderDashboard();
-    }
-};
-
-window.showTodaysPracticingStudentsModal = function() {
-    const todayDateStr = new Date().toLocaleDateString('en-IN');
-    let practicedStudentIds = new Set();
-    
-    students.forEach(s => {
-        if(s.practice_log && s.practice_log.length > 0) {
-            if(s.practice_log.some(log => log.date === todayDateStr)) {
-                practicedStudentIds.add(s.id);
-            }
-        }
-    });
-
-    if (practicedStudentIds.size === 0) return;
-
-    document.getElementById('classStudentsTitle').textContent = `Today's Practice (${practicedStudentIds.size} Students)`; 
-    const tableBody = document.querySelector('#classStudentsTable tbody'); 
-    const tableHead = document.querySelector('#classStudentsTable thead tr');
-    
-    tableHead.innerHTML = '<th>ID</th><th>Student</th><th>Contact</th>'; 
-    tableBody.innerHTML = ''; 
-    
-    practicedStudentIds.forEach(id => { 
-        const s = students.find(student => student.id === id);
-        if (s) {
-            tableBody.innerHTML += `<tr><td>${s.serial_no}</td><td>${getStudentHtml(s)}</td><td>${getAllContactButtons(s)}</td></tr>`; 
-        }
-    }); 
-    
-    document.getElementById('classStudentsModal').style.display = 'flex'; 
-};
+        // =======================================================
+// 🟢 Practice History Portal (Corrected & Clean Code)
+// =======================================================
 window.renderPracticeHistoryPortal = function(student) {
     const existingIdx = students.findIndex(s => String(s.id) === String(student.id));
     if(existingIdx === -1) students.push(student);
@@ -6193,27 +6159,11 @@ window.renderPracticeHistoryPortal = function(student) {
 
     const container = document.getElementById('practiceHistoryPortal');
     if (!container) return;
-    // 🟢 Check if student has permission to log/delete practice
-const canLogPractice = student.allow_practice_log !== false;
 
-filteredLogs.forEach(log => { 
-    // 🟢 Delete button only shows if permission is granted
-    let deleteButtonHtml = canLogPractice ? `<button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:4px;" title="Delete"><i class="fas fa-trash"></i></button>` : '';
-    
-    listHtml += `
-        <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #10b981; display: flex; justify-content: space-between; align-items: center;">
-            <div>
-                <strong style="color: #065f46; font-size: 13px;">${log.topic}</strong><br>
-                <span style="font-size: 11px; color: #166534;">📅 ${log.date} (${log.day}) 🕒 ${log.time}</span>
-            </div>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div style="background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">${log.minutes} mins</div>
-                
-                ${deleteButtonHtml} </div>
-        </div>`;
-});
+    // 🟢 পারমিশন চেক
+    const canLogPractice = student.allow_practice_log !== false;
 
-    // 🟢 NEW: Class List for Dropdown Filter
+    // 🟢 সাবজেক্ট ফিল্টার ড্রপডাউন
     let classList = student.class ? student.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : [];
     const filterSelect = document.getElementById('studentPortalPracticeFilter');
     const selectedFilter = filterSelect ? filterSelect.value : 'All';
@@ -6235,31 +6185,34 @@ filteredLogs.forEach(log => {
 
     const stats = getPracticeStats(student, selectedFilter);
 
+    // 🟢 ছবির মতো পিচ কালারের বড় বক্স এবং তার ভেতরে কালারফুল গ্রিড
     let statsHtml = filterDropdownHtml + `
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 15px;">
-            <div style="background: #e0f2fe; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #bae6fd;">
-                <div style="font-size: 10px; color: #0369a1; font-weight: 600; text-transform: uppercase;">Today</div>
-                <div style="font-size: 14px; font-weight: 700; color: #0c4a6e;">${formatPracticeTime(stats.today)}</div>
-            </div>
-            <div style="background: #fef9c3; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #fef08a;">
-                <div style="font-size: 10px; color: #a16207; font-weight: 600; text-transform: uppercase;">This Week</div>
-                <div style="font-size: 14px; font-weight: 700; color: #713f12;">${formatPracticeTime(stats.week)}</div>
-            </div>
-            <div style="background: #ffedd5; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #fed7aa;">
-                <div style="font-size: 10px; color: #c2410c; font-weight: 600; text-transform: uppercase;">This Month</div>
-                <div style="font-size: 14px; font-weight: 700; color: #7c2d12;">${formatPracticeTime(stats.month)}</div>
-            </div>
-            <div style="background: #f3e8ff; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #e9d5ff;">
-                <div style="font-size: 10px; color: #7e22ce; font-weight: 600; text-transform: uppercase;">This Year</div>
-                <div style="font-size: 14px; font-weight: 700; color: #581c87;">${formatPracticeTime(stats.year)}</div>
-            </div>
-            <div style="background: #dcfce7; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #bbf7d0;">
-                <div style="font-size: 10px; color: #15803d; font-weight: 600; text-transform: uppercase;">Lifetime</div>
-                <div style="font-size: 14px; font-weight: 700; color: #14532d;">${formatPracticeTime(stats.lifetime)}</div>
-            </div>
-            <div style="background: #f1f5f9; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #e2e8f0;">
-                <div style="font-size: 10px; color: #475569; font-weight: 600; text-transform: uppercase;">Daily Avg</div>
-                <div style="font-size: 14px; font-weight: 700; color: #0f172a;">${formatPracticeTime(stats.avg)}</div>
+        <div style="background: #ffecd6; padding: 15px; border-radius: 12px; border: 1px solid #fdba74; margin-bottom: 15px;">
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                <div style="background: #e0f2fe; padding: 12px 5px; border-radius: 8px; text-align: center; border: 1px solid #bae6fd;">
+                    <div style="font-size: 10px; color: #0369a1; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Today</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #0c4a6e;">${formatPracticeTime(stats.today)}</div>
+                </div>
+                <div style="background: #fef9c3; padding: 12px 5px; border-radius: 8px; text-align: center; border: 1px solid #fde047;">
+                    <div style="font-size: 10px; color: #a16207; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">This Week</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #713f12;">${formatPracticeTime(stats.week)}</div>
+                </div>
+                <div style="background: #ffedd5; padding: 12px 5px; border-radius: 8px; text-align: center; border: 1px solid #fdba74;">
+                    <div style="font-size: 10px; color: #c2410c; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">This Month</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #7c2d12;">${formatPracticeTime(stats.month)}</div>
+                </div>
+                <div style="background: #f3e8ff; padding: 12px 5px; border-radius: 8px; text-align: center; border: 1px solid #d8b4fe;">
+                    <div style="font-size: 10px; color: #7e22ce; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">This Year</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #581c87;">${formatPracticeTime(stats.year)}</div>
+                </div>
+                <div style="background: #dcfce7; padding: 12px 5px; border-radius: 8px; text-align: center; border: 1px solid #86efac;">
+                    <div style="font-size: 10px; color: #15803d; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Lifetime</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #14532d;">${formatPracticeTime(stats.lifetime)}</div>
+                </div>
+                <div style="background: #f1f5f9; padding: 12px 5px; border-radius: 8px; text-align: center; border: 1px solid #cbd5e1;">
+                    <div style="font-size: 10px; color: #475569; font-weight: 800; text-transform: uppercase; margin-bottom: 4px;">Daily Avg</div>
+                    <div style="font-size: 16px; font-weight: 900; color: #0f172a;">${formatPracticeTime(stats.avg)}</div>
+                </div>
             </div>
         </div>
     `;
@@ -6277,12 +6230,16 @@ filteredLogs.forEach(log => {
     }
 
     if (filteredLogs.length === 0) {
-        container.innerHTML = statsHtml + '<div style="text-align:center; color:#94a3b8; font-size:12px; padding-top: 10px;">No practice logged for this selection.</div>';
+        container.innerHTML = statsHtml + '<div style="text-align:center; color:#b45309; font-size:13px; font-weight:600; padding-top: 10px;">No practice logged yet.</div>';
+        container.style.padding = '0'; 
+        container.style.border = 'none'; 
+        container.style.background = 'transparent';
         return;
     }
 
-    // 🟢 স্ক্রল করার জন্য max-height 250px করে দিলাম এবং .slice(0, 10) সরিয়ে দিলাম
+    // 🟢 ছবির মতো প্র্যাকটিস লিস্ট ডিজাইন (স্ক্রল সহ)
     let listHtml = '<div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">';
+    
     filteredLogs.forEach(log => { 
         let displayInst = log.instrument;
         if (!displayInst) {
@@ -6291,23 +6248,38 @@ filteredLogs.forEach(log => {
         }
         let instrumentBadge = displayInst && classList.length > 1 ? `<span style="background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 5px;">${displayInst}</span>` : '';
         
+        let deleteButtonHtml = canLogPractice ? `<button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:18px; padding:5px; margin-left: 8px;" title="Delete"><i class="fas fa-trash"></i></button>` : '';
+
+        // তারিখ ফরম্যাট
+        const parts = log.date.split('/');
+        const niceDate = parts.length === 3 ? `${parts[0]}/${parts[1]}/${parts[2]}` : log.date;
+
         listHtml += `
-            <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #10b981; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                <div>
-                    <strong style="color: #065f46; font-size: 13px;">${log.topic}</strong> ${instrumentBadge}<br>
-                    <span style="font-size: 11px; color: #166534;">📅 ${log.date} (${log.day}) 🕒 ${log.time}</span>
+            <div style="background: #ffffff; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 6px solid #10b981; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="flex: 1;">
+                    <div style="color: #065f46; font-size: 15px; font-weight: 800; margin-bottom: 6px;">${log.topic} ${instrumentBadge}</div>
+                    <div style="font-size: 12px; color: #166534; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+                        <i class="far fa-calendar-alt text-red-500" style="color: #ef4444;"></i> ${niceDate} (${log.day}) 
+                        <i class="far fa-clock" style="color: #94a3b8; margin-left: 5px;"></i> ${log.time}
+                    </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div style="background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">${log.minutes} mins</div>
-                    <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:4px;" title="Delete"><i class="fas fa-trash"></i></button>
+                <div style="display:flex; align-items:center;">
+                    <div style="background: #10b981; color: white; padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 45px; box-shadow: 0 2px 4px rgba(16,185,129,0.3);">
+                        <div style="font-size: 18px; font-weight: 900; line-height: 1;">${log.minutes}</div>
+                        <div style="font-size: 11px; font-weight: 600;">mins</div>
+                    </div>
+                    ${deleteButtonHtml}
                 </div>
             </div>`;
     });
-    listHtml += '</div>';
+    
+    listHtml += '</div>'; 
 
     container.innerHTML = statsHtml + listHtml;
+    container.style.padding = '0'; 
+    container.style.border = 'none'; 
+    container.style.background = 'transparent';
 };
-
 window.renderPracticeLogTeacher = function(studentId) {
     const student = students.find(s => s.id === studentId);
     const container = document.getElementById('modalPracticeList');
