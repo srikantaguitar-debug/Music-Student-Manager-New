@@ -6149,10 +6149,7 @@ window.submitPracticeLog = function(studentId) {
     Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${displayTime}!`, icon: 'success', timer: 2000, showConfirmButton: false });
     
     if (isStudentPortal) {
-        // =======================================================
-// 🟢 Practice History Portal (Corrected & Clean Code)
-// =======================================================
-window.renderPracticeHistoryPortal = function(student) {
+        window.renderPracticeHistoryPortal = function(student) {
     const existingIdx = students.findIndex(s => String(s.id) === String(student.id));
     if(existingIdx === -1) students.push(student);
     else students[existingIdx] = student;
@@ -6237,7 +6234,7 @@ window.renderPracticeHistoryPortal = function(student) {
         return;
     }
 
-    // 🟢 ছবির মতো প্র্যাকটিস লিস্ট ডিজাইন (স্ক্রল সহ)
+    // 🟢 ছবির মতো প্র্যাকটিস লিস্ট ডিজাইন
     let listHtml = '<div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">';
     
     filteredLogs.forEach(log => { 
@@ -6280,6 +6277,7 @@ window.renderPracticeHistoryPortal = function(student) {
     container.style.border = 'none'; 
     container.style.background = 'transparent';
 };
+
 window.renderPracticeLogTeacher = function(studentId) {
     const student = students.find(s => s.id === studentId);
     const container = document.getElementById('modalPracticeList');
