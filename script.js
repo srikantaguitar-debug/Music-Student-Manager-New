@@ -5944,7 +5944,7 @@ async function assignMaterialToStudent(studentId, material) {
 // ==========================================
 // 🟢 PRACTICE TRACKER LOGIC (Instant Save & Optional Topic)
 // ==========================================
-// --- 🟢 NEW: Practice Stats Calculator Logic ---
+
 function parseINDate(dateStr) {
     if (!dateStr) return new Date();
     const parts = dateStr.split('/');
@@ -5965,7 +5965,6 @@ function getPracticeStats(student, filter = 'All') {
     let rawLogs = student.practice_log || [];
     let logs = [];
     
-    // 🟢 ফিল্টার অনুযায়ী লগ আলাদা করা হচ্ছে
     if (filter !== 'All') {
         logs = rawLogs.filter(log => {
             let logInst = log.instrument;
@@ -5986,7 +5985,7 @@ function getPracticeStats(student, filter = 'All') {
     now.setHours(0, 0, 0, 0);
     
     const dayOfWeek = now.getDay();
-    const diff = now.getDate() - dayOfWeek; // 0 = Sunday, এখান থেকে উইকলি শুরু হবে
+    const diff = now.getDate() - dayOfWeek;
     const weekStart = new Date(now);
     weekStart.setDate(diff);
     weekStart.setHours(0, 0, 0, 0);
@@ -6058,7 +6057,6 @@ function getPracticeStats(student, filter = 'All') {
     stats.avg = Math.round(stats.lifetime / activeDaysSinceStart);
     return stats;
 }
-// --- End of New Logic ---
 
 window.submitPracticeLog = function(studentId) {
     const timeInputEl = document.getElementById('practiceTimeInput');
@@ -6075,7 +6073,6 @@ window.submitPracticeLog = function(studentId) {
         }
     }
     
-    // 🟢 NEW: Hours এবং Minutes হিসাব করা হচ্ছে
     const hrsInput = document.getElementById('practiceHours');
     const minsInput = document.getElementById('practiceMinutes');
     
@@ -6115,7 +6112,7 @@ window.submitPracticeLog = function(studentId) {
         studentId: studentId,
         studentName: studentData.name,
         studentPhoto: studentData.photo || '',
-        minutes: totalMinutes, // 🟢 এখানে totalMinutes সেভ হচ্ছে
+        minutes: totalMinutes,
         topic: topic,
         instrument: selectedInstrument,
         date: dateStr,
@@ -6123,12 +6120,10 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 Firebase ArrayUnion (অফলাইনে থাকলেও এটি অটোমেটিক ক্যাশে সেভ হবে)
     db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
         records: firebase.firestore.FieldValue.arrayUnion(newLog)
     }, { merge: true }).catch(e => console.log("Background sync queued"));
 
-    // 🟢 Local Array update for Instant UI
     if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
     if (!studentData.practice_log) studentData.practice_log = [];
     studentData.practice_log.unshift(newLog);
@@ -6139,7 +6134,6 @@ window.submitPracticeLog = function(studentId) {
         }).catch(e => console.log(e));
     }
 
-    // ইনপুট ফিল্ড ফাঁকা করা
     if (hrsInput) hrsInput.value = '';
     if (minsInput) minsInput.value = '';
     document.getElementById('practiceTopic').value = '';
@@ -6149,7 +6143,14 @@ window.submitPracticeLog = function(studentId) {
     Swal.fire({ title: 'Great Job! 🌟', text: `Logged ${displayTime}!`, icon: 'success', timer: 2000, showConfirmButton: false });
     
     if (isStudentPortal) {
-        window.renderPracticeHistoryPortal = function(student) {
+        window.renderPracticeHistoryPortal(studentData); 
+    } else {
+        window.renderPracticeLogTeacher(studentId);
+        window.renderDashboard();
+    }
+};
+
+window.renderPracticeHistoryPortal = function(student) {
     const existingIdx = students.findIndex(s => String(s.id) === String(student.id));
     if(existingIdx === -1) students.push(student);
     else students[existingIdx] = student;
@@ -6157,10 +6158,8 @@ window.submitPracticeLog = function(studentId) {
     const container = document.getElementById('practiceHistoryPortal');
     if (!container) return;
 
-    // 🟢 পারমিশন চেক
     const canLogPractice = student.allow_practice_log !== false;
 
-    // 🟢 সাবজেক্ট ফিল্টার ড্রপডাউন
     let classList = student.class ? student.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : [];
     const filterSelect = document.getElementById('studentPortalPracticeFilter');
     const selectedFilter = filterSelect ? filterSelect.value : 'All';
@@ -6182,7 +6181,6 @@ window.submitPracticeLog = function(studentId) {
 
     const stats = getPracticeStats(student, selectedFilter);
 
-    // 🟢 ছবির মতো পিচ কালারের বড় বক্স এবং তার ভেতরে কালারফুল গ্রিড
     let statsHtml = filterDropdownHtml + `
         <div style="background: #ffecd6; padding: 15px; border-radius: 12px; border: 1px solid #fdba74; margin-bottom: 15px;">
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
@@ -6234,7 +6232,6 @@ window.submitPracticeLog = function(studentId) {
         return;
     }
 
-    // 🟢 ছবির মতো প্র্যাকটিস লিস্ট ডিজাইন
     let listHtml = '<div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">';
     
     filteredLogs.forEach(log => { 
@@ -6247,7 +6244,6 @@ window.submitPracticeLog = function(studentId) {
         
         let deleteButtonHtml = canLogPractice ? `<button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:18px; padding:5px; margin-left: 8px;" title="Delete"><i class="fas fa-trash"></i></button>` : '';
 
-        // তারিখ ফরম্যাট
         const parts = log.date.split('/');
         const niceDate = parts.length === 3 ? `${parts[0]}/${parts[1]}/${parts[2]}` : log.date;
 
@@ -6343,7 +6339,6 @@ window.renderPracticeLogTeacher = function(studentId) {
 
     container.innerHTML = '';
     
-    // 🟢 HTML কন্টেইনারের হাইট বাড়িয়ে দেওয়া হলো যাতে সহজে স্ক্রল করা যায়
     if (container.parentElement) {
         container.parentElement.style.maxHeight = '250px';
         container.parentElement.style.paddingRight = '5px';
@@ -6363,7 +6358,6 @@ window.renderPracticeLogTeacher = function(studentId) {
     }
 
     if (filteredLogs.length > 0) {
-        // 🟢 .slice(0, 10) সরিয়ে দিলাম, এখন সবগুলো লগই লোড হবে এবং স্ক্রল করা যাবে
         filteredLogs.forEach(log => {
             let displayInstrument = log.instrument;
             if (!displayInstrument) {
@@ -6410,32 +6404,27 @@ window.deletePracticeLog = async function(studentId, logId, context) {
         if (studentIndex === -1) return;
         let studentData = students[studentIndex];
 
-        // ১. যে লগটি মুছতে হবে সেটি বের করা
         const logToDelete = studentData.practice_log.find(log => String(log.id) === String(logId));
         if (!logToDelete) return;
 
-        // ২. Local Array থেকে মুছে ফেলা (যাতে সাথে সাথে UI থেকে গায়েব হয়ে যায়)
         studentData.practice_log = studentData.practice_log.filter(log => String(log.id) !== String(logId));
         if (typeof window.globalPracticeLogs !== 'undefined') {
             window.globalPracticeLogs = window.globalPracticeLogs.filter(log => String(log.id) !== String(logId));
         }
 
-        // ৩. Instant UI Update
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Deleted successfully!', showConfirmButton: false, timer: 1500 });
         
         if (context === 'student') {
             renderPracticeHistoryPortal(studentData);
         } else {
             renderPracticeLogTeacher(studentId);
-            if(typeof renderDashboard === 'function') renderDashboard(); // ড্যাশবোর্ড কাউন্ট আপডেট
+            if(typeof renderDashboard === 'function') renderDashboard(); 
         }
 
-        // ৪. Firebase Update (Main Student Doc)
         db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
             practice_log: studentData.practice_log
         }).catch(e => console.log(e));
 
-        // ৫. Firebase Update (Yearly Subcollection) - 🟢 100% Reliable Deletion
         let logYear = new Date().getFullYear(); 
         if(logToDelete.date) {
             const parts = logToDelete.date.split('/');
@@ -6448,7 +6437,6 @@ window.deletePracticeLog = async function(studentId, logId, context) {
             const yearDoc = await yearRef.get();
             if (yearDoc.exists) {
                 let records = yearDoc.data().records || [];
-                // ফায়ারবেসের ডেটা থেকে লগটি ফিল্টার করে বাদ দেওয়া হচ্ছে
                 records = records.filter(r => String(r.id) !== String(logId));
                 await yearRef.update({ records: records });
             }
@@ -6495,12 +6483,10 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
             if (gIndex > -1) window.globalPracticeLogs[gIndex] = newLog;
         }
 
-        // ১. Instant UI Update
         Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Updated successfully!', showConfirmButton: false, timer: 1500 });
         renderPracticeLogTeacher(studentId);
         if(typeof renderDashboard === 'function') renderDashboard();
 
-        // ২. Firebase Update
         const urlParams = new URLSearchParams(window.location.search);
         const targetUid = urlParams.get('manager') || DOC_ID;
 
@@ -6508,7 +6494,6 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
             practice_log: student.practice_log
         }).catch(e => console.log(e));
 
-        // ৩. Firebase Yearly Subcollection Edit - 🟢 100% Reliable Edit
         let logYear = new Date().getFullYear(); 
         if(oldLog.date) {
             const parts = oldLog.date.split('/');
