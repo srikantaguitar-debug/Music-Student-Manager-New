@@ -7143,6 +7143,11 @@ async function saveStudentChanges() {
     if (studentIndex === -1) return;
 
     const name = document.getElementById('editStudentName').value;
+    if (name.trim() === '') {
+        Swal.fire('Error', 'Name is required.', 'error');
+        return;
+    }
+
     const className = document.getElementById('editStudentClass').value;
     const day = document.getElementById('editStudentDay').value;
     const time = document.getElementById('editStudentTime').value;
@@ -7153,28 +7158,15 @@ async function saveStudentChanges() {
     const address = document.getElementById('editAddress').value;
     const dob = document.getElementById('editStudentDOB').value;
     const allowProfile = document.getElementById('editAllowProfile').checked;
+    
     // 🟢 চেকবক্সের ডেটা সেভ করা
     let allowPracticeLog = true;
     const practiceLogCheckbox = document.getElementById('editAllowPracticeLog');
-    if(practiceLogCheckbox) {
+    if (practiceLogCheckbox) {
         allowPracticeLog = practiceLogCheckbox.checked;
     }
 
-    // স্টুডেন্ট আপডেট করার সময় allow_practice_log সেভ করুন:
-    students[studentIndex] = {
-        ...students[studentIndex],
-        name, class: className, class_day: day, class_time: time,
-        fee_amount: fee, phone, guardian, email, address, dob,
-        photo: finalPhoto,
-        allow_profile_view: allowProfile,
-        allow_practice_log: allowPracticeLog // 🔥 নতুন পারমিশন সেভ হচ্ছে
-    };
-
-    if (name.trim() === '') {
-        Swal.fire('Error', 'Name is required.', 'error');
-        return;
-    }
-
+    // 🟢 ছবি সেট করা (এটি ওপরে আনা হয়েছে এরর ফিক্স করার জন্য)
     let finalPhoto = students[studentIndex].photo;
     if (isPhotoDeletedInEdit) {
         finalPhoto = null;
@@ -7182,12 +7174,14 @@ async function saveStudentChanges() {
         finalPhoto = currentEditPhotoBase64;
     }
 
+    // 🟢 স্টুডেন্ট আপডেট করার সময় সবকিছু একসাথে সেভ হচ্ছে (ডুপ্লিকেট রিমুভ করা হয়েছে)
     students[studentIndex] = {
         ...students[studentIndex],
         name, class: className, class_day: day, class_time: time,
         fee_amount: fee, phone, guardian, email, address, dob,
         photo: finalPhoto,
-        allow_profile_view: allowProfile
+        allow_profile_view: allowProfile,
+        allow_practice_log: allowPracticeLog
     };
 
     closeModal('editStudentModal');
