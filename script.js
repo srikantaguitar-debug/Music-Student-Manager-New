@@ -524,20 +524,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
                                 }
 
-// 🟢 NEW: Active/Inactive Status Check for Portal
+// 🟢 NEW: Active/Inactive & Practice Permission Check for Portal
 const isStudentActive = isStudentCurrentlyActive(s);
+const canLogPractice = s.allow_practice_log !== false; 
+
 let badgeHtml = '';
 let inactiveDetailsHtml = '';
 let practiceLogFormHtml = '';
 
-if (isStudentActive) {
+if (isStudentActive && canLogPractice) {
     // 🟢 অ্যাক্টিভ ব্যাজ (মাঝে থাকবে)
     badgeHtml = `<div style="margin-top: 8px;"><span style="background:#dcfce7; color:#166534; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #bbf7d0; display:inline-block;">Active Student</span></div>`;
     
-    // 🟢 NEW: Beautiful Class/Instrument Dropdown Logic (Guitar, Keyboard, Bass Guitar, Mandolin)
+    // 🟢 NEW: Beautiful Class/Instrument Dropdown Logic
     let classList = s.class ? s.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : ['Music'];
     
-    // নামের সাথে ডায়নামিক ইমোজি বসানোর লজিক
     const getInstrumentIcon = (name) => {
         const n = name.toLowerCase();
         if (n.includes('bass guitar') || n.includes('bass')) return '🎸';
@@ -549,7 +550,6 @@ if (isStudentActive) {
 
     let classOptionsHtml = classList.map(c => `<option value="${c}">${getInstrumentIcon(c)} ${c}</option>`).join('');
     
-    // যদি ক্লাস ১টি থাকে তাহলে লকড ডিজাইন, আর একাধিক থাকলে প্রিমিয়াম সিলেক্ট ডিজাইন
     let classSelectDisabled = classList.length === 1 
         ? 'disabled style="background: #f1f5f9; color: #64748b; font-weight: 600; border: 1px solid #e2e8f0; cursor: not-allowed;"' 
         : 'style="background: #ffffff; color: #4f46e5; font-weight: 700; border: 2px solid #a5b4fc; box-shadow: 0 4px 10px rgba(79, 70, 229, 0.15); cursor: pointer;"';
@@ -563,7 +563,6 @@ if (isStudentActive) {
         <select id="practiceClassSelect" ${classSelectDisabled} style="width: 100%; padding: 12px 15px; border-radius: 10px; font-size: 15px; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; transition: all 0.3s;">
             ${classOptionsHtml}
         </select>
-
     </div>
 
     <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
@@ -583,8 +582,19 @@ if (isStudentActive) {
     <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;">
         <i class="fas fa-check-circle" style="margin-right: 5px;"></i> Log Practice
     </button>`;
-} else {
-    // 🟢 ইনঅ্যাক্টিভ ব্যাজ (ঠিক নামের নিচে মাঝে থাকবে) - এখানে display:block দিয়েছি যাতে এটা পুরো লাইন নিয়ে নেয়
+} 
+else if (isStudentActive && !canLogPractice) {
+    badgeHtml = `<div style="margin-top: 8px;"><span style="background:#dcfce7; color:#166534; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #bbf7d0; display:inline-block;">Active Student</span></div>`;
+    
+    practiceLogFormHtml = `
+    <div style="background: #fff7ed; padding: 15px; border-radius: 8px; border: 1px dashed #fdba74; text-align: center; color: #9a3412;">
+        <i class="fas fa-user-lock" style="font-size: 24px; margin-bottom: 8px;"></i>
+        <div style="font-size: 13px; font-weight: 600;">Practice Logging Disabled</div>
+        <div style="font-size: 11px; margin-top: 4px;">Teacher has temporarily disabled practice logging for your profile. Please contact Srikanta Banerjee.</div>
+    </div>`;
+} 
+else {
+    // 🟢 ইনঅ্যাক্টিভ ব্যাজ
     badgeHtml = `<div style="margin-top: 8px; display: block;"><span style="background:#fee2e2; color:#991b1b; padding:6px 16px; border-radius:20px; font-size:13px; font-weight:700; border: 1px solid #fecaca; display:inline-block;">Inactive Student</span></div>`;
     
     let inactiveDateText = 'N/A';
@@ -611,7 +621,7 @@ if (isStudentActive) {
             durationText = `(Duration: ${dur.join(', ')})`;
         }
     }
-    // 🟢 ইনঅ্যাক্টিভ ডেট কলাম (ব্যাজের ঠিক নিচে মাঝে থাকবে) - এখানেও display:block দিয়েছি
+    
     inactiveDetailsHtml = `<div style="margin-top: 12px; font-size: 13px; color: #ef4444; font-weight: 600; background: #fef2f2; padding: 10px 20px; border-radius: 12px; display: inline-block; border: 1px dashed #fca5a5;">Inactive Since: ${inactiveDateText} <br> <span style="font-size:12px; color:#b91c1c;">${durationText}</span></div>`;
     
     practiceLogFormHtml = `
@@ -6183,6 +6193,25 @@ window.renderPracticeHistoryPortal = function(student) {
 
     const container = document.getElementById('practiceHistoryPortal');
     if (!container) return;
+    // 🟢 Check if student has permission to log/delete practice
+const canLogPractice = student.allow_practice_log !== false;
+
+filteredLogs.forEach(log => { 
+    // 🟢 Delete button only shows if permission is granted
+    let deleteButtonHtml = canLogPractice ? `<button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; padding:4px;" title="Delete"><i class="fas fa-trash"></i></button>` : '';
+    
+    listHtml += `
+        <div style="background: #f0fdf4; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #10b981; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <strong style="color: #065f46; font-size: 13px;">${log.topic}</strong><br>
+                <span style="font-size: 11px; color: #166534;">📅 ${log.date} (${log.day}) 🕒 ${log.time}</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div style="background: #10b981; color: white; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 12px;">${log.minutes} mins</div>
+                
+                ${deleteButtonHtml} </div>
+        </div>`;
+});
 
     // 🟢 NEW: Class List for Dropdown Filter
     let classList = student.class ? student.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : [];
@@ -7089,6 +7118,11 @@ function openEditStudentModal(id) {
     document.getElementById('editAddress').value = student.address || '';
     document.getElementById('editStudentDOB').value = student.dob || '';
     document.getElementById('editAllowProfile').checked = student.allow_profile_view !== false; // Default true
+    // 🟢 চেকবক্সের ডেটা লোড করা (ডিফল্ট true থাকবে)
+    const practiceLogCheckbox = document.getElementById('editAllowPracticeLog');
+    if(practiceLogCheckbox) {
+        practiceLogCheckbox.checked = student.allow_practice_log !== false; 
+    }
     
     const photoPreview = document.getElementById('editPhotoPreview');
     if (student.photo) {
@@ -7119,6 +7153,22 @@ async function saveStudentChanges() {
     const address = document.getElementById('editAddress').value;
     const dob = document.getElementById('editStudentDOB').value;
     const allowProfile = document.getElementById('editAllowProfile').checked;
+    // 🟢 চেকবক্সের ডেটা সেভ করা
+    let allowPracticeLog = true;
+    const practiceLogCheckbox = document.getElementById('editAllowPracticeLog');
+    if(practiceLogCheckbox) {
+        allowPracticeLog = practiceLogCheckbox.checked;
+    }
+
+    // স্টুডেন্ট আপডেট করার সময় allow_practice_log সেভ করুন:
+    students[studentIndex] = {
+        ...students[studentIndex],
+        name, class: className, class_day: day, class_time: time,
+        fee_amount: fee, phone, guardian, email, address, dob,
+        photo: finalPhoto,
+        allow_profile_view: allowProfile,
+        allow_practice_log: allowPracticeLog // 🔥 নতুন পারমিশন সেভ হচ্ছে
+    };
 
     if (name.trim() === '') {
         Swal.fire('Error', 'Name is required.', 'error');
