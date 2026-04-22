@@ -6232,6 +6232,7 @@ window.renderPracticeHistoryPortal = function(student) {
         return;
     }
 
+    // 🟢 ছবির মতো প্র্যাকটিস লিস্ট ডিজাইন (Extra Small / Compact)
     let listHtml = '<div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">';
     
     filteredLogs.forEach(log => { 
@@ -6240,33 +6241,34 @@ window.renderPracticeHistoryPortal = function(student) {
             let cList = student.class ? student.class.split(/[\/,]+/).map(c => c.trim()).filter(c => c.length > 0) : [];
             displayInst = cList.length > 0 ? cList[0] : '';
         }
-        let instrumentBadge = displayInst && classList.length > 1 ? `<span style="background: #e0f2fe; color: #0284c7; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 5px;">${displayInst}</span>` : '';
+        let instrumentBadge = displayInst && classList.length > 1 ? `<span style="background: #e0f2fe; color: #0284c7; padding: 2px 4px; border-radius: 3px; font-size: 8.5px; margin-left: 4px;">${displayInst}</span>` : '';
         
-        let deleteButtonHtml = canLogPractice ? `<button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:18px; padding:5px; margin-left: 8px;" title="Delete"><i class="fas fa-trash"></i></button>` : '';
+        let deleteButtonHtml = canLogPractice ? `<button onclick="deletePracticeLog(${student.id}, ${log.id}, 'student')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:12px; padding:3px; margin-left: 4px;" title="Delete"><i class="fas fa-trash"></i></button>` : '';
 
+        // তারিখ ফরম্যাট
         const parts = log.date.split('/');
         const niceDate = parts.length === 3 ? `${parts[0]}/${parts[1]}/${parts[2]}` : log.date;
 
         listHtml += `
-            <div style="background: #ffffff; padding: 12px; border-radius: 8px; margin-bottom: 10px; border-left: 6px solid #10b981; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+            <div style="background: #ffffff; padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; border-left: 4px solid #10b981; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
                 <div style="flex: 1;">
-                    <div style="color: #065f46; font-size: 15px; font-weight: 800; margin-bottom: 6px;">${log.topic} ${instrumentBadge}</div>
-                    <div style="font-size: 12px; color: #166534; display: flex; align-items: center; gap: 6px; font-weight: 500;">
-                        <i class="far fa-calendar-alt text-red-500" style="color: #ef4444;"></i> ${niceDate} (${log.day}) 
-                        <i class="far fa-clock" style="color: #94a3b8; margin-left: 5px;"></i> ${log.time}
+                    <div style="color: #065f46; font-size: 12px; font-weight: 800; margin-bottom: 3px;">${log.topic} ${instrumentBadge}</div>
+                    <div style="font-size: 10px; color: #166534; display: flex; align-items: center; gap: 4px; font-weight: 500;">
+                        <i class="far fa-calendar-alt" style="color: #ef4444; font-size: 10px;"></i> ${niceDate} (${log.day}) 
+                        <i class="far fa-clock" style="color: #94a3b8; font-size: 10px; margin-left: 3px;"></i> ${log.time}
                     </div>
                 </div>
                 <div style="display:flex; align-items:center;">
-                    <div style="background: #10b981; color: white; padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 45px; box-shadow: 0 2px 4px rgba(16,185,129,0.3);">
-                        <div style="font-size: 18px; font-weight: 900; line-height: 1;">${log.minutes}</div>
-                        <div style="font-size: 11px; font-weight: 600;">mins</div>
+                    <div style="background: #10b981; color: white; padding: 4px 6px; border-radius: 5px; text-align: center; min-width: 32px; box-shadow: 0 1px 3px rgba(16,185,129,0.2);">
+                        <div style="font-size: 13px; font-weight: 900; line-height: 1;">${log.minutes}</div>
+                        <div style="font-size: 8.5px; font-weight: 700; margin-top: 1px;">mins</div>
                     </div>
                     ${deleteButtonHtml}
                 </div>
             </div>`;
     });
     
-    listHtml += '</div>'; 
+    listHtml += '</div>';
 
     container.innerHTML = statsHtml + listHtml;
     container.style.padding = '0'; 
