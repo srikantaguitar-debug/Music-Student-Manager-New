@@ -2929,7 +2929,7 @@ function renderDashboard() {
     } else {
         pracBox.style.display = 'none';
     }
-    // 🟢 END: Practice Logs Logic update
+    // 🟢 END: Practice Logs Logic last up
     
     const classCounts = activeStudents.reduce((acc, student) => { const className = student.class ? student.class.trim() : 'Unassigned'; acc[className] = (acc[className] || 0) + 1; return acc; }, {}); const classListEl = document.getElementById('classStrengthList'); classListEl.innerHTML = ''; Object.entries(classCounts).sort().forEach(([className, count]) => { classListEl.innerHTML += `<li onclick="showClassStudents('${className}')" style="cursor:pointer; color:var(--text-main);"><strong>${className}:</strong> <span>${count} students</span></li>`; }); 
     
