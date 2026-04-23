@@ -2694,7 +2694,7 @@ function renderDashboard() {
     ); 
     if (birthdayStudents.length > 0) { birthdayList.innerHTML = ''; birthdayStudents.forEach(s => { birthdayList.innerHTML += `<div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-input); padding:10px; border-radius:8px; margin-bottom:5px; border:1px solid #ffe4e6; color:var(--text-main);"><div style="display:flex; align-items:center;"><img src="${s.photo || 'https://via.placeholder.com/40?text=S'}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; border: 2px solid #000 !important;"><div><strong>${s.name}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.class || 'Student'}</span></div></div><div style="display:flex; gap:5px;"><button class="btn-whatsapp btn-like" onclick="sendBirthdayWish('wa', ${s.id})"><i class="fab fa-whatsapp"></i></button><button class="btn-sms btn-like" onclick="sendBirthdayWish('sms', ${s.id})"><i class="fas fa-sms"></i></button><button class="btn-success btn-like" onclick="dismissBirthday(${s.id})" title="Dismiss"><i class="fas fa-check"></i></button></div></div>`; }); birthdayBox.style.display = 'block'; } else { birthdayBox.style.display = 'none'; }
     
-    // =========================================================
+// =========================================================
     // 🟢 NEW: 14 Days Absent Alert Logic (Themed & Scrollable)
     // =========================================================
     let absentBox = document.getElementById('longAbsentAlertBox');
@@ -2750,7 +2750,7 @@ function renderDashboard() {
     if (longAbsentees.length > 0) {
         longAbsentees.sort((a,b) => b.days - a.days); // যারা সবচেয়ে বেশি দিন আসেনি তারা ওপরে থাকবে
         
-        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
+        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
         let absentHtml = `
         <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--danger); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
             <h4 style="margin: 0 0 10px 0; color: var(--danger); font-size: 14px; display: flex; align-items: center; gap: 6px;">
@@ -2796,73 +2796,57 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-
-    // 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Custom Popup)
+// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Fixed Popup)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
     const todayDateStr = new Date().toLocaleDateString('en-IN');
     let todaysLogs = [];
 
-    // 🟢 ম্যাজিক: পপআপের ছোট লিস্ট ডিজাইন (আপনার ছবির মতো স্কোয়ার আইকন বাটন)
+    // 🟢 ম্যাজিক: পপআপের কোডটা এখানেই অ্যাড করে দিলাম যাতে আর Error না আসে!
     window.showTodaysPracticingStudentsModal = function() {
         let uniqueStudentsMap = {};
-        
-        students.forEach(s => {
-            if(s.practice_log && s.practice_log.length > 0) {
-                s.practice_log.forEach(log => {
-                    if(log.date === todayDateStr) {
-                        if(!uniqueStudentsMap[s.id]) {
-                            uniqueStudentsMap[s.id] = { student: s, totalMins: 0 };
-                        }
-                        uniqueStudentsMap[s.id].totalMins += parseInt(log.minutes) || 0;
-                    }
-                });
+        todaysLogs.forEach(log => {
+            if(!uniqueStudentsMap[log.studentId]) {
+                const st = students.find(s => s.id === log.studentId);
+                uniqueStudentsMap[log.studentId] = {
+                    student: st,
+                    totalMins: 0
+                };
             }
+            uniqueStudentsMap[log.studentId].totalMins += parseInt(log.minutes);
         });
 
-        let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px; margin-top: 5px;">';
-        const sortedStudents = Object.values(uniqueStudentsMap).sort((a,b) => b.totalMins - a.totalMins);
-
-        if(sortedStudents.length === 0) {
-            listHtml += '<p style="text-align:center; color:var(--text-muted); font-size:13px; padding:20px;">No practice logged today.</p>';
-        } else {
-            sortedStudents.forEach(data => {
-                const st = data.student;
-                const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
-                
-                // 🟢 আপনার ছবির মতো হুবহু ছোট কার্ড ডিজাইন এবং আইকন বাটন (Call, WA, SMS)
-                listHtml += `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background: #ffffff; padding:12px; border-radius:12px; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary); margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                        
-                        <div style="display:flex; align-items:center; gap: 12px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
-                            <img src="${photoSrc}" style="width:48px; height:48px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
-                            <div style="line-height: 1.4;">
-                                <strong style="color: var(--primary); font-size:15px; font-weight:800;">${st.name}</strong><br>
-                                <span style="font-size:12px; color: #475569; font-weight:600;">Total Today: <span style="color: var(--primary); font-weight:bold;">${data.totalMins}</span> mins</span>
-                            </div>
-                        </div>
-                        
-                        <div style="display:flex; gap: 8px; align-items:center;">
-                            <a href="tel:${st.phone}" style="background: #3b82f6; color:white; border:none; width: 36px; height: 36px; border-radius:8px; font-size:16px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(59,130,246,0.2);" title="Call">
-                                <i class="fas fa-phone-alt"></i>
-                            </a>
-                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#22c55e; color:white; border:none; width: 36px; height: 36px; border-radius:8px; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(34,197,94,0.2);" title="WhatsApp">
-                                <i class="fab fa-whatsapp"></i>
-                            </button>
-                            <button onclick="window.sendGeneralMsg('sms', ${st.id})" style="background:#f59e0b; color:white; border:none; width: 36px; height: 36px; border-radius:8px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(245,158,11,0.2);" title="SMS">
-                                <i class="fas fa-comment-alt"></i>
-                            </button>
+        let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
+        Object.values(uniqueStudentsMap).forEach(data => {
+            const st = data.student;
+            if(!st) return;
+            const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+            listHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:10px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
+                        <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
+                        <div style="line-height: 1.2;">
+                            <strong style="color: var(--primary); font-size:14.5px; font-weight:900;">${st.name}</strong><br>
+                            <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
                         </div>
                     </div>
-                `;
-            });
-        }
+                    <div style="display:flex; gap: 5px; align-items:center;">
+                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px; border-radius:6px; font-size:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                        <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        if(Object.keys(uniqueStudentsMap).length === 0) listHtml += '<p style="text-align:center; color:gray; font-size:13px;">No practice logged today.</p>';
         listHtml += '</div>';
 
-        // 🟢 SweetAlert দিয়ে পপআপ ওপেন
         Swal.fire({
-            title: `<div style="text-align: center; font-size: 18px; font-weight: 900; color: var(--text-main); margin-bottom: 5px;">Today's Active Students</div>`,
+            title: '<span style="font-size:18px; color: var(--text-main); font-weight:bold;">Today\'s Active Students</span>',
             html: listHtml,
             showConfirmButton: true,
             confirmButtonText: 'Close',
@@ -2890,6 +2874,7 @@ function renderDashboard() {
         }
     });
 
+    // লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
     todaysLogs.sort((a, b) => {
         const parseTime = (t) => {
             if (!t) return 0;
@@ -2908,17 +2893,18 @@ function renderDashboard() {
     const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
 
     if(todaysLogs.length > 0) {
-        if(pracCountEl && pracCountEl.parentElement) {
-            // 🟢 HTML থেকে হার্ডকোড করা কালো ব্র্যাকেট মুছে "Today's Practice Logs" এবং ব্র্যাকেট দুটোকেই গ্রিন (success) কালার করা হলো
-            pracCountEl.parentElement.innerHTML = `
-                <div style="display:flex; align-items:center; color: var(--success);">
-                    <i class="fas fa-stopwatch" style="margin-right:6px; font-size:18px;"></i> 
-                    <span style="font-weight:900; font-size:16px;">Today's Practice Logs</span> 
-                    <span id="todaysPracticeCount" onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--success); font-weight: 900; font-size: 15px; padding: 2px 10px; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--success); box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 8px; display: inline-block;">
-                        ( ${uniquePracticingStudents.length} )
-                    </span>
-                </div>
-            `;
+        if(pracCountEl) {
+            // 🟢 ১. কালো ব্র্যাকেট মুছে ফেলা হচ্ছে
+            if (pracCountEl.parentElement) {
+                pracCountEl.parentElement.childNodes.forEach(node => {
+                    if (node.nodeType === 3) node.textContent = node.textContent.replace(/[()]/g, '');
+                });
+                // 🟢 ২. "Today's Practice Logs" এবং আইকনের কালার থিম অনুযায়ী করা হলো
+                pracCountEl.parentElement.style.color = 'var(--primary)';
+            }
+            
+            // 🟢 ৩. নম্বরের বাটন ডিজাইন এবং ক্লিক করলে পপআপ খোলার কোড
+            pracCountEl.innerHTML = `<span style="color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 8px; background: var(--bg-card); border-radius: 6px; border: 1px dashed var(--primary); display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 5px; cursor: pointer;" onclick="window.showTodaysPracticingStudentsModal()">( ${uniquePracticingStudents.length} )</span>`;
         }
 
         pracList.innerHTML = '';
@@ -2943,6 +2929,7 @@ function renderDashboard() {
     } else {
         pracBox.style.display = 'none';
     }
+    // 🟢 END: Practice Logs Logic last up
     
     const classCounts = activeStudents.reduce((acc, student) => { const className = student.class ? student.class.trim() : 'Unassigned'; acc[className] = (acc[className] || 0) + 1; return acc; }, {}); const classListEl = document.getElementById('classStrengthList'); classListEl.innerHTML = ''; Object.entries(classCounts).sort().forEach(([className, count]) => { classListEl.innerHTML += `<li onclick="showClassStudents('${className}')" style="cursor:pointer; color:var(--text-main);"><strong>${className}:</strong> <span>${count} students</span></li>`; }); 
     
