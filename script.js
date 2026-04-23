@@ -2796,7 +2796,7 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Themed & Clickable Final)
+// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Bracket Style)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
@@ -2839,9 +2839,9 @@ function renderDashboard() {
     const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
 
     if(todaysLogs.length > 0) {
-        // 🟢 ডবল ব্র্যাকেট রিমুভ করা হয়েছে এবং ক্লিকেবল করা হয়েছে
+        // 🟢 নম্বরটা ব্র্যাকেটের মধ্যে ( 1 ) করা হলো এবং ক্লিক করলে পপআপ খুলবে
         if(pracCountEl) {
-            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); padding: 2px 8px; border-radius: 6px; background: var(--bg-card); box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: 900;">${uniquePracticingStudents.length}</span>`;
+            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); font-weight: 900; font-size: 16px; padding: 2px 5px; background: rgba(0,0,0,0.05); border-radius: 8px; border: 1px dashed var(--primary); margin-left: 5px; display: inline-block;">( ${uniquePracticingStudents.length} )</span>`;
             
             // টাইটেলের কালার থিম অনুযায়ী বদলানোর জন্য
             if(pracCountEl.parentElement) {
