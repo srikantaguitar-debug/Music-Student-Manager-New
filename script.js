@@ -2796,7 +2796,7 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Bracket Style)
+// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Fixed Brackets)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
@@ -2839,14 +2839,30 @@ function renderDashboard() {
     const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
 
     if(todaysLogs.length > 0) {
-        // 🟢 নম্বরটা ব্র্যাকেটের মধ্যে ( 1 ) করা হলো এবং ক্লিক করলে পপআপ খুলবে
         if(pracCountEl) {
-            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); font-weight: 900; font-size: 16px; padding: 2px 5px; background: rgba(0,0,0,0.05); border-radius: 8px; border: 1px dashed var(--primary); margin-left: 5px; display: inline-block;">( ${uniquePracticingStudents.length} )</span>`;
-            
-            // টাইটেলের কালার থিম অনুযায়ী বদলানোর জন্য
-            if(pracCountEl.parentElement) {
-                pracCountEl.parentElement.style.color = 'var(--text-main)';
+            // 🟢 ১. কালো ব্র্যাকেটগুলো রিমুভ করার ম্যাজিক (Parent থেকে ( ) ডিলিট করে দেওয়া হচ্ছে)
+            if (pracCountEl.parentElement) {
+                pracCountEl.parentElement.childNodes.forEach(node => {
+                    if (node.nodeType === 3) { // শুধু টেক্সট খুঁজবে
+                        node.textContent = node.textContent.replace(/[()]/g, '');
+                    }
+                });
             }
+            
+            // 🟢 ২. সুন্দর ডিজাইনের কালারফুল ( 1 ) বসানো হলো
+            pracCountEl.innerHTML = `<span style="color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 8px; background: var(--bg-card); border-radius: 6px; border: 1px dashed var(--primary); display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 5px;">( ${uniquePracticingStudents.length} )</span>`;
+            
+            // 🟢 ৩. ক্লিক ইভেন্ট সরাসরি জাভাস্ক্রিপ্ট দিয়ে অ্যাড করা হলো যাতে গ্যারান্টি দিয়ে কাজ করে
+            pracCountEl.style.cursor = 'pointer';
+            pracCountEl.onclick = function(e) {
+                e.preventDefault(); 
+                e.stopPropagation();
+                if(typeof window.showTodaysPracticingStudentsModal === 'function') {
+                    window.showTodaysPracticingStudentsModal();
+                } else {
+                    Swal.fire('Error', 'Popup function not found! Please ensure you saved the popup code at the bottom of the file.', 'error');
+                }
+            };
         }
 
         pracList.innerHTML = '';
