@@ -2796,7 +2796,7 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Themed & Clickable)
+// 🟢 NEW: Today's Practice Logs Logic (Themed & Clickable Final)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
@@ -2839,13 +2839,13 @@ function renderDashboard() {
     const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
 
     if(todaysLogs.length > 0) {
-        // 🟢 টাইটেল এবং নম্বর থিম অনুযায়ী করা হলো এবং ক্লিক ইভেন্ট দেওয়া হলো
+        // 🟢 ডবল ব্র্যাকেট রিমুভ করা হয়েছে এবং ক্লিকেবল করা হয়েছে
         if(pracCountEl) {
-            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); text-decoration: underline; padding: 2px 6px; border-radius: 6px; background: var(--bg-card); box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: 900;">(${uniquePracticingStudents.length})</span>`;
+            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); padding: 2px 8px; border-radius: 6px; background: var(--bg-card); box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: 900;">${uniquePracticingStudents.length}</span>`;
             
             // টাইটেলের কালার থিম অনুযায়ী বদলানোর জন্য
             if(pracCountEl.parentElement) {
-                pracCountEl.parentElement.style.color = 'var(--primary)';
+                pracCountEl.parentElement.style.color = 'var(--text-main)';
             }
         }
 
@@ -2857,7 +2857,7 @@ function renderDashboard() {
                 <div style="display:flex; align-items:center; gap:12px;">
                     <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
                     <div>
-                        <div style="font-weight:800; font-size:14px; color:var(--text-main); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
+                        <div style="font-weight:900; font-size:14.5px; color:var(--primary); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
                         <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;"><i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}</div>
                     </div>
                 </div>
