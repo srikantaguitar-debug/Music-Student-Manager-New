@@ -2796,86 +2796,12 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Custom Popup)
+// 🟢 NEW: Today's Practice Logs Logic (Updated)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
     const todayDateStr = new Date().toLocaleDateString('en-IN');
     let todaysLogs = [];
-
-    // 🟢 ম্যাজিক: পপআপের নতুন ডিজাইন (আপনার পাঠানো ছবির মতো)
-    window.showTodaysPracticingStudentsModal = function() {
-        let uniqueStudentsMap = {};
-        
-        students.forEach(s => {
-            if(s.practice_log && s.practice_log.length > 0) {
-                s.practice_log.forEach(log => {
-                    if(log.date === todayDateStr) {
-                        if(!uniqueStudentsMap[s.id]) {
-                            uniqueStudentsMap[s.id] = { student: s, totalMins: 0 };
-                        }
-                        uniqueStudentsMap[s.id].totalMins += parseInt(log.minutes) || 0;
-                    }
-                });
-            }
-        });
-
-        let listHtml = '<div style="max-height: 65vh; overflow-y: auto; text-align: left; padding: 5px; margin-top: 10px; border-top: 1px solid #cbd5e1; padding-top: 15px;">';
-        const sortedStudents = Object.values(uniqueStudentsMap).sort((a,b) => b.totalMins - a.totalMins);
-
-        if(sortedStudents.length === 0) {
-            listHtml += '<p style="text-align:center; color:var(--text-muted); font-size:13px; padding:20px;">No practice logged today.</p>';
-        } else {
-            sortedStudents.forEach(data => {
-                const st = data.student;
-                const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
-                
-                // টাইম ফরম্যাট ঠিক করা
-                let timeDisplay = ''; 
-                if(st.class_time) { 
-                    const [h, m] = st.class_time.split(':'); 
-                    const ampm = h >= 12 ? 'PM' : 'AM'; 
-                    const h12 = h % 12 || 12; 
-                    timeDisplay = `${h12}:${m} ${ampm}`; 
-                } 
-                const classSchedule = `${st.class_day || ''} ${timeDisplay}`.trim();
-
-                // 🟢 ছবির মতো হুবহু কার্ড ডিজাইন
-                listHtml += `
-                    <div style="background: #ffffff; padding: 15px; border-radius: 12px; border: 1px solid #bae6fd; margin-bottom: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                        <div style="font-size: 16px; color: #1e293b; margin-bottom: 10px;">${st.serial_no || ''}</div>
-                        
-                        <div style="display:flex; align-items:center; gap: 15px; margin-bottom: 15px;">
-                            <img src="${photoSrc}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #000;">
-                            <div style="line-height: 1.4;">
-                                <strong style="color: #0f172a; font-size: 18px; font-weight: 800;">${st.name}</strong><br>
-                                <span style="font-size: 14px; color: #475569;">${st.phone || 'N/A'}</span><br>
-                                <span style="font-size: 13px; color: #64748b;">${classSchedule || 'N/A'}</span>
-                            </div>
-                        </div>
-                        
-                        <div style="display:flex; gap: 8px; align-items:center;">
-                            <a href="tel:${st.phone}" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; text-decoration: none; display: inline-block;" title="Call">Call</a>
-                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer;" title="WhatsApp">WhatsApp</button>
-                            <button onclick="window.sendGeneralMsg('sms', ${st.id})" style="background: #d97706; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-size: 14px; font-weight: bold; cursor: pointer;" title="SMS">SMS</button>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        listHtml += '</div>';
-
-        // 🟢 SweetAlert দিয়ে পপআপ ওপেন
-        Swal.fire({
-            title: `<div style="text-align: left; font-size: 18px; font-weight: 900; color: #0f172a;">Today's Practice (${sortedStudents.length} Students)</div>`,
-            html: listHtml,
-            showConfirmButton: false,
-            showCloseButton: true,
-            background: '#ffffff',
-            width: '95%',
-            padding: '20px 15px'
-        });
-    };
 
     students.forEach(s => {
         if(s.practice_log && s.practice_log.length > 0) {
@@ -2894,6 +2820,7 @@ function renderDashboard() {
         }
     });
 
+    // 🟢 NEW: লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
     todaysLogs.sort((a, b) => {
         const parseTime = (t) => {
             if (!t) return 0;
@@ -2906,37 +2833,28 @@ function renderDashboard() {
             if (ampm === 'PM') h += 12;
             return h * 60 + m;
         };
+        // b.time থেকে a.time বিয়োগ করা হচ্ছে, যাতে নতুন সময় সবার উপরে থাকে
         return parseTime(b.time) - parseTime(a.time); 
     });
 
+    // কতজন ইউনিক স্টুডেন্ট আজ প্র্যাকটিস করেছে তা গোনা
     const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
 
     if(todaysLogs.length > 0) {
-        if(pracCountEl && pracCountEl.parentElement) {
-            // 🟢 HTML থেকে হার্ডকোড করা কালো ব্র্যাকেট চিরতরে ডিলিট করার জন্য পুরো হেডার রিরাইট করা হলো
-            pracCountEl.parentElement.innerHTML = `
-                <i class="fas fa-stopwatch"></i> Today's Practice Logs 
-                <span id="todaysPracticeCount" onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 10px; background: var(--bg-card); border-radius: 8px; border: 1px solid var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 5px; display: inline-block;">
-                    ${uniquePracticingStudents.length}
-                </span>
-            `;
-            // 🟢 হেডিংয়ের কালার থিম অনুযায়ী সেট করা হলো
-            pracCountEl.parentElement.style.color = 'var(--primary)';
-        }
-
+        if(pracCountEl) pracCountEl.textContent = uniquePracticingStudents.length;
         pracList.innerHTML = '';
         todaysLogs.forEach(log => {
             const photoSrc = log.studentPhoto ? log.studentPhoto : 'https://via.placeholder.com/40?text=S';
             pracList.innerHTML += `
-            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px; border-radius:10px; margin-bottom:8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
+            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:8px 10px; border-radius:8px; margin-bottom:6px; border-left: 3px solid var(--success); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <img src="${photoSrc}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid #e2e8f0; cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
                     <div>
-                        <div style="font-weight:900; font-size:14.5px; color:var(--primary); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;"><i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}</div>
+                        <div style="font-weight:700; font-size:13px; color:var(--primary); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top: 2px;"><i class="fas fa-book"></i> ${log.topic} &nbsp; <i class="fas fa-clock"></i> ${log.time}</div>
                     </div>
                 </div>
-                <div style="background:var(--primary); color:white; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <div style="background:var(--success); color:white; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold; white-space: nowrap;">
                     ${log.minutes} mins
                 </div>
             </div>
