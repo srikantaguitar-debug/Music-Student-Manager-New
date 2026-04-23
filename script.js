@@ -2796,14 +2796,14 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Custom Popup)
+// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Mobile Fit Popup)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
     const todayDateStr = new Date().toLocaleDateString('en-IN');
     let todaysLogs = [];
 
-    // 🟢 ম্যাজিক: পপআপের ছোট লিস্ট ডিজাইন (আপনার ছবির মতো স্কোয়ার আইকন বাটন)
+    // 🟢 ম্যাজিক: পপআপের মোবাইল-ফ্রেন্ডলি সুন্দর লিস্ট ডিজাইন
     window.showTodaysPracticingStudentsModal = function() {
         let uniqueStudentsMap = {};
         
@@ -2820,7 +2820,7 @@ function renderDashboard() {
             }
         });
 
-        let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px; margin-top: 5px;">';
+        let listHtml = '<div style="max-height: 65vh; overflow-y: auto; text-align: left; padding: 5px; margin-top: 5px;">';
         const sortedStudents = Object.values(uniqueStudentsMap).sort((a,b) => b.totalMins - a.totalMins);
 
         if(sortedStudents.length === 0) {
@@ -2830,36 +2830,36 @@ function renderDashboard() {
                 const st = data.student;
                 const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
                 
-                // 🟢 আপনার ছবির মতো হুবহু ছোট কার্ড ডিজাইন এবং আইকন বাটন (Call, WA, SMS)
+                // 🟢 মোবাইল স্ক্রিনে ফিট হওয়ার জন্য দুই লাইনের কার্ড ডিজাইন
                 listHtml += `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background: #ffffff; padding:10px 12px; border-radius:12px; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary); margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                    <div style="background: #ffffff; padding:12px; border-radius:12px; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary); margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                         
-                        <div style="display:flex; align-items:center; gap: 12px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
-                            <img src="${photoSrc}" style="width:42px; height:42px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
-                            <div style="line-height: 1.3;">
-                                <strong style="color: var(--primary); font-size:15px; font-weight:800;">${st.name}</strong><br>
-                                <span style="font-size:12px; color: #475569; font-weight:600;">Total Today: <span style="color: var(--primary); font-weight:bold;">${data.totalMins}</span> mins</span>
+                        <div style="display:flex; align-items:center; gap: 12px; cursor: pointer; margin-bottom: 12px;" onclick="Swal.close(); showStudentDetails(${st.id})">
+                            <img src="${photoSrc}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary); flex-shrink: 0;">
+                            <div style="flex: 1; min-width: 0; line-height: 1.3;">
+                                <div style="color: var(--primary); font-size:16px; font-weight:800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${st.name}</div>
+                                <div style="font-size:12px; color: #475569; font-weight:600; margin-top: 3px;">Total Today: <span style="color: var(--primary); font-weight:bold;">${data.totalMins}</span> mins</div>
                             </div>
                         </div>
                         
-                        <div style="display:flex; gap: 8px; align-items:center;">
-                            <a href="tel:${st.phone}" style="background: #3b82f6; color:white; border:none; width: 34px; height: 34px; border-radius:8px; font-size:14px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(59,130,246,0.2);" title="Call">
-                                <i class="fas fa-phone-alt"></i>
+                        <div style="display:flex; gap: 8px; align-items:center; border-top: 1px dashed #e2e8f0; padding-top: 12px;">
+                            <a href="tel:${st.phone}" style="flex:1; background: #3b82f6; color:white; border:none; padding: 8px 0; border-radius:8px; font-size:13px; font-weight:bold; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(59,130,246,0.2);" title="Call">
+                                <i class="fas fa-phone-alt" style="margin-right:5px;"></i> Call
                             </a>
-                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#22c55e; color:white; border:none; width: 34px; height: 34px; border-radius:8px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(34,197,94,0.2);" title="WhatsApp">
-                                <i class="fab fa-whatsapp"></i>
+                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="flex:1; background:#22c55e; color:white; border:none; padding: 8px 0; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(34,197,94,0.2);" title="WhatsApp">
+                                <i class="fab fa-whatsapp" style="margin-right:5px;"></i> WA
                             </button>
-                            <button onclick="window.sendGeneralMsg('sms', ${st.id})" style="background:#f59e0b; color:white; border:none; width: 34px; height: 34px; border-radius:8px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(245,158,11,0.2);" title="SMS">
-                                <i class="fas fa-sms"></i>
+                            <button onclick="window.sendGeneralMsg('sms', ${st.id})" style="flex:1; background:#f59e0b; color:white; border:none; padding: 8px 0; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(245,158,11,0.2);" title="SMS">
+                                <i class="fas fa-sms" style="margin-right:5px;"></i> SMS
                             </button>
                         </div>
+
                     </div>
                 `;
             });
         }
         listHtml += '</div>';
 
-        // 🟢 SweetAlert দিয়ে পপআপ ওপেন
         Swal.fire({
             title: `<div style="text-align: center; font-size: 18px; font-weight: 900; color: var(--text-main); margin-bottom: 5px;">Today's Active Students</div>`,
             html: listHtml,
@@ -2908,16 +2908,16 @@ function renderDashboard() {
 
     if(todaysLogs.length > 0) {
         if(pracCountEl && pracCountEl.parentElement) {
-            // 🟢 HTML থেকে হার্ডকোড করা কালো ব্র্যাকেট মুছে "Today's Practice Logs" লেখাকে থিম কালার করা হলো
-            pracCountEl.parentElement.innerHTML = `
-                <div style="display:flex; align-items:center; color: var(--primary);">
-                    <i class="fas fa-stopwatch" style="margin-right:6px; font-size:18px;"></i> 
-                    <span style="font-weight:900; font-size:16px;">Today's Practice Logs</span> 
-                    <span id="todaysPracticeCount" onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); font-weight: 900; font-size: 16px; padding: 2px 10px; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 8px; display: inline-block;">
-                        ( ${uniquePracticingStudents.length} )
-                    </span>
-                </div>
-            `;
+            // 🟢 ডুপ্লিকেট হেডিং রিমুভ করে অরিজিনাল হেডিংয়ের কালার থিম অনুযায়ী করা হলো
+            pracCountEl.parentElement.style.color = 'var(--primary)';
+            
+            // 🟢 কালো ব্র্যাকেট মুছে ফেলা হচ্ছে
+            pracCountEl.parentElement.childNodes.forEach(node => {
+                if (node.nodeType === 3) node.textContent = node.textContent.replace(/[()]/g, '');
+            });
+            
+            // 🟢 শুধু নম্বর এবং পপআপ বাটন অ্যাড করা হলো
+            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 10px; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 8px; display: inline-block;">( ${uniquePracticingStudents.length} )</span>`;
         }
 
         pracList.innerHTML = '';
