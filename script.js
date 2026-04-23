@@ -2796,9 +2796,7 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-    // =========================================================
-
-// 🟢 NEW: Today's Practice Logs Logic (Updated)
+// 🟢 NEW: Today's Practice Logs Logic (Themed & Clickable)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
@@ -2822,7 +2820,7 @@ function renderDashboard() {
         }
     });
 
-    // 🟢 NEW: লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
+    // লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
     todaysLogs.sort((a, b) => {
         const parseTime = (t) => {
             if (!t) return 0;
@@ -2835,28 +2833,35 @@ function renderDashboard() {
             if (ampm === 'PM') h += 12;
             return h * 60 + m;
         };
-        // b.time থেকে a.time বিয়োগ করা হচ্ছে, যাতে নতুন সময় সবার উপরে থাকে
         return parseTime(b.time) - parseTime(a.time); 
     });
 
-    // কতজন ইউনিক স্টুডেন্ট আজ প্র্যাকটিস করেছে তা গোনা
     const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
 
     if(todaysLogs.length > 0) {
-        if(pracCountEl) pracCountEl.textContent = uniquePracticingStudents.length;
+        // 🟢 টাইটেল এবং নম্বর থিম অনুযায়ী করা হলো এবং ক্লিক ইভেন্ট দেওয়া হলো
+        if(pracCountEl) {
+            pracCountEl.innerHTML = `<span onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); text-decoration: underline; padding: 2px 6px; border-radius: 6px; background: var(--bg-card); box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-weight: 900;">(${uniquePracticingStudents.length})</span>`;
+            
+            // টাইটেলের কালার থিম অনুযায়ী বদলানোর জন্য
+            if(pracCountEl.parentElement) {
+                pracCountEl.parentElement.style.color = 'var(--primary)';
+            }
+        }
+
         pracList.innerHTML = '';
         todaysLogs.forEach(log => {
             const photoSrc = log.studentPhoto ? log.studentPhoto : 'https://via.placeholder.com/40?text=S';
             pracList.innerHTML += `
-            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:8px 10px; border-radius:8px; margin-bottom:6px; border-left: 3px solid var(--success); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${photoSrc}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid #e2e8f0; cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
+            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px; border-radius:10px; margin-bottom:8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
                     <div>
-                        <div style="font-weight:700; font-size:13px; color:var(--primary); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
-                        <div style="font-size:10px; color:var(--text-muted); margin-top: 2px;"><i class="fas fa-book"></i> ${log.topic} &nbsp; <i class="fas fa-clock"></i> ${log.time}</div>
+                        <div style="font-weight:800; font-size:14px; color:var(--text-main); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;"><i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}</div>
                     </div>
                 </div>
-                <div style="background:var(--success); color:white; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold; white-space: nowrap;">
+                <div style="background:var(--primary); color:white; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                     ${log.minutes} mins
                 </div>
             </div>
