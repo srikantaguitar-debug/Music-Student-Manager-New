@@ -2694,7 +2694,7 @@ function renderDashboard() {
     ); 
     if (birthdayStudents.length > 0) { birthdayList.innerHTML = ''; birthdayStudents.forEach(s => { birthdayList.innerHTML += `<div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-input); padding:10px; border-radius:8px; margin-bottom:5px; border:1px solid #ffe4e6; color:var(--text-main);"><div style="display:flex; align-items:center;"><img src="${s.photo || 'https://via.placeholder.com/40?text=S'}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; border: 2px solid #000 !important;"><div><strong>${s.name}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.class || 'Student'}</span></div></div><div style="display:flex; gap:5px;"><button class="btn-whatsapp btn-like" onclick="sendBirthdayWish('wa', ${s.id})"><i class="fab fa-whatsapp"></i></button><button class="btn-sms btn-like" onclick="sendBirthdayWish('sms', ${s.id})"><i class="fas fa-sms"></i></button><button class="btn-success btn-like" onclick="dismissBirthday(${s.id})" title="Dismiss"><i class="fas fa-check"></i></button></div></div>`; }); birthdayBox.style.display = 'block'; } else { birthdayBox.style.display = 'none'; }
     
-// =========================================================
+    // =========================================================
     // 🟢 NEW: 14 Days Absent Alert Logic (Themed & Scrollable)
     // =========================================================
     let absentBox = document.getElementById('longAbsentAlertBox');
@@ -2750,7 +2750,7 @@ function renderDashboard() {
     if (longAbsentees.length > 0) {
         longAbsentees.sort((a,b) => b.days - a.days); // যারা সবচেয়ে বেশি দিন আসেনি তারা ওপরে থাকবে
         
-        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
+        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
         let absentHtml = `
         <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--danger); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
             <h4 style="margin: 0 0 10px 0; color: var(--danger); font-size: 14px; display: flex; align-items: center; gap: 6px;">
@@ -2796,7 +2796,8 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Custom Popup)
+
+    // 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Custom Popup)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
     const pracCountEl = document.getElementById('todaysPracticeCount');
@@ -2942,7 +2943,6 @@ function renderDashboard() {
     } else {
         pracBox.style.display = 'none';
     }
-    // 🟢 END: Practice Logs Logic
     
     const classCounts = activeStudents.reduce((acc, student) => { const className = student.class ? student.class.trim() : 'Unassigned'; acc[className] = (acc[className] || 0) + 1; return acc; }, {}); const classListEl = document.getElementById('classStrengthList'); classListEl.innerHTML = ''; Object.entries(classCounts).sort().forEach(([className, count]) => { classListEl.innerHTML += `<li onclick="showClassStudents('${className}')" style="cursor:pointer; color:var(--text-main);"><strong>${className}:</strong> <span>${count} students</span></li>`; }); 
     
