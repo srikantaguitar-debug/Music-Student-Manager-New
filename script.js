@@ -2676,10 +2676,10 @@ function renderReminders() {
 
 function renderDashboard() { 
     // 🟢 Open Leaderboard Modal Function
-window.openLeaderboardModal = function() {
-    document.getElementById('leaderboardModal').style.display = 'flex';
-    window.renderPracticeLeaderboard(); // পপআপ খোলার সাথে সাথে লিস্ট লোড হবে
-};
+    window.openLeaderboardModal = function() {
+        document.getElementById('leaderboardModal').style.display = 'flex';
+        window.renderPracticeLeaderboard(); // পপআপ খোলার সাথে সাথে লিস্ট লোড হবে
+    };
     if (typeof window.renderPracticeLeaderboard === 'function') {
         window.renderPracticeLeaderboard();
     }
@@ -2693,6 +2693,111 @@ window.openLeaderboardModal = function() {
         !dismissedBirthdays.includes(`${s.id}_${currentYearForCheck}`)
     ); 
     if (birthdayStudents.length > 0) { birthdayList.innerHTML = ''; birthdayStudents.forEach(s => { birthdayList.innerHTML += `<div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-input); padding:10px; border-radius:8px; margin-bottom:5px; border:1px solid #ffe4e6; color:var(--text-main);"><div style="display:flex; align-items:center;"><img src="${s.photo || 'https://via.placeholder.com/40?text=S'}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; border: 2px solid #000 !important;"><div><strong>${s.name}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.class || 'Student'}</span></div></div><div style="display:flex; gap:5px;"><button class="btn-whatsapp btn-like" onclick="sendBirthdayWish('wa', ${s.id})"><i class="fab fa-whatsapp"></i></button><button class="btn-sms btn-like" onclick="sendBirthdayWish('sms', ${s.id})"><i class="fas fa-sms"></i></button><button class="btn-success btn-like" onclick="dismissBirthday(${s.id})" title="Dismiss"><i class="fas fa-check"></i></button></div></div>`; }); birthdayBox.style.display = 'block'; } else { birthdayBox.style.display = 'none'; }
+    
+// =========================================================
+    // 🟢 NEW: 14 Days Absent Alert Logic (Themed & Scrollable)
+    // =========================================================
+    let absentBox = document.getElementById('longAbsentAlertBox');
+    if (!absentBox) {
+        absentBox = document.createElement('div');
+        absentBox.id = 'longAbsentAlertBox';
+        if (birthdayBox && birthdayBox.parentNode) {
+            birthdayBox.parentNode.insertBefore(absentBox, birthdayBox.nextSibling);
+        }
+    }
+    
+    const todayForAbs = new Date();
+    todayForAbs.setHours(0,0,0,0);
+    let longAbsentees = [];
+
+    activeStudents.forEach(s => {
+        let lastPresentTime = 0;
+        // Find last present date
+        for(const date in attendance) {
+            const entry = attendance[date][s.id];
+            const status = (typeof entry === 'object' && entry !== null) ? entry.status : entry;
+            if(status === 'present') {
+                const dTime = new Date(date).getTime();
+                if(dTime > lastPresentTime) {
+                    lastPresentTime = dTime;
+                }
+            }
+        }
+        
+        let daysAbsent = 0;
+        if (lastPresentTime > 0) {
+            daysAbsent = Math.floor((todayForAbs.getTime() - lastPresentTime) / (1000 * 3600 * 24));
+        } else {
+            // যদি একবারও ক্লাসে না এসে থাকে, তবে জয়েনিং ডেট থেকে হিসেব হবে
+            const joinTime = new Date(s.joining_date).getTime();
+            daysAbsent = Math.floor((todayForAbs.getTime() - joinTime) / (1000 * 3600 * 24));
+        }
+
+        // চেক করা হচ্ছে গত ১৪ দিনের মধ্যে তাকে কল/মেসেজ করা হয়েছে কি না
+        let recentlyContacted = false;
+        if (s.last_absent_contacted) {
+            const contactTime = new Date(s.last_absent_contacted).getTime();
+            const daysSinceContact = Math.floor((todayForAbs.getTime() - contactTime) / (1000 * 3600 * 24));
+            if (daysSinceContact < 14) recentlyContacted = true; // ১৪ দিনের মধ্যে মার্ক করা থাকলে আর দেখাবে না
+        }
+
+        // ১৪ দিন পার হলে লিস্টে যোগ হবে
+        if (daysAbsent >= 14 && !recentlyContacted) {
+            longAbsentees.push({ student: s, days: daysAbsent });
+        }
+    });
+
+    if (longAbsentees.length > 0) {
+        longAbsentees.sort((a,b) => b.days - a.days); // যারা সবচেয়ে বেশি দিন আসেনি তারা ওপরে থাকবে
+        
+        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
+        let absentHtml = `
+        <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--danger); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h4 style="margin: 0 0 10px 0; color: var(--danger); font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-user-clock fa-shake"></i> 14+ Days Absent Alert
+            </h4>
+            <div class="scroller-box" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 5px;">
+        `;
+
+        longAbsentees.forEach(item => {
+            const st = item.student;
+            const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+            absentHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-input); padding:10px; border-radius:8px; border-left: 4px solid var(--danger); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                    <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="showStudentDetails(${st.id})">
+                        <img src="${photoSrc}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border: 1px solid var(--border-color);">
+                        <div style="line-height: 1.2;">
+                            <strong style="color: var(--text-main); font-size:13px;">${st.name}</strong><br>
+                            <span style="font-size:10.5px; color: var(--danger); font-weight:700;">Absent for ${item.days} days</span>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap: 5px; align-items:center;">
+                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; text-decoration:none; display:flex; align-items:center; justify-content:center;" title="Call">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                        <button onclick="window.sendAbsentAlertMsg('wa', ${st.id}, ${item.days})" style="background:#25D366; color:white; border:none; padding:8px 10px; border-radius:6px; font-size:14px; cursor:pointer;" title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                        <button onclick="window.sendAbsentAlertMsg('sms', ${st.id}, ${item.days})" style="background: var(--warning); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; cursor:pointer;" title="SMS">
+                            <i class="fas fa-sms"></i>
+                        </button>
+                        <button onclick="window.markAbsentContacted(${st.id})" style="background: var(--success); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; cursor:pointer; margin-left:2px;" title="Mark Complete">
+                            <i class="fas fa-check-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        absentHtml += `</div></div>`;
+        absentBox.innerHTML = absentHtml;
+        absentBox.style.display = 'block';
+    } else {
+        if(absentBox) absentBox.style.display = 'none';
+    }
+    // =========================================================
+
 // 🟢 NEW: Today's Practice Logs Logic (Updated)
     const pracBox = document.getElementById('todaysPracticeBox');
     const pracList = document.getElementById('todaysPracticeList');
@@ -2730,7 +2835,7 @@ window.openLeaderboardModal = function() {
             if (ampm === 'PM') h += 12;
             return h * 60 + m;
         };
-        // b.time থেকে a.time বিয়োগ করা হচ্ছে, যাতে নতুন সময় সবার উপরে থাকে
+        // b.time থেকে a.time বিয়োগ করা হচ্ছে, যাতে নতুন সময় সবার উপরে থাকে
         return parseTime(b.time) - parseTime(a.time); 
     });
 
@@ -9011,4 +9116,48 @@ window.sendBulkNoticeToPortals = async function(isClear = false) {
             Swal.fire('Error', 'Failed to publish notice. Check your internet connection.', 'error');
         }
     }
+};
+
+// ==========================================
+// 🟢 14 DAYS ABSENT ALERT LOGIC 
+// ==========================================
+
+window.sendAbsentAlertMsg = function(type, studentId, days) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const msgBody = `Dear ${student.name},\n\nWe noticed you haven't attended your ${student.class || 'Music'} classes for the last ${days} days. Please let us know if everything is alright and when you plan to resume your classes.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+    
+    if (type === 'wa') {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        if(cleanPhone) window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        else Swal.fire('Error', 'No phone number found', 'error');
+    } else if (type === 'sms') {
+        if(student.phone) window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+        else Swal.fire('Error', 'No phone number found', 'error');
+    }
+};
+
+window.markAbsentContacted = async function(studentId) {
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if (studentIndex === -1) return;
+
+    // বর্তমান তারিখটি সেভ করে রাখছি, যাতে পরের ১৪ দিন আর না দেখায়
+    students[studentIndex].last_absent_contacted = new Date().toISOString().split('T')[0];
+
+    // Background Firebase Sync
+    const user = firebase.auth().currentUser;
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetUid = urlParams.get('manager') || (user ? user.uid : DOC_ID);
+
+    if (user || urlParams.get('manager')) {
+        db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+            last_absent_contacted: students[studentIndex].last_absent_contacted
+        }).catch(e => console.log(e));
+    }
+
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Marked as Contacted!', showConfirmButton: false, timer: 1500 });
+    renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
