@@ -2803,59 +2803,48 @@ function renderDashboard() {
     const todayDateStr = new Date().toLocaleDateString('en-IN');
     let todaysLogs = [];
 
-    // 🟢 ম্যাজিক: পপআপের ভেতরে স্টুডেন্ট লিস্ট তৈরি এবং ওপেন করার কোড
+    // 🟢 ম্যাজিক: পপআপের কোডটা এখানেই অ্যাড করে দিলাম যাতে আর Error না আসে!
     window.showTodaysPracticingStudentsModal = function() {
         let uniqueStudentsMap = {};
-        
-        // সব স্টুডেন্টের আজকের ডেটা গোছানো হচ্ছে
-        students.forEach(s => {
-            if(s.practice_log && s.practice_log.length > 0) {
-                s.practice_log.forEach(log => {
-                    if(log.date === todayDateStr) {
-                        if(!uniqueStudentsMap[s.id]) {
-                            uniqueStudentsMap[s.id] = { student: s, totalMins: 0 };
-                        }
-                        uniqueStudentsMap[s.id].totalMins += parseInt(log.minutes) || 0;
-                    }
-                });
+        todaysLogs.forEach(log => {
+            if(!uniqueStudentsMap[log.studentId]) {
+                const st = students.find(s => s.id === log.studentId);
+                uniqueStudentsMap[log.studentId] = {
+                    student: st,
+                    totalMins: 0
+                };
             }
+            uniqueStudentsMap[log.studentId].totalMins += parseInt(log.minutes);
         });
 
         let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
-        
-        // যারা বেশি প্র্যাকটিস করেছে তারা ওপরে থাকবে
-        const sortedStudents = Object.values(uniqueStudentsMap).sort((a,b) => b.totalMins - a.totalMins);
-
-        if(sortedStudents.length === 0) {
-            listHtml += '<p style="text-align:center; color:var(--text-muted); font-size:13px; padding:20px;">No practice logged today.</p>';
-        } else {
-            sortedStudents.forEach(data => {
-                const st = data.student;
-                const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
-                listHtml += `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:10px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
-                            <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
-                            <div style="line-height: 1.2;">
-                                <strong style="color: var(--primary); font-size:14.5px; font-weight:900;">${st.name}</strong><br>
-                                <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
-                            </div>
-                        </div>
-                        <div style="display:flex; gap: 5px; align-items:center;">
-                            <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
-                                <i class="fas fa-phone-alt"></i>
-                            </a>
-                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:8px 10px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
-                                <i class="fab fa-whatsapp"></i>
-                            </button>
+        Object.values(uniqueStudentsMap).forEach(data => {
+            const st = data.student;
+            if(!st) return;
+            const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+            listHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:10px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
+                        <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
+                        <div style="line-height: 1.2;">
+                            <strong style="color: var(--primary); font-size:14.5px; font-weight:900;">${st.name}</strong><br>
+                            <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
                         </div>
                     </div>
-                `;
-            });
-        }
+                    <div style="display:flex; gap: 5px; align-items:center;">
+                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px; border-radius:6px; font-size:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                        <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+        if(Object.keys(uniqueStudentsMap).length === 0) listHtml += '<p style="text-align:center; color:gray; font-size:13px;">No practice logged today.</p>';
         listHtml += '</div>';
 
-        // পপআপ স্ক্রিনে শো করানো
         Swal.fire({
             title: '<span style="font-size:18px; color: var(--text-main); font-weight:bold;">Today\'s Active Students</span>',
             html: listHtml,
@@ -2868,7 +2857,6 @@ function renderDashboard() {
         });
     };
 
-    // 🟢 ড্যাশবোর্ডের লিস্ট রেন্ডার করা
     students.forEach(s => {
         if(s.practice_log && s.practice_log.length > 0) {
             s.practice_log.forEach(log => {
@@ -2886,7 +2874,7 @@ function renderDashboard() {
         }
     });
 
-    // লেটেস্ট লগ সবার উপরে
+    // লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
     todaysLogs.sort((a, b) => {
         const parseTime = (t) => {
             if (!t) return 0;
@@ -2906,15 +2894,16 @@ function renderDashboard() {
 
     if(todaysLogs.length > 0) {
         if(pracCountEl) {
-            // কালো ব্র্যাকেট রিমুভ এবং "Today's Practice Logs" এর কালার থিম অনুযায়ী করা
+            // 🟢 ১. কালো ব্র্যাকেট মুছে ফেলা হচ্ছে
             if (pracCountEl.parentElement) {
                 pracCountEl.parentElement.childNodes.forEach(node => {
                     if (node.nodeType === 3) node.textContent = node.textContent.replace(/[()]/g, '');
                 });
+                // 🟢 ২. "Today's Practice Logs" এবং আইকনের কালার থিম অনুযায়ী করা হলো
                 pracCountEl.parentElement.style.color = 'var(--primary)';
             }
             
-            // ব্র্যাকেট স্টাইল এবং ক্লিক ইভেন্ট
+            // 🟢 ৩. নম্বরের বাটন ডিজাইন এবং ক্লিক করলে পপআপ খোলার কোড
             pracCountEl.innerHTML = `<span style="color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 8px; background: var(--bg-card); border-radius: 6px; border: 1px dashed var(--primary); display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 5px; cursor: pointer;" onclick="window.showTodaysPracticingStudentsModal()">( ${uniquePracticingStudents.length} )</span>`;
         }
 
