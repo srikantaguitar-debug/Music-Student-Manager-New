@@ -2796,42 +2796,140 @@ function renderDashboard() {
     } else {
         if(absentBox) absentBox.style.display = 'none';
     }
-// 🟢 NEW: Today's Practice Logs Logic (Updated)
-    
-    const classCounts = activeStudents.reduce((acc, student) => { const className = student.class ? student.class.trim() : 'Unassigned'; acc[className] = (acc[className] || 0) + 1; return acc; }, {}); const classListEl = document.getElementById('classStrengthList'); classListEl.innerHTML = ''; Object.entries(classCounts).sort().forEach(([className, count]) => { classListEl.innerHTML += `<li onclick="showClassStudents('${className}')" style="cursor:pointer; color:var(--text-main);"><strong>${className}:</strong> <span>${count} students</span></li>`; }); 
-    
-    let monthlyCollected = 0, monthlyDueAmount = 0, yearlyCollected = 0, yearlyDueAmount = 0; 
-    let monthlyPaidCount = 0, monthlyDueCount = 0; 
-    const currentYear = new Date().getFullYear(), currentMonthStr = `${currentYear}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
-    
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; const todayName = days[new Date().getDay()]; const todaysReminders = reminders.filter(r => r.day === todayName);
-    const rBox = document.getElementById('dashboardRemindersBox'); 
-    const rList = document.getElementById('dashboardReminderList'); 
+// 🟢 NEW: Today's Practice Logs Logic (Themed, Clickable & Fixed Popup)
+    const pracBox = document.getElementById('todaysPracticeBox');
+    const pracList = document.getElementById('todaysPracticeList');
+    const pracCountEl = document.getElementById('todaysPracticeCount');
+    const todayDateStr = new Date().toLocaleDateString('en-IN');
+    let todaysLogs = [];
 
-    if(todaysReminders.length > 0) { 
-        rList.innerHTML = ''; 
-        rList.className = 'dashboard-reminder-list'; 
-        todaysReminders.forEach(r => { 
-            rList.innerHTML += `
-                <div class="d-reminder-card">
-                    <div class="d-rem-content">
-                        <div class="d-rem-icon"><i class="fas fa-bell"></i></div>
-                        <div class="d-rem-text">${r.text}</div>
+    // 🟢 ম্যাজিক: পপআপের কোডটা এখানেই অ্যাড করে দিলাম যাতে আর Error না আসে!
+    window.showTodaysPracticingStudentsModal = function() {
+        let uniqueStudentsMap = {};
+        todaysLogs.forEach(log => {
+            if(!uniqueStudentsMap[log.studentId]) {
+                const st = students.find(s => s.id === log.studentId);
+                uniqueStudentsMap[log.studentId] = {
+                    student: st,
+                    totalMins: 0
+                };
+            }
+            uniqueStudentsMap[log.studentId].totalMins += parseInt(log.minutes);
+        });
+
+        let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
+        Object.values(uniqueStudentsMap).forEach(data => {
+            const st = data.student;
+            if(!st) return;
+            const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+            listHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:10px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
+                        <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
+                        <div style="line-height: 1.2;">
+                            <strong style="color: var(--primary); font-size:14.5px; font-weight:900;">${st.name}</strong><br>
+                            <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
+                        </div>
                     </div>
-                    <button class="d-rem-btn" onclick="markReminderDone(${r.id})" title="Mark as Done">
-                        <i class="fas fa-check"></i>
-                    </button>
+                    <div style="display:flex; gap: 5px; align-items:center;">
+                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px; border-radius:6px; font-size:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                        <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                    </div>
                 </div>
-            `; 
-        }); 
-        rBox.style.display = 'block'; 
-        rBox.style.background = 'transparent'; 
-        rBox.style.boxShadow = 'none';
-        rBox.style.border = 'none';
-        rBox.style.padding = '0';
-    } else { 
-        rBox.style.display = 'none'; 
+            `;
+        });
+        if(Object.keys(uniqueStudentsMap).length === 0) listHtml += '<p style="text-align:center; color:gray; font-size:13px;">No practice logged today.</p>';
+        listHtml += '</div>';
+
+        Swal.fire({
+            title: '<span style="font-size:18px; color: var(--text-main); font-weight:bold;">Today\'s Active Students</span>',
+            html: listHtml,
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#ef4444',
+            background: 'var(--bg-body)',
+            width: '95%',
+            padding: '15px'
+        });
+    };
+
+    students.forEach(s => {
+        if(s.practice_log && s.practice_log.length > 0) {
+            s.practice_log.forEach(log => {
+                if(log.date === todayDateStr) {
+                    todaysLogs.push({
+                        studentId: s.id,
+                        studentName: s.name,
+                        studentPhoto: s.photo,
+                        topic: log.topic,
+                        minutes: log.minutes,
+                        time: log.time
+                    });
+                }
+            });
+        }
+    });
+
+    // লেটেস্ট লগ (Latest Update) সবার উপরে দেখানোর লজিক
+    todaysLogs.sort((a, b) => {
+        const parseTime = (t) => {
+            if (!t) return 0;
+            const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            let h = parseInt(match[1]);
+            let m = parseInt(match[2]);
+            let ampm = match[3].toUpperCase();
+            if (h === 12) h = 0;
+            if (ampm === 'PM') h += 12;
+            return h * 60 + m;
+        };
+        return parseTime(b.time) - parseTime(a.time); 
+    });
+
+    const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
+
+    if(todaysLogs.length > 0) {
+        if(pracCountEl) {
+            // 🟢 ১. কালো ব্র্যাকেট মুছে ফেলা হচ্ছে
+            if (pracCountEl.parentElement) {
+                pracCountEl.parentElement.childNodes.forEach(node => {
+                    if (node.nodeType === 3) node.textContent = node.textContent.replace(/[()]/g, '');
+                });
+                // 🟢 ২. "Today's Practice Logs" এবং আইকনের কালার থিম অনুযায়ী করা হলো
+                pracCountEl.parentElement.style.color = 'var(--primary)';
+            }
+            
+            // 🟢 ৩. নম্বরের বাটন ডিজাইন এবং ক্লিক করলে পপআপ খোলার কোড
+            pracCountEl.innerHTML = `<span style="color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 8px; background: var(--bg-card); border-radius: 6px; border: 1px dashed var(--primary); display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 5px; cursor: pointer;" onclick="window.showTodaysPracticingStudentsModal()">( ${uniquePracticingStudents.length} )</span>`;
+        }
+
+        pracList.innerHTML = '';
+        todaysLogs.forEach(log => {
+            const photoSrc = log.studentPhoto ? log.studentPhoto : 'https://via.placeholder.com/40?text=S';
+            pracList.innerHTML += `
+            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px; border-radius:10px; margin-bottom:8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                <div style="display:flex; align-items:center; gap:12px;">
+                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
+                    <div>
+                        <div style="font-weight:900; font-size:14.5px; color:var(--primary); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
+                        <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;"><i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}</div>
+                    </div>
+                </div>
+                <div style="background:var(--primary); color:white; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                    ${log.minutes} mins
+                </div>
+            </div>
+        `;
+        });
+        pracBox.style.display = 'block';
+    } else {Practice Logs
+        pracBox.style.display = 'none';
     }
+    // 🟢 END: Practice Logs Logic
     
     students.forEach(student => { 
         for (let i = 0; i < 12; i++) { 
@@ -9090,81 +9188,4 @@ window.markAbsentContacted = async function(studentId) {
 
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Marked as Contacted!', showConfirmButton: false, timer: 1500 });
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
-};
-// ==========================================
-// 🟢 TODAY'S PRACTICING STUDENTS POPUP MODAL
-// ==========================================
-window.showTodaysPracticingStudentsModal = function() {
-    const todayDateStr = new Date().toLocaleDateString('en-IN');
-    let todaysLogs = [];
-    
-    // আজকের সব প্র্যাকটিস লগ বের করা
-    students.forEach(s => {
-        if(s.practice_log && s.practice_log.length > 0) {
-            s.practice_log.forEach(log => {
-                if(log.date === todayDateStr) {
-                    todaysLogs.push({
-                        student: s,
-                        minutes: log.minutes
-                    });
-                }
-            });
-        }
-    });
-
-    // একজন স্টুডেন্ট দু'বার প্র্যাকটিস করলে তার সময় যোগ করা
-    let uniqueStudentsMap = {};
-    todaysLogs.forEach(log => {
-        if(!uniqueStudentsMap[log.student.id]) {
-            uniqueStudentsMap[log.student.id] = {
-                student: log.student,
-                totalMins: 0
-            };
-        }
-        uniqueStudentsMap[log.student.id].totalMins += parseInt(log.minutes);
-    });
-
-    let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
-    
-    // স্টুডেন্টদের সুন্দর লিস্ট তৈরি করা
-    Object.values(uniqueStudentsMap).forEach(data => {
-        const st = data.student;
-        const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
-        listHtml += `
-            <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:10px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
-                    <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
-                    <div style="line-height: 1.2;">
-                        <strong style="color: var(--text-main); font-size:14px;">${st.name}</strong><br>
-                        <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
-                    </div>
-                </div>
-                <div style="display:flex; gap: 5px; align-items:center;">
-                    <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px; border-radius:6px; font-size:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
-                        <i class="fas fa-phone-alt"></i>
-                    </a>
-                    <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
-                        <i class="fab fa-whatsapp"></i>
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-    
-    if(Object.keys(uniqueStudentsMap).length === 0) {
-        listHtml += '<p style="text-align:center; color:var(--text-muted); font-size:13px;">No practice logged today.</p>';
-    }
-    listHtml += '</div>';
-
-    // পপআপ দেখানো
-    Swal.fire({
-        title: '<span style="font-size:18px; color: var(--text-main);">Today\'s Active Students</span>',
-        html: listHtml,
-        showConfirmButton: true,
-        confirmButtonText: 'Close',
-        confirmButtonColor: '#ef4444',
-        background: 'var(--bg-body)',
-        width: '95%',
-        padding: '15px'
-    });
 };
