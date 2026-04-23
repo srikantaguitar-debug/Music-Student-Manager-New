@@ -2926,10 +2926,45 @@ function renderDashboard() {
         `;
         });
         pracBox.style.display = 'block';
-    } else {Practice Logs
+    } else {
         pracBox.style.display = 'none';
     }
-    // 🟢 END: Practice Logs Logic
+    // 🟢 END: Practice Logs Logic last up
+    
+    const classCounts = activeStudents.reduce((acc, student) => { const className = student.class ? student.class.trim() : 'Unassigned'; acc[className] = (acc[className] || 0) + 1; return acc; }, {}); const classListEl = document.getElementById('classStrengthList'); classListEl.innerHTML = ''; Object.entries(classCounts).sort().forEach(([className, count]) => { classListEl.innerHTML += `<li onclick="showClassStudents('${className}')" style="cursor:pointer; color:var(--text-main);"><strong>${className}:</strong> <span>${count} students</span></li>`; }); 
+    
+    let monthlyCollected = 0, monthlyDueAmount = 0, yearlyCollected = 0, yearlyDueAmount = 0; 
+    let monthlyPaidCount = 0, monthlyDueCount = 0; 
+    const currentYear = new Date().getFullYear(), currentMonthStr = `${currentYear}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
+    
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; const todayName = days[new Date().getDay()]; const todaysReminders = reminders.filter(r => r.day === todayName);
+    const rBox = document.getElementById('dashboardRemindersBox'); 
+    const rList = document.getElementById('dashboardReminderList'); 
+
+    if(todaysReminders.length > 0) { 
+        rList.innerHTML = ''; 
+        rList.className = 'dashboard-reminder-list'; 
+        todaysReminders.forEach(r => { 
+            rList.innerHTML += `
+                <div class="d-reminder-card">
+                    <div class="d-rem-content">
+                        <div class="d-rem-icon"><i class="fas fa-bell"></i></div>
+                        <div class="d-rem-text">${r.text}</div>
+                    </div>
+                    <button class="d-rem-btn" onclick="markReminderDone(${r.id})" title="Mark as Done">
+                        <i class="fas fa-check"></i>
+                    </button>
+                </div>
+            `; 
+        }); 
+        rBox.style.display = 'block'; 
+        rBox.style.background = 'transparent'; 
+        rBox.style.boxShadow = 'none';
+        rBox.style.border = 'none';
+        rBox.style.padding = '0';
+    } else { 
+        rBox.style.display = 'none'; 
+    }
     
     students.forEach(student => { 
         for (let i = 0; i < 12; i++) { 
