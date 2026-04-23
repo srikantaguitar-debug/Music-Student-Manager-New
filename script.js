@@ -2803,7 +2803,7 @@ function renderDashboard() {
     const todayDateStr = new Date().toLocaleDateString('en-IN');
     let todaysLogs = [];
 
-    // 🟢 ম্যাজিক: পপআপের ছোট লিস্ট ডিজাইন এবং SMS বাটন
+    // 🟢 ম্যাজিক: পপআপের ছোট লিস্ট ডিজাইন (আপনার ছবির মতো স্কোয়ার আইকন বাটন)
     window.showTodaysPracticingStudentsModal = function() {
         let uniqueStudentsMap = {};
         
@@ -2830,24 +2830,26 @@ function renderDashboard() {
                 const st = data.student;
                 const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
                 
-                // 🟢 ছোট কার্ড ডিজাইন, Call, WhatsApp ও SMS বাটনসহ
+                // 🟢 আপনার ছবির মতো হুবহু ছোট কার্ড ডিজাইন এবং আইকন বাটন (Call, WA, SMS)
                 listHtml += `
-                    <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:8px 12px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                        <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
-                            <img src="${photoSrc}" style="width:38px; height:38px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
+                    <div style="display:flex; align-items:center; justify-content:space-between; background: #ffffff; padding:10px 12px; border-radius:12px; border: 1px solid #e2e8f0; border-left: 4px solid var(--primary); margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                        
+                        <div style="display:flex; align-items:center; gap: 12px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
+                            <img src="${photoSrc}" style="width:42px; height:42px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
                             <div style="line-height: 1.3;">
-                                <strong style="color: var(--primary); font-size:14px; font-weight:800;">${st.name}</strong><br>
-                                <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
+                                <strong style="color: var(--primary); font-size:15px; font-weight:800;">${st.name}</strong><br>
+                                <span style="font-size:12px; color: #475569; font-weight:600;">Total Today: <span style="color: var(--primary); font-weight:bold;">${data.totalMins}</span> mins</span>
                             </div>
                         </div>
-                        <div style="display:flex; gap: 6px; align-items:center;">
-                            <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:6px 8px; border-radius:6px; font-size:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
+                        
+                        <div style="display:flex; gap: 8px; align-items:center;">
+                            <a href="tel:${st.phone}" style="background: #3b82f6; color:white; border:none; width: 34px; height: 34px; border-radius:8px; font-size:14px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(59,130,246,0.2);" title="Call">
                                 <i class="fas fa-phone-alt"></i>
                             </a>
-                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:6px 8px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
+                            <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#22c55e; color:white; border:none; width: 34px; height: 34px; border-radius:8px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(34,197,94,0.2);" title="WhatsApp">
                                 <i class="fab fa-whatsapp"></i>
                             </button>
-                            <button onclick="window.sendGeneralMsg('sms', ${st.id})" style="background:var(--warning); color:white; border:none; padding:6px 8px; border-radius:6px; font-size:12px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="SMS">
+                            <button onclick="window.sendGeneralMsg('sms', ${st.id})" style="background:#f59e0b; color:white; border:none; width: 34px; height: 34px; border-radius:8px; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(245,158,11,0.2);" title="SMS">
                                 <i class="fas fa-sms"></i>
                             </button>
                         </div>
@@ -2859,13 +2861,14 @@ function renderDashboard() {
 
         // 🟢 SweetAlert দিয়ে পপআপ ওপেন
         Swal.fire({
-            title: `<div style="text-align: left; font-size: 16px; font-weight: 900; color: var(--text-main); margin-bottom:-10px;">Today's Practice (${sortedStudents.length} Students)</div>`,
+            title: `<div style="text-align: center; font-size: 18px; font-weight: 900; color: var(--text-main); margin-bottom: 5px;">Today's Active Students</div>`,
             html: listHtml,
-            showConfirmButton: false,
-            showCloseButton: true,
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#ef4444',
             background: 'var(--bg-body)',
             width: '95%',
-            padding: '20px 15px'
+            padding: '15px'
         });
     };
 
@@ -2907,9 +2910,10 @@ function renderDashboard() {
         if(pracCountEl && pracCountEl.parentElement) {
             // 🟢 HTML থেকে হার্ডকোড করা কালো ব্র্যাকেট মুছে "Today's Practice Logs" লেখাকে থিম কালার করা হলো
             pracCountEl.parentElement.innerHTML = `
-                <div style="display:flex; align-items:center; cursor: pointer; color: var(--primary);" onclick="window.showTodaysPracticingStudentsModal()">
-                    <i class="fas fa-stopwatch" style="margin-right:5px;"></i> <span style="font-weight:bold;">Today's Practice Logs</span> 
-                    <span id="todaysPracticeCount" style="color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 8px; background: var(--bg-card); border-radius: 6px; border: 1px dashed var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 8px;">
+                <div style="display:flex; align-items:center; color: var(--primary);">
+                    <i class="fas fa-stopwatch" style="margin-right:6px; font-size:18px;"></i> 
+                    <span style="font-weight:900; font-size:16px;">Today's Practice Logs</span> 
+                    <span id="todaysPracticeCount" onclick="window.showTodaysPracticingStudentsModal()" style="cursor:pointer; color: var(--primary); font-weight: 900; font-size: 16px; padding: 2px 10px; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--primary); box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 8px; display: inline-block;">
                         ( ${uniquePracticingStudents.length} )
                     </span>
                 </div>
