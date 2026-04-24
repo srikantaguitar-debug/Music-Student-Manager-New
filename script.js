@@ -2819,7 +2819,7 @@ window.showTodaysPracticingStudentsModal = function() {
 
     if (practicedStudentIds.size === 0) return;
 
-    // 🟢 ছবির মতো হুবহু কার্ড ডিজাইন তৈরি করা হচ্ছে
+    // 🟢 থিমের ভেরিয়েবল ব্যবহার করে কার্ড ডিজাইন
     let listHtml = '<div style="max-height: 65vh; overflow-y: auto; text-align: left; padding: 5px;">';
     
     practicedStudentIds.forEach(id => { 
@@ -2827,7 +2827,6 @@ window.showTodaysPracticingStudentsModal = function() {
         if (s) {
             const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/60?text=S';
             
-            // টাইম ফরম্যাট ঠিক করা
             let timeDisplay = ''; 
             if(s.class_time) { 
                 const [h, m] = s.class_time.split(':'); 
@@ -2837,24 +2836,26 @@ window.showTodaysPracticingStudentsModal = function() {
             } 
             const classSchedule = (s.class_day || s.class_time) ? `${s.class_day || ''} ${timeDisplay}`.trim() : '';
 
-            // কার্ডের HTML স্ট্রাকচার
+            // 🟢 Hardcoded কালারের বদলে var(--bg-card), var(--text-main) ইত্যাদি ব্যবহার করা হয়েছে
             listHtml += `
-            <div style="border: 1px solid #bae6fd; border-radius: 12px; padding: 18px; margin-bottom: 15px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                <div style="font-size: 16px; color: #1e293b; margin-bottom: 12px;">#${s.serial_no}</div>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; margin-bottom: 15px; background: var(--bg-card); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                <div style="font-size: 16px; color: var(--text-main); margin-bottom: 12px; font-weight: bold;">#${s.serial_no}</div>
                 
                 <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
-                    <img src="${photoSrc}" style="width: 55px; height: 55px; border-radius: 50%; border: 3px solid #0f172a; object-fit: cover; flex-shrink: 0;">
+                    <img src="${photoSrc}" style="width: 55px; height: 55px; border-radius: 50%; border: 3px solid var(--primary); object-fit: cover; flex-shrink: 0;">
                     <div style="line-height: 1.4;">
-                        <div style="font-size: 17px; font-weight: bold; color: #0f172a;">${s.name}</div>
-                        <div style="font-size: 13px; color: #64748b;">${s.phone || 'N/A'}</div>
-                        <div style="font-size: 13px; color: #64748b;">${classSchedule}</div>
+                        <div style="font-size: 17px; font-weight: bold; color: var(--text-main);">${s.name}</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">${s.phone || 'N/A'}</div>
+                        <div style="font-size: 13px; color: var(--text-muted);">${classSchedule}</div>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 8px;">
-                    <a href="tel:${s.phone}" style="flex: 1; background: #059669; color: white; padding: 10px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px;"><i class="fas fa-phone-alt"></i> Call</a>
-                    <button onclick="window.sendGeneralMsg('wa', ${s.id})" style="flex: 1; background: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;"><i class="fab fa-whatsapp"></i> WA</button>
-                    <button onclick="window.sendGeneralMsg('sms', ${s.id})" style="flex: 1; background: #d97706; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;"><i class="fas fa-sms"></i> SMS</button>
+                <div style="display: flex; flex-direction: row; gap: 8px;">
+                    <a href="tel:${s.phone}" style="background: var(--info); color: white; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; text-align: center; display: inline-flex; align-items: center; gap: 5px;"><i class="fas fa-phone-alt"></i> Call</a>
+                    
+                    <button onclick="window.sendGeneralMsg('wa', ${s.id})" style="background: #25D366; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"><i class="fab fa-whatsapp"></i> WA</button>
+                    
+                    <button onclick="window.sendGeneralMsg('sms', ${s.id})" style="background: var(--warning); color: white; border: none; padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;"><i class="fas fa-sms"></i> SMS</button>
                 </div>
             </div>`;
         }
@@ -2862,13 +2863,13 @@ window.showTodaysPracticingStudentsModal = function() {
     
     listHtml += '</div>';
 
-    // 🟢 SweetAlert দিয়ে পপআপ ওপেন করা
+    // 🟢 পপআপের ব্যাকগ্রাউন্ডেও থিমের বডি কালার (var(--bg-body)) ব্যবহার করা হয়েছে
     Swal.fire({
-        title: `<div style="text-align: left; font-size: 18px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 5px;">Today's Practice (${practicedStudentIds.size} Students)</div>`,
+        title: `<div style="text-align: left; font-size: 18px; font-weight: 800; color: var(--text-main); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 5px;">Today's Practice (${practicedStudentIds.size} Students)</div>`,
         html: listHtml,
         showConfirmButton: false,
         showCloseButton: true,
-        background: '#f8fafc',
+        background: 'var(--bg-body)',
         width: '90%',
         padding: '15px'
     });
