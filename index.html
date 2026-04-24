@@ -393,13 +393,14 @@
                 <div id="birthdayList"></div>
             </div>
             
-            <div id="todaysPracticeBox" class="dashboard-card" style="display: none; border-top-color: var(--success); background-color: rgba(16, 185, 129, 0.05);">
-                <h3 style="color: var(--success); border:none; margin-bottom:10px;">
-    <i class="fas fa-stopwatch"></i> Today's Practice Logs 
-    <span style="color: var(--primary); cursor: pointer; text-decoration: underline; font-size: 16px; margin-left: 5px;" onclick="showTodaysPracticingStudentsModal()">
-        (<span id="todaysPracticeCount">0</span>)
-    </span>
-</h3>
+            <div id="todaysPracticeBox" class="dashboard-card" style="display: none; border-top-color: var(--primary); background-color: var(--bg-card);">
+                <h3 style="color: var(--primary); border:none; margin-bottom:10px; display: flex; align-items: center; justify-content: flex-start; gap: 8px;">
+                    <i class="fas fa-stopwatch" style="color: var(--primary);"></i> 
+                    <span style="color: var(--text-main);">Today's Practice Logs</span>
+                    <span style="color: var(--primary); cursor: pointer; text-decoration: none; font-size: 15px; font-weight: 900; margin-left: 5px; background: var(--bg-input); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);" onclick="showTodaysPracticingStudentsModal()">
+                        <span id="todaysPracticeCount">0</span>
+                    </span>
+                </h3>
                 <div id="todaysPracticeList" style="max-height: 180px; overflow-y: auto; padding-right: 5px;"></div>
             </div>
             
