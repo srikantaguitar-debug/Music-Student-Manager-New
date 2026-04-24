@@ -2836,17 +2836,17 @@ window.showTodaysPracticingStudentsModal = function() {
             } 
             const classSchedule = (s.class_day || s.class_time) ? `${s.class_day || ''} ${timeDisplay}`.trim() : '';
 
-            // 🟢 Z-index ফিক্স করা হয়েছে যাতে প্রোফাইলটি পপআপের উপরে ওপেন হয়
+            // 🟢 Z-index 999999 করা হয়েছে যাতে প্রোফাইলটি গ্যারান্টি দিয়ে সবার উপরে ওপেন হয়
             listHtml += `
             <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: var(--bg-card); box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
                 
                 <div style="font-size: 14px; color: var(--text-main); margin-bottom: 8px; font-weight: bold;">#${s.serial_no}</div>
                 
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                    <img src="${photoSrc}" onclick="showStudentDetails(${s.id}); document.getElementById('studentDetailsModal').style.zIndex='20000';" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; flex-shrink: 0; cursor: pointer;">
+                    <img src="${photoSrc}" onclick="showStudentDetails(${s.id}); document.getElementById('studentDetailsModal').style.zIndex='999999';" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; flex-shrink: 0; cursor: pointer;">
                     
                     <div style="line-height: 1.3;">
-                        <div onclick="showStudentDetails(${s.id}); document.getElementById('studentDetailsModal').style.zIndex='20000';" style="font-size: 15px; font-weight: bold; color: var(--text-main); cursor: pointer;">${s.name}</div>
+                        <div onclick="showStudentDetails(${s.id}); document.getElementById('studentDetailsModal').style.zIndex='999999';" style="font-size: 15px; font-weight: bold; color: var(--text-main); cursor: pointer;">${s.name}</div>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${s.phone || 'N/A'}</div>
                         <div style="font-size: 11px; color: var(--text-muted);">${classSchedule}</div>
                     </div>
@@ -2919,17 +2919,8 @@ window.showTodaysPracticingStudentsModal = function() {
 
     if(todaysLogs.length > 0) {
         if(pracCountEl) {
-            // 🟢 ১. কালো ব্র্যাকেট মুছে ফেলা হচ্ছে
-            if (pracCountEl.parentElement) {
-                pracCountEl.parentElement.childNodes.forEach(node => {
-                    if (node.nodeType === 3) node.textContent = node.textContent.replace(/[()]/g, '');
-                });
-                // 🟢 ২. "Today's Practice Logs" এবং আইকনের কালার থিম অনুযায়ী করা হলো
-                pracCountEl.parentElement.style.color = 'var(--primary)';
-            }
-            
-            // 🟢 ৩. নম্বরের বাটন ডিজাইন এবং ক্লিক করলে পপআপ খোলার কোড
-            pracCountEl.innerHTML = `<span style="color: var(--primary); font-weight: 900; font-size: 15px; padding: 2px 8px; background: var(--bg-card); border-radius: 6px; border: 1px dashed var(--primary); display: inline-block; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 5px; cursor: pointer;" onclick="window.showTodaysPracticingStudentsModal()">( ${uniquePracticingStudents.length} )</span>`;
+            // 🟢 বক্স সরিয়ে শুধু ব্র্যাকেট এবং নাম্বার আপডেট করা হলো
+            pracCountEl.innerHTML = `( ${uniquePracticingStudents.length} )`;
         }
 
         pracList.innerHTML = '';
