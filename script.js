@@ -2926,19 +2926,22 @@ window.showTodaysPracticingStudentsModal = function() {
         todaysLogs.forEach(log => {
             const photoSrc = log.studentPhoto ? log.studentPhoto : 'https://via.placeholder.com/40?text=S';
             pracList.innerHTML += `
-            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:10px; border-radius:10px; margin-bottom:8px; border-left: 4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <img src="${photoSrc}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--primary); cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
+            <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:6px 10px; border-radius:8px; margin-bottom:6px; border:1px solid var(--border-color); border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <img src="${photoSrc}" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1; cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
                     <div>
-                        <div style="font-weight:900; font-size:14.5px; color:var(--primary); cursor:pointer; line-height: 1.2;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
-                        <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;"><i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}</div>
+                        <div style="font-weight:800; font-size:13px; color:var(--primary); cursor:pointer; line-height: 1.1;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
+                        <div style="font-size:10px; color:var(--text-muted); margin-top: 3px;">
+                            <i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; 
+                            <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}
+                        </div>
                     </div>
                 </div>
-                <div style="background:var(--primary); color:white; padding:5px 10px; border-radius:6px; font-size:12px; font-weight:bold; white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                <div style="background:var(--primary); color:white; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold; white-space: nowrap;">
                     ${log.minutes} mins
                 </div>
             </div>
-        `;
+            `;
         });
         pracBox.style.display = 'block';
     } else {
