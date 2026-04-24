@@ -2804,58 +2804,75 @@ function renderDashboard() {
     let todaysLogs = [];
 
     // 🟢 ম্যাজিক: পপআপের কোডটা এখানেই অ্যাড করে দিলাম যাতে আর Error না আসে!
-    window.showTodaysPracticingStudentsModal = function() {
-        let uniqueStudentsMap = {};
-        todaysLogs.forEach(log => {
-            if(!uniqueStudentsMap[log.studentId]) {
-                const st = students.find(s => s.id === log.studentId);
-                uniqueStudentsMap[log.studentId] = {
-                    student: st,
-                    totalMins: 0
-                };
+window.showTodaysPracticingStudentsModal = function() {
+    const todayDateStr = new Date().toLocaleDateString('en-IN');
+    let practicedStudentIds = new Set();
+    
+    // আজকের দিনে যারা প্র্যাকটিস করেছে তাদের আইডিগুলো খোঁজা
+    students.forEach(s => {
+        if(s.practice_log && s.practice_log.length > 0) {
+            if(s.practice_log.some(log => log.date === todayDateStr)) {
+                practicedStudentIds.add(s.id);
             }
-            uniqueStudentsMap[log.studentId].totalMins += parseInt(log.minutes);
-        });
+        }
+    });
 
-        let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
-        Object.values(uniqueStudentsMap).forEach(data => {
-            const st = data.student;
-            if(!st) return;
-            const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+    if (practicedStudentIds.size === 0) return;
+
+    // 🟢 ছবির মতো হুবহু কার্ড ডিজাইন তৈরি করা হচ্ছে
+    let listHtml = '<div style="max-height: 65vh; overflow-y: auto; text-align: left; padding: 5px;">';
+    
+    practicedStudentIds.forEach(id => { 
+        const s = students.find(student => student.id === id);
+        if (s) {
+            const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/60?text=S';
+            
+            // টাইম ফরম্যাট ঠিক করা
+            let timeDisplay = ''; 
+            if(s.class_time) { 
+                const [h, m] = s.class_time.split(':'); 
+                const ampm = h >= 12 ? 'PM' : 'AM'; 
+                const h12 = h % 12 || 12; 
+                timeDisplay = `${h12}:${m} ${ampm}`; 
+            } 
+            const classSchedule = (s.class_day || s.class_time) ? `${s.class_day || ''} ${timeDisplay}`.trim() : '';
+
+            // কার্ডের HTML স্ট্রাকচার
             listHtml += `
-                <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-card); padding:10px; border-radius:8px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                    <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="Swal.close(); showStudentDetails(${st.id})">
-                        <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border: 2px solid var(--primary);">
-                        <div style="line-height: 1.2;">
-                            <strong style="color: var(--primary); font-size:14.5px; font-weight:900;">${st.name}</strong><br>
-                            <span style="font-size:11px; color: var(--text-muted); font-weight:600;">Total Today: <span style="color: var(--primary);">${data.totalMins} mins</span></span>
-                        </div>
-                    </div>
-                    <div style="display:flex; gap: 5px; align-items:center;">
-                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px; border-radius:6px; font-size:12px; text-decoration:none; display:flex; align-items:center; justify-content:center; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="Call">
-                            <i class="fas fa-phone-alt"></i>
-                        </a>
-                        <button onclick="window.sendGeneralMsg('wa', ${st.id})" style="background:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" title="WhatsApp">
-                            <i class="fab fa-whatsapp"></i>
-                        </button>
+            <div style="border: 1px solid #bae6fd; border-radius: 12px; padding: 18px; margin-bottom: 15px; background: #fff; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+                <div style="font-size: 16px; color: #1e293b; margin-bottom: 12px;">#${s.serial_no}</div>
+                
+                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                    <img src="${photoSrc}" style="width: 55px; height: 55px; border-radius: 50%; border: 3px solid #0f172a; object-fit: cover; flex-shrink: 0;">
+                    <div style="line-height: 1.4;">
+                        <div style="font-size: 17px; font-weight: bold; color: #0f172a;">${s.name}</div>
+                        <div style="font-size: 13px; color: #64748b;">${s.phone || 'N/A'}</div>
+                        <div style="font-size: 13px; color: #64748b;">${classSchedule}</div>
                     </div>
                 </div>
-            `;
-        });
-        if(Object.keys(uniqueStudentsMap).length === 0) listHtml += '<p style="text-align:center; color:gray; font-size:13px;">No practice logged today.</p>';
-        listHtml += '</div>';
 
-        Swal.fire({
-            title: '<span style="font-size:18px; color: var(--text-main); font-weight:bold;">Today\'s Active Students</span>',
-            html: listHtml,
-            showConfirmButton: true,
-            confirmButtonText: 'Close',
-            confirmButtonColor: '#ef4444',
-            background: 'var(--bg-body)',
-            width: '95%',
-            padding: '15px'
-        });
-    };
+                <div style="display: flex; gap: 8px;">
+                    <a href="tel:${s.phone}" style="flex: 1; background: #059669; color: white; padding: 10px; border-radius: 6px; text-decoration: none; font-size: 13px; font-weight: 600; text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px;"><i class="fas fa-phone-alt"></i> Call</a>
+                    <button onclick="window.sendGeneralMsg('wa', ${s.id})" style="flex: 1; background: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;"><i class="fab fa-whatsapp"></i> WA</button>
+                    <button onclick="window.sendGeneralMsg('sms', ${s.id})" style="flex: 1; background: #d97706; color: white; border: none; padding: 10px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px;"><i class="fas fa-sms"></i> SMS</button>
+                </div>
+            </div>`;
+        }
+    }); 
+    
+    listHtml += '</div>';
+
+    // 🟢 SweetAlert দিয়ে পপআপ ওপেন করা
+    Swal.fire({
+        title: `<div style="text-align: left; font-size: 18px; font-weight: 800; color: #0f172a; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px; margin-bottom: 5px;">Today's Practice (${practicedStudentIds.size} Students)</div>`,
+        html: listHtml,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: '#f8fafc',
+        width: '90%',
+        padding: '15px'
+    });
+};
 
     students.forEach(s => {
         if(s.practice_log && s.practice_log.length > 0) {
