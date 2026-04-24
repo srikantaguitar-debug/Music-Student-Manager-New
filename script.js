@@ -2819,7 +2819,7 @@ window.showTodaysPracticingStudentsModal = function() {
 
     if (practicedStudentIds.size === 0) return;
 
-    // 🟢 മൊবাইল ফ্রেন্ডলি রেস্পন্সিভ ডিজাইন
+    // 🟢 মোবাইল ফ্রেন্ডলি রেস্পন্সিভ ডিজাইন
     let listHtml = '<div style="max-height: 65vh; overflow-y: auto; text-align: left; padding: 2px;">';
     
     practicedStudentIds.forEach(id => { 
@@ -2836,16 +2836,17 @@ window.showTodaysPracticingStudentsModal = function() {
             } 
             const classSchedule = (s.class_day || s.class_time) ? `${s.class_day || ''} ${timeDisplay}`.trim() : '';
 
-            // 🟢 কার্ডের প্যাডিং এবং ফন্ট সাইজ কমানো হয়েছে যাতে মোবাইলে পারফেক্ট দেখায়
+            // 🟢 কার্ডের HTML (Swal.close() রিমুভ করা হয়েছে)
             listHtml += `
             <div style="border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; margin-bottom: 12px; background: var(--bg-card); box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
                 
                 <div style="font-size: 14px; color: var(--text-main); margin-bottom: 8px; font-weight: bold;">#${s.serial_no}</div>
                 
                 <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
-                    <img src="${photoSrc}" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; flex-shrink: 0;">
+                    <img src="${photoSrc}" onclick="showStudentDetails(${s.id})" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--primary); object-fit: cover; flex-shrink: 0; cursor: pointer;">
+                    
                     <div style="line-height: 1.3;">
-                        <div style="font-size: 15px; font-weight: bold; color: var(--text-main);">${s.name}</div>
+                        <div onclick="showStudentDetails(${s.id})" style="font-size: 15px; font-weight: bold; color: var(--text-main); cursor: pointer;">${s.name}</div>
                         <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">${s.phone || 'N/A'}</div>
                         <div style="font-size: 11px; color: var(--text-muted);">${classSchedule}</div>
                     </div>
@@ -2876,8 +2877,8 @@ window.showTodaysPracticingStudentsModal = function() {
         showConfirmButton: false,
         showCloseButton: true,
         background: 'var(--bg-body)',
-        width: '95%', // 🟢 মোবাইলের জন্য প্রস্থ বাড়ানো হয়েছে (90% থেকে 95%)
-        padding: '10px' // 🟢 পপআপের ভেতরের প্যাডিং কমানো হয়েছে
+        width: '95%',
+        padding: '10px'
     });
 };
 
