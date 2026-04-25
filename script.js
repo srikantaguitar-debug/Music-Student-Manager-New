@@ -6498,29 +6498,17 @@ window.renderPracticeLogTeacher = function(studentId) {
     
     statsContainer.innerHTML = `
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+            <div style="background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
                 <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Today</div>
                 <div style="font-size: 14px; font-weight: 700; color: var(--primary);">${formatPracticeTime(stats.today)}</div>
             </div>
-            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+            <div style="background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
                 <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Week</div>
                 <div style="font-size: 14px; font-weight: 700; color: var(--warning);">${formatPracticeTime(stats.week)}</div>
             </div>
-            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
+            <div style="background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
                 <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Month</div>
                 <div style="font-size: 14px; font-weight: 700; color: var(--danger);">${formatPracticeTime(stats.month)}</div>
-            </div>
-            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Year</div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--info);">${formatPracticeTime(stats.year)}</div>
-            </div>
-            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Lifetime</div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--success);">${formatPracticeTime(stats.lifetime)}</div>
-            </div>
-            <div style="background: var(--bg-card); padding: 10px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Daily Avg</div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--pink);">${formatPracticeTime(stats.avg)}</div>
             </div>
         </div>
     `;
@@ -6546,6 +6534,7 @@ window.renderPracticeLogTeacher = function(studentId) {
     }
 
     if (filteredLogs.length > 0) {
+        // 🟢 কার্ডগুলোকে একদম ছোট (Compact) করা হয়েছে এবং Edit বাটন রাখা হয়েছে
         filteredLogs.forEach(log => {
             let displayInstrument = log.instrument;
             if (!displayInstrument) {
@@ -6555,16 +6544,25 @@ window.renderPracticeLogTeacher = function(studentId) {
 
             let instrumentBadge = displayInstrument && classList.length > 1 ? `<span style="font-size: 9px; background: rgba(59, 130, 246, 0.1); color: var(--info); padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2); margin-left: 5px;">${displayInstrument}</span>` : '';
             
+            const parts = log.date.split('/');
+            const niceDate = parts.length === 3 ? `${parts[0]}/${parts[1]}/${parts[2]}` : log.date;
+
             container.innerHTML += `
-                <li style="padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
-                    <div>
-                        <strong style="color: var(--success); font-size: 13px;">${log.topic}</strong> ${instrumentBadge}<br>
-                        <span style="font-size: 11px; color: var(--text-muted);"><i class="fas fa-clock"></i> ${log.date} | ${log.day} | ${log.time}</span>
+                <li style="background: var(--bg-card); padding: 6px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="flex: 1;">
+                        <div style="color: var(--primary); font-size: 13px; font-weight: 800; margin-bottom: 3px;">${log.topic} ${instrumentBadge}</div>
+                        <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; font-weight: 500;">
+                            <span><i class="far fa-calendar-alt"></i> ${niceDate}</span>
+                            <span><i class="far fa-clock"></i> ${log.time}</span>
+                        </div>
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <div style="font-size: 12px; font-weight: bold; color: var(--text-main); background: var(--bg-body); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border-color);">${log.minutes} mins</div>
-                        <button onclick="editPracticeLogTeacher(${student.id}, ${log.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:14px; padding:4px;" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'teacher')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:4px;" title="Delete"><i class="fas fa-trash"></i></button>
+                    <div style="display:flex; align-items:center; gap: 6px;">
+                        <div style="background: var(--primary); color: white; padding: 4px 6px; border-radius: 5px; text-align: center; line-height: 1;">
+                            <div style="font-size: 12px; font-weight: bold;">${log.minutes}</div>
+                            <div style="font-size: 8px; font-weight: 600; margin-top:1px;">mins</div>
+                        </div>
+                        <button onclick="editPracticeLogTeacher(${student.id}, ${log.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:13px; padding: 4px;" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'teacher')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding: 4px;" title="Delete"><i class="fas fa-trash"></i></button>
                     </div>
                 </li>`;
         });
@@ -6643,27 +6641,84 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
     
     const oldLog = student.practice_log[logIndex]; 
 
+    // 🟢 HTML input-এ দেখানোর জন্য Date কনভার্ট করা (DD/MM/YYYY -> YYYY-MM-DD)
+    let isoDate = "";
+    if(oldLog.date && oldLog.date.includes('/')) {
+        const parts = oldLog.date.split('/');
+        if(parts.length === 3) isoDate = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+    }
+
+    // 🟢 HTML input-এ দেখানোর জন্য Time কনভার্ট করা (08:30 PM -> 20:30)
+    let time24 = "";
+    try {
+        if(oldLog.time) {
+            const [time, modifier] = oldLog.time.split(' ');
+            let [hours, minutes] = time.split(':');
+            if (hours === '12') hours = '00';
+            if (modifier && modifier.toUpperCase() === 'PM') hours = parseInt(hours, 10) + 12;
+            time24 = `${hours.toString().padStart(2, '0')}:${minutes}`;
+        }
+    } catch(e) { time24 = ""; }
+
+    // 🟢 ফর্ম ওপেন করা
     const { value: formValues } = await Swal.fire({
         title: 'Edit Practice Log',
         html: `
-            <input id="edit-prac-mins" type="number" class="swal2-input" value="${oldLog.minutes}" placeholder="Minutes" style="width: 85%;">
-            <input id="edit-prac-topic" type="text" class="swal2-input" value="${oldLog.topic}" placeholder="Topic (Optional)" style="width: 85%; margin-top: 10px;">
+            <div style="text-align:left; font-size:12px; margin-bottom:3px; color:var(--text-main); padding-left:10%;">Date</div>
+            <input id="edit-prac-date" type="date" class="swal2-input" value="${isoDate}" style="width: 80%; margin-top:0; margin-bottom:10px;">
+            
+            <div style="text-align:left; font-size:12px; margin-bottom:3px; color:var(--text-main); padding-left:10%;">Time</div>
+            <input id="edit-prac-time" type="time" class="swal2-input" value="${time24}" style="width: 80%; margin-top:0; margin-bottom:10px;">
+
+            <div style="text-align:left; font-size:12px; margin-bottom:3px; color:var(--text-main); padding-left:10%;">Duration (Mins)</div>
+            <input id="edit-prac-mins" type="number" class="swal2-input" value="${oldLog.minutes}" style="width: 80%; margin-top:0; margin-bottom:10px;">
+            
+            <div style="text-align:left; font-size:12px; margin-bottom:3px; color:var(--text-main); padding-left:10%;">Topic</div>
+            <input id="edit-prac-topic" type="text" class="swal2-input" value="${oldLog.topic}" style="width: 80%; margin-top:0;">
         `,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: 'Save Changes',
         confirmButtonColor: 'var(--success)',
         preConfirm: () => {
+            const dateVal = document.getElementById('edit-prac-date').value;
+            const timeVal = document.getElementById('edit-prac-time').value;
             const mins = document.getElementById('edit-prac-mins').value;
             let topic = document.getElementById('edit-prac-topic').value.trim();
+            
+            if (!dateVal || !mins || mins <= 0) {
+                Swal.showValidationMessage('Date and valid minutes are required!');
+                return false;
+            }
             if (!topic) topic = "Regular Practice";
-            if (!mins || mins <= 0) Swal.showValidationMessage('Please enter valid minutes');
-            return { minutes: parseInt(mins), topic: topic };
+
+            // 🟢 ডেটাবেসে সেভ করার জন্য Date আবার DD/MM/YYYY এ কনভার্ট করা
+            const dObj = new Date(dateVal);
+            const newDateStr = dObj.toLocaleDateString('en-IN');
+            const newDayStr = dObj.toLocaleDateString('en-IN', { weekday: 'short' });
+
+            // 🟢 Time আবার 12 Hour Format এ কনভার্ট করা
+            let newTimeStr = "";
+            if(timeVal) {
+                const [h, m] = timeVal.split(':');
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const h12 = h % 12 || 12;
+                newTimeStr = `${h12}:${m} ${ampm}`;
+            }
+
+            return { 
+                date: newDateStr, 
+                day: newDayStr,
+                time: newTimeStr,
+                minutes: parseInt(mins), 
+                topic: topic 
+            };
         }
     });
 
+    // 🟢 ডেটা সেভ করা
     if (formValues) {
-        const newLog = { ...oldLog, minutes: formValues.minutes, topic: formValues.topic };
+        const newLog = { ...oldLog, ...formValues };
         student.practice_log[logIndex] = newLog;
 
         if (typeof window.globalPracticeLogs !== 'undefined') {
@@ -6678,10 +6733,12 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
         const urlParams = new URLSearchParams(window.location.search);
         const targetUid = urlParams.get('manager') || DOC_ID;
 
+        // স্টুডেন্ট ডকুমেন্টে সেভ
         db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
             practice_log: student.practice_log
         }).catch(e => console.log(e));
 
+        // Yearly Subcollection এ সেভ
         let logYear = new Date().getFullYear(); 
         if(oldLog.date) {
             const parts = oldLog.date.split('/');
