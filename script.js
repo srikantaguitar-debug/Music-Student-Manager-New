@@ -6497,18 +6497,30 @@ window.renderPracticeLogTeacher = function(studentId) {
     const stats = getPracticeStats(student, selectedFilter);
     
     statsContainer.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px;">
-            <div style="background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Today</div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--primary);">${formatPracticeTime(stats.today)}</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 15px;">
+            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">Today</div>
+                <div style="font-size: 20px; font-weight: 900; color: #a855f7;">${formatPracticeTime(stats.today)}</div>
             </div>
-            <div style="background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Week</div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--warning);">${formatPracticeTime(stats.week)}</div>
+            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">This Week</div>
+                <div style="font-size: 20px; font-weight: 900; color: #eab308;">${formatPracticeTime(stats.week)}</div>
             </div>
-            <div style="background: var(--bg-card); padding: 8px; border-radius: 8px; text-align: center; border: 1px solid var(--border-color); box-shadow: var(--shadow);">
-                <div style="font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">This Month</div>
-                <div style="font-size: 14px; font-weight: 700; color: var(--danger);">${formatPracticeTime(stats.month)}</div>
+            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">This Month</div>
+                <div style="font-size: 20px; font-weight: 900; color: #ef4444;">${formatPracticeTime(stats.month)}</div>
+            </div>
+            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">This Year</div>
+                <div style="font-size: 20px; font-weight: 900; color: #3b82f6;">${formatPracticeTime(stats.year)}</div>
+            </div>
+            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">Lifetime</div>
+                <div style="font-size: 20px; font-weight: 900; color: #10b981;">${formatPracticeTime(stats.lifetime)}</div>
+            </div>
+            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">Daily Avg</div>
+                <div style="font-size: 20px; font-weight: 900; color: #ec4899;">${formatPracticeTime(stats.avg)}</div>
             </div>
         </div>
     `;
