@@ -6496,31 +6496,32 @@ window.renderPracticeLogTeacher = function(studentId) {
 
     const stats = getPracticeStats(student, selectedFilter);
     
+    // 🟢 Red Circle ফিক্স: ফন্ট সাইজ এবং প্যাডিং কমানো হয়েছে
     statsContainer.innerHTML = `
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 15px;">
-            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">Today</div>
-                <div style="font-size: 20px; font-weight: 900; color: #a855f7;">${formatPracticeTime(stats.today)}</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px;">
+            <div style="background: var(--bg-body); padding: 10px 4px; border-radius: 8px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 9px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; letter-spacing: 0.5px;">Today</div>
+                <div style="font-size: 15px; font-weight: 900; color: #a855f7;">${formatPracticeTime(stats.today)}</div>
             </div>
-            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">This Week</div>
-                <div style="font-size: 20px; font-weight: 900; color: #eab308;">${formatPracticeTime(stats.week)}</div>
+            <div style="background: var(--bg-body); padding: 10px 4px; border-radius: 8px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 9px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; letter-spacing: 0.5px;">This Week</div>
+                <div style="font-size: 15px; font-weight: 900; color: #eab308;">${formatPracticeTime(stats.week)}</div>
             </div>
-            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">This Month</div>
-                <div style="font-size: 20px; font-weight: 900; color: #ef4444;">${formatPracticeTime(stats.month)}</div>
+            <div style="background: var(--bg-body); padding: 10px 4px; border-radius: 8px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 9px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; letter-spacing: 0.5px;">This Month</div>
+                <div style="font-size: 15px; font-weight: 900; color: #ef4444;">${formatPracticeTime(stats.month)}</div>
             </div>
-            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">This Year</div>
-                <div style="font-size: 20px; font-weight: 900; color: #3b82f6;">${formatPracticeTime(stats.year)}</div>
+            <div style="background: var(--bg-body); padding: 10px 4px; border-radius: 8px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 9px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; letter-spacing: 0.5px;">This Year</div>
+                <div style="font-size: 15px; font-weight: 900; color: #3b82f6;">${formatPracticeTime(stats.year)}</div>
             </div>
-            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">Lifetime</div>
-                <div style="font-size: 20px; font-weight: 900; color: #10b981;">${formatPracticeTime(stats.lifetime)}</div>
+            <div style="background: var(--bg-body); padding: 10px 4px; border-radius: 8px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 9px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; letter-spacing: 0.5px;">Lifetime</div>
+                <div style="font-size: 15px; font-weight: 900; color: #10b981;">${formatPracticeTime(stats.lifetime)}</div>
             </div>
-            <div style="background: var(--bg-body); padding: 16px 5px; border-radius: 12px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
-                <div style="font-size: 11px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 6px; opacity: 0.85; letter-spacing: 0.5px;">Daily Avg</div>
-                <div style="font-size: 20px; font-weight: 900; color: #ec4899;">${formatPracticeTime(stats.avg)}</div>
+            <div style="background: var(--bg-body); padding: 10px 4px; border-radius: 8px; text-align: center; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                <div style="font-size: 9px; color: var(--text-main); font-weight: 800; text-transform: uppercase; margin-bottom: 4px; opacity: 0.85; letter-spacing: 0.5px;">Daily Avg</div>
+                <div style="font-size: 15px; font-weight: 900; color: #ec4899;">${formatPracticeTime(stats.avg)}</div>
             </div>
         </div>
     `;
@@ -6546,7 +6547,7 @@ window.renderPracticeLogTeacher = function(studentId) {
     }
 
     if (filteredLogs.length > 0) {
-        // 🟢 কার্ডগুলোকে একদম ছোট (Compact) করা হয়েছে এবং Edit বাটন রাখা হয়েছে
+        // 🟢 Blue Circle ফিক্স: কার্ডগুলোকে ছোট করা হয়েছে
         filteredLogs.forEach(log => {
             let displayInstrument = log.instrument;
             if (!displayInstrument) {
@@ -6554,32 +6555,32 @@ window.renderPracticeLogTeacher = function(studentId) {
                 displayInstrument = cList.length > 0 ? cList[0] : '';
             }
 
-            let instrumentBadge = displayInstrument && classList.length > 1 ? `<span style="font-size: 9px; background: rgba(59, 130, 246, 0.1); color: var(--info); padding: 2px 5px; border-radius: 4px; border: 1px solid rgba(59, 130, 246, 0.2); margin-left: 5px;">${displayInstrument}</span>` : '';
+            let instrumentBadge = displayInstrument && classList.length > 1 ? `<span style="font-size: 8px; background: rgba(59, 130, 246, 0.1); color: var(--info); padding: 1px 4px; border-radius: 3px; border: 1px solid rgba(59, 130, 246, 0.2); margin-left: 4px;">${displayInstrument}</span>` : '';
             
             const parts = log.date.split('/');
             const niceDate = parts.length === 3 ? `${parts[0]}/${parts[1]}/${parts[2]}` : log.date;
 
             container.innerHTML += `
-                <li style="background: var(--bg-card); padding: 6px 10px; border-radius: 8px; margin-bottom: 6px; border: 1px solid var(--border-color); border-left: 4px solid var(--primary); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                <li style="background: var(--bg-card); padding: 6px 8px; border-radius: 6px; margin-bottom: 6px; border: 1px solid var(--border-color); border-left: 3px solid var(--primary); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 2px rgba(0,0,0,0.02);">
                     <div style="flex: 1;">
-                        <div style="color: var(--primary); font-size: 13px; font-weight: 800; margin-bottom: 3px;">${log.topic} ${instrumentBadge}</div>
-                        <div style="font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; font-weight: 500;">
+                        <div style="color: var(--primary); font-size: 12px; font-weight: 800; margin-bottom: 2px;">${log.topic} ${instrumentBadge}</div>
+                        <div style="font-size: 9px; color: var(--text-muted); display: flex; align-items: center; gap: 4px; font-weight: 500;">
                             <span><i class="far fa-calendar-alt"></i> ${niceDate}</span>
                             <span><i class="far fa-clock"></i> ${log.time}</span>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center; gap: 6px;">
-                        <div style="background: var(--primary); color: white; padding: 4px 6px; border-radius: 5px; text-align: center; line-height: 1;">
-                            <div style="font-size: 12px; font-weight: bold;">${log.minutes}</div>
-                            <div style="font-size: 8px; font-weight: 600; margin-top:1px;">mins</div>
+                        <div style="background: var(--primary); color: white; padding: 3px 6px; border-radius: 4px; text-align: center; line-height: 1;">
+                            <div style="font-size: 11px; font-weight: bold;">${log.minutes}</div>
+                            <div style="font-size: 7px; font-weight: 600; margin-top:1px;">mins</div>
                         </div>
-                        <button onclick="editPracticeLogTeacher(${student.id}, ${log.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:13px; padding: 4px;" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'teacher')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding: 4px;" title="Delete"><i class="fas fa-trash"></i></button>
+                        <button onclick="editPracticeLogTeacher(${student.id}, ${log.id})" style="background:none; border:none; color:var(--warning); cursor:pointer; font-size:11px; padding: 2px;" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deletePracticeLog(${student.id}, ${log.id}, 'teacher')" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:11px; padding: 2px;" title="Delete"><i class="fas fa-trash"></i></button>
                     </div>
                 </li>`;
         });
     } else {
-        container.innerHTML = '<li style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 12px;">No practice records found for this selection.</li>';
+        container.innerHTML = '<li style="padding: 10px; text-align: center; color: var(--text-muted); font-size: 11px;">No practice records found.</li>';
     }
 };
 
