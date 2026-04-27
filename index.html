@@ -342,7 +342,13 @@
                     <div class="form-group"><input type="text" id="studentClass" placeholder="Class/Instrument"></div>
                     <div class="form-group"><select id="studentDay"><option value="">Select Day</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
                     <div class="form-group"><input type="time" id="studentTime"></div>
-                    <div class="form-group"><input type="number" id="studentFee" placeholder="Monthly Fee (₹)"></div>
+                    <div class="form-group" style="display: flex; gap: 5px;">
+    <select id="studentFeeType" style="flex: 1.2; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); outline: none; font-size: 14px;">
+        <option value="monthly">Monthly</option>
+        <option value="per_class">Per Class</option>
+    </select>
+    <input type="number" id="studentFee" placeholder="Fee (₹)" style="flex: 1;">
+</div>
                     <div class="form-group"><input type="tel" id="phone" placeholder="Phone Number"></div>
                     <div class="form-group"><input type="email" id="studentEmail" placeholder="Email"></div>
                     <div class="form-group"><input type="text" id="guardianName" placeholder="Guardian Name"></div>
@@ -946,7 +952,16 @@
                 <div class="form-group"><label>Class</label><input type="text" id="editStudentClass"></div>
                 <div class="form-group"><label>Day</label><select id="editStudentDay"><option value="">Select</option><option value="Sunday">Sunday</option><option value="Monday">Monday</option><option value="Tuesday">Tuesday</option><option value="Wednesday">Wednesday</option><option value="Thursday">Thursday</option><option value="Friday">Friday</option><option value="Saturday">Saturday</option></select></div>
                 <div class="form-group"><label>Time</label><input type="time" id="editStudentTime"></div>
-                <div class="form-group"><label>Fee</label><input type="number" id="editStudentFee"></div>
+                <div class="form-group">
+    <label>Fee & Type</label>
+    <div style="display: flex; gap: 5px;">
+        <select id="editStudentFeeType" style="flex: 1.2; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); outline: none; font-size: 14px;">
+            <option value="monthly">Monthly</option>
+            <option value="per_class">Per Class</option>
+        </select>
+        <input type="number" id="editStudentFee" placeholder="Amount" style="flex: 1;">
+    </div>
+</div>
                 <div class="form-group"><label>Phone</label><input type="tel" id="editPhone"></div>
                 <div class="form-group"><label>Guardian</label><input type="text" id="editGuardianName"></div>
                 <div class="form-group"><label>Email</label><input type="email" id="editStudentEmail"></div>
