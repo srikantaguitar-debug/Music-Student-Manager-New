@@ -9322,7 +9322,7 @@ window.markAbsentContacted = async function(studentId) {
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
 // ==========================================
-// 🟢 LIVE CLASS LOGIC (GOOGLE MEET)
+// 🟢 LIVE CLASS LOGIC (GOOGLE MEET - 404 FIX)
 // ==========================================
 
 window.activeMeetLink = null;
@@ -9341,7 +9341,7 @@ window.openStartLiveClassModal = function() {
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">(${activeSt.length})</span>
             </div>
             
-            <input type="text" id="google-meet-link" placeholder="গুগল মিটের লিংক দিন (যেমন: https://meet.google.com/abc-xyz)" class="swal2-input" style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box; border: 2px solid #10b981;">
+            <input type="text" id="google-meet-link" placeholder="লিংক দিন (যেমন: meet.google.com/abc-xyz)" class="swal2-input" style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box; border: 2px solid #10b981;">
             
             <input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0; font-size: 14px; box-sizing: border-box;">
         </div>
@@ -9370,14 +9370,19 @@ window.openStartLiveClassModal = function() {
         html: cbHtml,
         showCancelButton: true,
         confirmButtonText: '<i class="fas fa-video"></i> Start Class',
-        confirmButtonColor: '#10b981', // Google Meet Green Color
+        confirmButtonColor: '#10b981',
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
             const checked = Array.from(document.querySelectorAll('.live-student-cb:checked')).map(cb => String(cb.value));
-            const meetLink = document.getElementById('google-meet-link').value.trim();
+            let meetLink = document.getElementById('google-meet-link').value.trim();
             
             if(checked.length === 0) { Swal.showValidationMessage('Please select at least 1 student!'); return false; }
-            if(!meetLink || !meetLink.includes('meet.google.com')) { Swal.showValidationMessage('সঠিক Google Meet লিংক দিন!'); return false; }
+            if(!meetLink) { Swal.showValidationMessage('লিংক দিতে হবে!'); return false; }
+            
+            // 🟢 404 Error Fix: URL এর শুরুতে https:// না থাকলে নিজে থেকে বসিয়ে নেবে
+            if (!meetLink.startsWith('http://') && !meetLink.startsWith('https://')) {
+                meetLink = 'https://' + meetLink;
+            }
             
             return { students: checked, link: meetLink };
         }
@@ -9410,7 +9415,6 @@ window.startManagerLiveClass = async function(studentIds, meetLink) {
     if(!user) { Swal.fire('Error', 'Please login to start class.', 'error'); return; }
     
     try {
-        // ডেটাবেসে মিট লিংক এবং স্টুডেন্টদের তথ্য সেভ করা হচ্ছে
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
             meetLink: meetLink, 
             allowed_students: studentIds, 
@@ -9419,8 +9423,6 @@ window.startManagerLiveClass = async function(studentIds, meetLink) {
         });
 
         document.getElementById('endClassBtn').style.display = 'block';
-        
-        // 🟢 শিক্ষকের ব্রাউজারে গুগল মিট ওপেন হয়ে যাবে
         window.open(meetLink, '_blank');
         
         Swal.fire({
@@ -9439,7 +9441,7 @@ window.endLiveClassManager = async function() {
     } catch(e) {}
     
     document.getElementById('endClassBtn').style.display = 'none';
-    Swal.fire('Ended', 'Class ended and notification removed from student portals.', 'success');
+    Swal.fire('Ended', 'Class ended and notification removed.', 'success');
 };
 
 // --- ২. STUDENT PORTAL SIDE ---
@@ -9458,7 +9460,6 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
                 
                 const joinBtn = joinArea.querySelector('button');
                 if(joinBtn) {
-                    // 🟢 গুগল মিটের ডিজাইন বাটন
                     joinBtn.innerHTML = '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Google_Meet_icon_%282020%29.svg/512px-Google_Meet_icon_%282020%29.svg.png" style="width:20px; height:20px; vertical-align:middle; margin-right:8px;"> Join Google Meet';
                     joinBtn.style.background = '#ffffff'; 
                     joinBtn.style.color = '#3c4043';
@@ -9470,7 +9471,12 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
                     joinBtn.onclick = function(e) {
                         e.preventDefault();
                         if (window.activeMeetLink) {
-                            window.open(window.activeMeetLink, '_blank');
+                            // 🟢 স্টুডেন্টদের ক্ষেত্রেও 404 ফিক্স করা হলো
+                            let finalLink = window.activeMeetLink.trim();
+                            if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
+                                finalLink = 'https://' + finalLink;
+                            }
+                            window.open(finalLink, '_blank');
                         }
                     };
                 }
