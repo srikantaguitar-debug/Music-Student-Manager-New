@@ -9404,7 +9404,10 @@ window.filterLiveStudentList = function() {
 
 window.startManagerLiveClass = async function(studentIds) {
     const user = firebase.auth().currentUser;
-    if(!user) return;
+    if(!user) {
+        Swal.fire('Error', 'Please login to start class.', 'error');
+        return;
+    }
     
     const roomName = "MusicClassesPro_" + Date.now(); 
     
@@ -9423,8 +9426,9 @@ window.startManagerLiveClass = async function(studentIds) {
             toast: true, position: 'top-end', icon: 'success', title: 'Class Started!', showConfirmButton: false, timer: 1500
         });
     } catch (e) {
-        console.error(e);
-        Swal.fire('Database Error', 'Please check Firestore Rules.', 'error');
+        console.error("Actual Firebase Error:", e);
+        // 🟢 এবার ফায়ারবেসের আসল এরর মেসেজটি স্ক্রিনে দেখাবে
+        Swal.fire('Database Error', e.message, 'error'); 
     }
 };
 
