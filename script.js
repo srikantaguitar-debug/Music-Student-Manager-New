@@ -435,74 +435,100 @@ document.addEventListener('DOMContentLoaded', async () => {
                             </div>`;
                         }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
 
-// ৪. Due Data (Fixed for Standalone Portal View)
-                                let dueHtml = '';
-                                let dueMonthsList = [];
-                                const portalNow = new Date();
-                                const portalToday = portalNow.getDate();
-                                const portalDUE_DATE = 10; // মাসের ১০ তারিখের পর ডিউ দেখাবে
-                                
-                                let iterDate = new Date(s.joining_date);
-                                if (!isNaN(iterDate.getTime())) {
-                                    iterDate.setDate(1);
-                                    while (iterDate <= portalNow) {
-                                        const y = iterDate.getFullYear();
-                                        const m = iterDate.getMonth() + 1;
-                                        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
-                                        
-                                        // ১. চেক করা হচ্ছে মাসটি ডিউ হয়েছে কিনা
-                                        let isPastDue = false;
-                                        if (y < portalNow.getFullYear()) isPastDue = true;
-                                        else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
-                                        else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
+// ৪. Due Data (Updated for Monthly & Per Class)
+let dueHtml = '';
+let dueMonthsDetails = [];
+let totalDueAmountPortal = 0;
 
-                                        // ২. চেক করা হচ্ছে স্টুডেন্ট ওই মাসে অ্যাক্টিভ ছিল কিনা
-                                        let wasActive = false;
-                                        const monthEnd = new Date(y, m, 0, 23, 59, 59);
-                                        const joinDate = new Date(s.joining_date);
-                                        if (joinDate <= monthEnd) {
-                                            const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
-                                            let statusAtStart = 'Active'; 
-                                            for (let i = 0; i < history.length; i++) { 
-                                                if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
-                                            }
-                                            let changesInMonth = history.filter(h => { 
-                                                const d = new Date(h.date); 
-                                                return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
-                                            });
-                                            
-                                            if (changesInMonth.length === 0) {
-                                                wasActive = (statusAtStart === 'Active');
-                                            } else {
-                                                const lastChange = changesInMonth[changesInMonth.length - 1];
-                                                wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
-                                            }
-                                        }
+const portalNow = new Date();
+const portalToday = portalNow.getDate();
+const portalDUE_DATE = 10; 
+const feeType = s.fee_type || 'monthly';
 
-                                        // ৩. যদি ডিউ হয় এবং পেমেন্ট না করা থাকে
-                                        if (isPastDue && wasActive) {
-                                            if (globalFees[monthStr]?.[studentViewId]?.status !== 'paid') {
-                                                const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                                                dueMonthsList.push(formattedMonth);
-                                            }
-                                        }
-                                        iterDate.setMonth(iterDate.getMonth() + 1);
-                                    }
-                                }
+// পোর্টালে প্রেজেন্ট গোনার ফাংশন
+const getPortalPresentCount = (monthStr) => {
+    let count = 0;
+    Object.keys(globalAtt).forEach(date => {
+        if (date.startsWith(monthStr) && globalAtt[date][studentViewId]) {
+            let stat = globalAtt[date][studentViewId];
+            let statVal = typeof stat === 'object' ? stat.status : stat;
+            if(statVal === 'present') count++;
+        }
+    });
+    return count;
+};
 
-                                if(dueMonthsList.length > 0) {
-                                    const dueAmt = dueMonthsList.length * (s.fee_amount || 500);
-                                    dueHtml = `
-                                    <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
-                                    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
-                                        <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
-                                            <i class="fas fa-exclamation-triangle"></i>
-                                        </div>
-                                        <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
-                                        <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${dueAmt}</p>
-                                        <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsList.join(', ')}</p>
-                                    </div>`;
-                                }
+let iterDate = new Date(s.joining_date);
+if (!isNaN(iterDate.getTime())) {
+    iterDate.setDate(1);
+    while (iterDate <= portalNow) {
+        const y = iterDate.getFullYear();
+        const m = iterDate.getMonth() + 1;
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+        
+        let isPastDue = false;
+        if (y < portalNow.getFullYear()) isPastDue = true;
+        else if (y === portalNow.getFullYear() && m - 1 < portalNow.getMonth()) isPastDue = true;
+        else if (y === portalNow.getFullYear() && m - 1 === portalNow.getMonth() && portalToday > portalDUE_DATE) isPastDue = true;
+
+        let wasActive = false;
+        const monthEnd = new Date(y, m, 0, 23, 59, 59);
+        const joinDate = new Date(s.joining_date);
+        if (joinDate <= monthEnd) {
+            const history = (s.status?.history || []).sort((a, b) => new Date(a.date) - new Date(b.date));
+            let statusAtStart = 'Active'; 
+            for (let i = 0; i < history.length; i++) { 
+                if (new Date(history[i].date) < new Date(y, m - 1, 1)) statusAtStart = history[i].status; 
+            }
+            let changesInMonth = history.filter(h => { 
+                const d = new Date(h.date); 
+                return d >= new Date(y, m - 1, 1) && d <= monthEnd; 
+            });
+            if (changesInMonth.length === 0) {
+                wasActive = (statusAtStart === 'Active');
+            } else {
+                const lastChange = changesInMonth[changesInMonth.length - 1];
+                wasActive = lastChange.status === 'Inactive' ? new Date(lastChange.date).getDate() > 10 : true;
+            }
+        }
+
+        // 🟢 Monthly vs Per Class Logic
+        if (wasActive) {
+            const isPaid = globalFees[monthStr]?.[studentViewId]?.status === 'paid';
+            if (!isPaid) {
+                const presentDays = getPortalPresentCount(monthStr);
+                const formattedMonth = new Date(y, m - 1).toLocaleString('en-US', { month: 'short', year: 'numeric' });
+                
+                if (feeType === 'per_class') {
+                    if (presentDays > 0) {
+                        let amt = presentDays * (s.fee_amount || 0);
+                        totalDueAmountPortal += amt;
+                        dueMonthsDetails.push(`${formattedMonth} (x${presentDays})`);
+                    }
+                } else {
+                    if (presentDays > 0 || isPastDue) {
+                        totalDueAmountPortal += (s.fee_amount || 500);
+                        dueMonthsDetails.push(formattedMonth);
+                    }
+                }
+            }
+        }
+        iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+}
+
+if(totalDueAmountPortal > 0) {
+    dueHtml = `
+    <style>@keyframes pulseWarning { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 15px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }</style>
+    <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius:16px; padding:20px; margin-bottom:25px; border: 2px solid #f87171; text-align: center; animation: pulseWarning 2s infinite;">
+        <div style="background: #ef4444; color: white; width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; margin: 0 auto 10px auto;">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h4 style="margin:0; color:#b91c1c; font-size:16px; font-weight: 800; text-transform:uppercase; letter-spacing: 1px;">Payment Overdue</h4>
+        <p style="margin:8px 0; font-size:32px; font-weight:900; color:#dc2626;">₹${totalDueAmountPortal}</p>
+        <p style="margin:0; font-size:13px; color:#991b1b; font-weight: 600;">Due for: ${dueMonthsDetails.join(', ')}</p>
+    </div>`;
+}
 
                                 // ৫. Study Materials Data
                                 let materialsHtml = '';
@@ -1571,30 +1597,36 @@ function wasStudentActiveDuringMonth(student, monthStr) {
 }
 
         function checkGlobalDues(studentId) { 
-            const s = students.find(x => x.id === studentId); 
-            if (!s) return false; 
-            const now = new Date();
-            const currentYear = now.getFullYear();
-            const currentMonthIndex = now.getMonth();
-            const today = now.getDate();
-            let iterDate = new Date(s.joining_date);
-            if(isNaN(iterDate.getTime())) return false;
-            iterDate.setDate(1);
-            while (iterDate <= now) { 
-                const y = iterDate.getFullYear(); 
-                const m = iterDate.getMonth() + 1; 
-                const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
-                if (wasStudentActiveDuringMonth(s, monthStr)) { 
-                    if (y < currentYear || (y === currentYear && m - 1 < currentMonthIndex)) { 
-                        if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
-                    } else if (y === currentYear && m - 1 === currentMonthIndex && today > DUE_DATE) { 
-                        if (fees[monthStr]?.[studentId]?.status !== 'paid') return true; 
-                    } 
-                } 
-                iterDate.setMonth(iterDate.getMonth() + 1); 
-            } 
-            return false; 
-        }
+    const s = students.find(x => x.id === studentId); 
+    if (!s) return false; 
+    const feeType = s.fee_type || 'monthly';
+    const now = new Date();
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return false;
+    iterDate.setDate(1);
+    
+    while (iterDate <= now) { 
+        const y = iterDate.getFullYear(); 
+        const m = iterDate.getMonth() + 1; 
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+        
+        if (wasStudentActiveDuringMonth(s, monthStr)) { 
+            const isPaid = fees[monthStr]?.[studentId]?.status === 'paid';
+            if (!isPaid) {
+                const presentDays = window.getPresentCountForMonth(studentId, monthStr);
+                const hasAttended = presentDays > 0;
+                
+                if (feeType === 'per_class') {
+                    if (hasAttended) return true; // Per Class: শুধু ক্লাস করলেই ডিউ
+                } else {
+                    if (hasAttended || window.isPastDueDate(monthStr)) return true; // Monthly: ক্লাস করলে বা ১০ তারিখের পর ডিউ
+                }
+            }
+        } 
+        iterDate.setMonth(iterDate.getMonth() + 1); 
+    } 
+    return false; 
+}
 
         function getDueMonthsList(studentId) { 
             const s = students.find(x => x.id === studentId); 
@@ -4009,63 +4041,86 @@ async function saveFee() {
 }
 
 // ৩ নম্বর রিপ্লেসমেন্ট: ফিস ট্যাব ফাস্ট করার জন্য
-function renderFees() { 
-    const selectedMonth = document.getElementById('feeMonth').value;
+window.renderFees = function() { 
+    const feeMonthInput = document.getElementById('feeMonth');
+    if (!feeMonthInput) return;
+    const selectedMonth = feeMonthInput.value;
     const tableBody = document.querySelector('#feeTable tbody'); 
-    if (!selectedMonth) { tableBody.innerHTML = ''; return; } 
+    if (!tableBody) return;
+    
+    if (!selectedMonth) { 
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">Please select a month first.</td></tr>'; 
+        return; 
+    } 
     
     let totalCollected = 0, totalDueAmount = 0, dueCount = 0, collectedCount = 0; 
-    const monthIsDue = isMonthDue(selectedMonth); 
-    
-    // 🟢 নতুন লজিক: Table Row গুলো String-এ জমানো হচ্ছে
     let tableHtml = '';
+    const isPastDue = window.isPastDueDate(selectedMonth); 
+
+    if (!students || students.length === 0) { 
+        tableBody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px;">No students added yet.</td></tr>'; 
+        return; 
+    }
 
     students.forEach(student => { 
-        const wasActive = wasStudentActiveDuringMonth(student, selectedMonth); 
-        if (!wasActive) return; 
+        if (typeof window.wasStudentActiveDuringMonth === 'function' && !window.wasStudentActiveDuringMonth(student, selectedMonth)) return; 
         
-        const feeRecord = fees[selectedMonth]?.[student.id];
+        const feeRecord = (fees && fees[selectedMonth]) ? fees[selectedMonth][student.id] : null;
         const isPaid = feeRecord?.status === 'paid'; 
-        const hasGlobalDue = checkGlobalDues(student.id); 
+        const hasGlobalDue = window.checkGlobalDues(student.id); 
         
-        let rowClass = 'pending', statusText = 'Pending'; 
+        const presentDays = window.getPresentCountForMonth(student.id, selectedMonth);
+        const hasAttended = presentDays > 0;
+        const feeType = student.fee_type || 'monthly';
+        const defaultFeeVal = (typeof DEFAULT_FEE !== 'undefined') ? DEFAULT_FEE : 500;
+        
+        let calculatedFeeAmount = student.fee_amount || defaultFeeVal;
+        let classDetailsText = '';
+        let isDueNow = false;
+
+        // 🟢 Monthly vs Per Class লজিক
+        if (feeType === 'per_class') {
+            calculatedFeeAmount = presentDays * (student.fee_amount || 0); 
+            classDetailsText = `<br><span style="font-size:11px; color:#0ea5e9;">(${presentDays} Classes x ₹${student.fee_amount})</span>`;
+            isDueNow = presentDays > 0; // Per Class: ক্লাস করলেই ডিউ হবে
+        } else {
+            isDueNow = hasAttended || isPastDue; // Monthly: ক্লাস করলে বা ১০ তারিখ পার হলে ডিউ হবে
+        }
+        
+        let rowClass = 'pending', statusText = 'Pending', actionButtons = '';
         
         if (isPaid) { 
-            totalCollected += feeRecord.amount; 
-            collectedCount++; 
-            rowClass = 'paid'; 
-            statusText = `Paid (₹${feeRecord.amount})`; 
-        } else if (monthIsDue) { 
-            dueCount++; 
-            totalDueAmount += student.fee_amount || DEFAULT_FEE; 
-            rowClass = 'unpaid'; 
-            statusText = 'Due'; 
+            totalCollected += (feeRecord.amount || 0); collectedCount++; rowClass = 'paid'; statusText = `Paid (₹${feeRecord.amount})`; 
+            actionButtons = `<button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)">Edit</button> <button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>`;
         } 
+        else if (isDueNow) { 
+            dueCount++; totalDueAmount += calculatedFeeAmount; rowClass = 'unpaid'; statusText = `Due: ₹${calculatedFeeAmount} ${classDetailsText}`; 
+            actionButtons = `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')">Record Payment</button>` + ((typeof window.getContactButtons === 'function') ? window.getContactButtons(student.id, selectedMonth) : '');
+        } 
+        else {
+            statusText = feeType === 'per_class' ? 'No Class Done' : 'Pending (Before 10th)'; 
+            rowClass = 'pending'; 
+            actionButtons = `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')">Record Payment</button>`;
+            
+            if (feeType === 'per_class' && presentDays === 0) {
+                tableHtml += `<tr class="pending"><td>${window.getStudentHtml(student)}</td><td><span style="color:gray;">No Class Done</span></td><td class="action-buttons"></td></tr>`;
+                return; // স্কিপ করে যাবে
+            }
+        }
         
         if (hasGlobalDue) rowClass += ' has-dues-alert'; 
-        
-        let actionButtons = isPaid ? 
-            `<button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)">Edit</button><button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>` 
-            : `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')">Record Payment</button>` + (monthIsDue ? getContactButtons(student.id, selectedMonth) : ''); 
-        
-        tableHtml += `<tr class="${rowClass}"><td>${getStudentHtml(student)}</td><td>${statusText}</td><td class="action-buttons">${actionButtons}</td></tr>`; 
+        tableHtml += `<tr class="${rowClass}"><td>${window.getStudentHtml(student)}</td><td>${statusText}</td><td class="action-buttons">${actionButtons}</td></tr>`; 
     }); 
     
-    // 🟢 লুপ শেষ, এবার একবারে স্ক্রিনে দেখানো হলো
-    tableBody.innerHTML = tableHtml;
+    tableBody.innerHTML = tableHtml || '<tr><td colspan="3" style="text-align:center; padding:20px;">No records for this month.</td></tr>';
     
-    document.getElementById('feeSummary').innerHTML = `
-        <div onclick="showFeeBreakdown('collected')">
-            <h4>Collected (${collectedCount} students)</h4>
-            <p class="summary-collected">₹${totalCollected}</p>
-        </div>
-        <div onclick="showFeeBreakdown('due')">
-            <h4>Due (${dueCount} students)</h4>
-            <p class="summary-due">₹${totalDueAmount}</p>
-        </div>`; 
-        
-    searchTable('searchFees', 'feeTable'); 
-}
+    const summaryDiv = document.getElementById('feeSummary');
+    if(summaryDiv) { 
+        summaryDiv.innerHTML = `<div onclick="showFeeBreakdown('collected')"><h4>Collected (${collectedCount} students)</h4><p class="summary-collected">₹${totalCollected}</p></div><div onclick="showFeeBreakdown('due')"><h4>Due (${dueCount} students)</h4><p class="summary-due">₹${totalDueAmount}</p></div>`; 
+    }
+    
+    if (typeof window.searchTable === 'function') window.searchTable('searchFees', 'feeTable'); 
+};
 
 async function generatePaymentReceipt(studentId, monthStrOrList) { 
     const student = students.find(s => s.id === studentId); 
@@ -9510,3 +9565,79 @@ firebase.auth().onAuthStateChanged((user) => {
         });
     }
 });
+// 🟢 প্রেজেন্ট গোনার ফাংশন
+window.getPresentCountForMonth = function(studentId, monthStr) {
+    let count = 0;
+    for (const date in attendance) {
+        if (date.startsWith(monthStr)) {
+            const entry = attendance[date][studentId];
+            const status = (typeof entry === 'object' && entry !== null) ? entry.status : entry;
+            if (status === 'present') count++;
+        }
+    }
+    return count;
+};
+
+// 🟢 ১০ তারিখ পার হয়েছে কি না চেক করার ফাংশন
+window.isPastDueDate = function(monthStr) {
+    const dueDate = 10; 
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const today = now.getDate();
+    const [y, m] = monthStr.split('-').map(Number);
+    
+    if (y < currentYear) return true; 
+    if (y === currentYear && m < currentMonth) return true; 
+    if (y === currentYear && m === currentMonth && today > dueDate) return true; 
+    return false;
+};
+// 🟢 ড্যাশবোর্ডের Yearly Due ক্যালকুলেশন আপডেট (Monthly + Per Class)
+const originalRenderDashboard = window.renderDashboard;
+window.renderDashboard = function() {
+    if (typeof originalRenderDashboard === 'function') originalRenderDashboard();
+
+    setTimeout(() => {
+        let yearlyCollected = 0, yearlyDueAmount = 0; 
+        const currentYear = new Date().getFullYear();
+        
+        students.forEach(student => { 
+            const feeType = student.fee_type || 'monthly'; 
+
+            for (let i = 0; i < 12; i++) { 
+                const monthStr = `${currentYear}-${(i + 1).toString().padStart(2, '0')}`; 
+                if (window.wasStudentActiveDuringMonth(student, monthStr)) { 
+                    
+                    if (fees[monthStr]?.[student.id]?.status === 'paid') { 
+                        yearlyCollected += fees[monthStr][student.id].amount; 
+                    } 
+                    else {
+                        const presentDays = window.getPresentCountForMonth(student.id, monthStr);
+                        const hasAttended = presentDays > 0;
+                        
+                        if (feeType === 'per_class') {
+                            // Per Class: ক্লাস করলে ড্যাশবোর্ডে ডিউ যোগ হবে
+                            if (hasAttended) yearlyDueAmount += (presentDays * (student.fee_amount || 0));
+                        } else {
+                            // Monthly: ক্লাস করলে বা ১০ তারিখ পার হলে ড্যাশবোর্ডে ডিউ যোগ হবে
+                            if (hasAttended || window.isPastDueDate(monthStr)) {
+                                yearlyDueAmount += (student.fee_amount || DEFAULT_FEE); 
+                            }
+                        }
+                    } 
+                } 
+            } 
+        });
+
+        const dashboardSummary = document.getElementById('dashboardYearlySummary');
+        if(dashboardSummary) {
+            dashboardSummary.innerHTML = `
+                <div onclick="showYearlyBreakdown('collected', '${currentYear}')" style="cursor:pointer;">
+                    <h4>Yearly Collected</h4><p class="summary-collected">₹${yearlyCollected}</p>
+                </div>
+                <div onclick="showYearlyBreakdown('due', '${currentYear}')" style="cursor:pointer;">
+                    <h4>Yearly Due (Active)</h4><p class="summary-due">₹${yearlyDueAmount}</p>
+                </div>`; 
+        }
+    }, 100);
+};
