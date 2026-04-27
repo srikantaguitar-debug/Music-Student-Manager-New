@@ -9322,16 +9322,12 @@ window.markAbsentContacted = async function(studentId) {
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
 // ==========================================
-// 🟢 LIVE CLASS LOGIC (ZEGOCLOUD - UNLIMITED IN-APP)
+// 🟢 LIVE CLASS LOGIC (GOOGLE MEET)
 // ==========================================
 
-const ZEGO_APP_ID = 278338090; 
-const ZEGO_SERVER_SECRET = "518806d130755a4827252b3f82de42d44cd8a1e808e3de2d1640e7e748ab5335"; 
+window.activeMeetLink = null;
 
-window.activeRoomName = null;
-window.zp = null;
-
-// --- 1. MANAGER (TEACHER) SIDE ---
+// --- ১. MANAGER (TEACHER) SIDE ---
 window.openStartLiveClassModal = function() {
     const activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
@@ -9340,21 +9336,24 @@ window.openStartLiveClassModal = function() {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:var(--bg-input); padding:10px 15px; border-radius:10px; border:1px solid var(--border-color);">
                 <label style="cursor:pointer; display:flex; align-items:center; gap:10px; font-weight:bold; font-size:14px; color:var(--text-main);">
                     <input type="checkbox" id="select-all-live" onchange="window.toggleSelectAllStudents(this)" style="width:20px; height:20px; accent-color:var(--primary); cursor:pointer;"> 
-                    Select All Students
+                    Select All
                 </label>
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">(${activeSt.length})</span>
             </div>
+            
+            <input type="text" id="google-meet-link" placeholder="গুগল মিটের লিংক দিন (যেমন: https://meet.google.com/abc-xyz)" class="swal2-input" style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box; border: 2px solid #10b981;">
+            
             <input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0; font-size: 14px; box-sizing: border-box;">
         </div>
     `;
 
-    cbHtml += '<div id="live-student-list-container" style="text-align:left; max-height:250px; overflow-y:auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; background: var(--bg-card);">';
+    cbHtml += '<div id="live-student-list-container" style="text-align:left; max-height:200px; overflow-y:auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; background: var(--bg-card);">';
     
     activeSt.forEach(s => {
         const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
         cbHtml += `
         <label class="live-student-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background 0.2s;">
-            <input type="checkbox" class="live-student-cb" value="${s.id}" style="width:20px; height:20px; margin-right:12px; accent-color: var(--primary); cursor:pointer;" onchange="window.checkSelectAllStatus()">
+            <input type="checkbox" class="live-student-cb" value="${s.id}" style="width:20px; height:20px; margin-right:12px; accent-color: #10b981; cursor:pointer;" onchange="window.checkSelectAllStatus()">
             <img src="${photoSrc}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
             <div style="line-height: 1.2; flex-grow: 1;">
                 <span class="live-student-name" style="font-weight: 600; font-size: 14px; color: var(--text-main);">${s.name}</span><br>
@@ -9367,19 +9366,23 @@ window.openStartLiveClassModal = function() {
     cbHtml += '</div>';
 
     Swal.fire({
-        title: 'Start ZegoCloud Class',
+        title: 'Start Google Meet Class',
         html: cbHtml,
         showCancelButton: true,
         confirmButtonText: '<i class="fas fa-video"></i> Start Class',
-        confirmButtonColor: 'var(--primary)',
+        confirmButtonColor: '#10b981', // Google Meet Green Color
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
             const checked = Array.from(document.querySelectorAll('.live-student-cb:checked')).map(cb => String(cb.value));
+            const meetLink = document.getElementById('google-meet-link').value.trim();
+            
             if(checked.length === 0) { Swal.showValidationMessage('Please select at least 1 student!'); return false; }
-            return checked;
+            if(!meetLink || !meetLink.includes('meet.google.com')) { Swal.showValidationMessage('সঠিক Google Meet লিংক দিন!'); return false; }
+            
+            return { students: checked, link: meetLink };
         }
     }).then(res => {
-        if(res.isConfirmed) startManagerLiveClass(res.value);
+        if(res.isConfirmed) startManagerLiveClass(res.value.students, res.value.link);
     });
 };
 
@@ -9402,33 +9405,30 @@ window.filterLiveStudentList = function() {
     });
 };
 
-window.startManagerLiveClass = async function(studentIds) {
+window.startManagerLiveClass = async function(studentIds, meetLink) {
     const user = firebase.auth().currentUser;
-    if(!user) {
-        Swal.fire('Error', 'Please login to start class.', 'error');
-        return;
-    }
-    
-    const roomName = "MusicClassesPro_" + Date.now(); 
+    if(!user) { Swal.fire('Error', 'Please login to start class.', 'error'); return; }
     
     try {
+        // ডেটাবেসে মিট লিংক এবং স্টুডেন্টদের তথ্য সেভ করা হচ্ছে
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
-            roomName: roomName,
+            meetLink: meetLink, 
             allowed_students: studentIds, 
             active: true,
             timestamp: new Date().toISOString() 
         });
 
         document.getElementById('endClassBtn').style.display = 'block';
-        startZegoCall(roomName, 'Teacher');
+        
+        // 🟢 শিক্ষকের ব্রাউজারে গুগল মিট ওপেন হয়ে যাবে
+        window.open(meetLink, '_blank');
         
         Swal.fire({
-            toast: true, position: 'top-end', icon: 'success', title: 'Class Started!', showConfirmButton: false, timer: 1500
+            toast: true, position: 'top-end', icon: 'success', title: 'Class Started & Link Sent!', showConfirmButton: false, timer: 2000
         });
     } catch (e) {
-        console.error("Actual Firebase Error:", e);
-        // 🟢 এবার ফায়ারবেসের আসল এরর মেসেজটি স্ক্রিনে দেখাবে
-        Swal.fire('Database Error', e.message, 'error'); 
+        console.error("Firebase Error:", e);
+        Swal.fire('Database Error', 'Please check internet connection.', 'error'); 
     }
 };
 
@@ -9438,20 +9438,11 @@ window.endLiveClassManager = async function() {
         if(user) await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
     } catch(e) {}
     
-    if(window.zp) {
-        window.zp.destroy();
-        window.zp = null;
-    }
-    
-    let zegoContainer = document.getElementById('zego-full-screen-container');
-    if(zegoContainer) zegoContainer.style.display = 'none';
-    
     document.getElementById('endClassBtn').style.display = 'none';
-    Swal.fire('Ended', 'Class ended successfully.', 'success');
+    Swal.fire('Ended', 'Class ended and notification removed from student portals.', 'success');
 };
 
-
-// --- 2. STUDENT PORTAL SIDE ---
+// --- ২. STUDENT PORTAL SIDE ---
 window.listenForLiveClassesStudent = function(managerUid, studentId) {
     db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
         const data = doc.data();
@@ -9459,7 +9450,7 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         const strStudentId = String(studentId); 
         
         if (data && data.active && data.allowed_students && data.allowed_students.includes(strStudentId)) {
-            window.activeRoomName = data.roomName;
+            window.activeMeetLink = data.meetLink;
             
             if(joinArea) {
                 joinArea.style.display = 'block';
@@ -9467,107 +9458,26 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
                 
                 const joinBtn = joinArea.querySelector('button');
                 if(joinBtn) {
-                    joinBtn.removeAttribute('onclick'); // আগের HTML কোড মুছে ফেলবে
+                    // 🟢 গুগল মিটের ডিজাইন বাটন
+                    joinBtn.innerHTML = '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Google_Meet_icon_%282020%29.svg/512px-Google_Meet_icon_%282020%29.svg.png" style="width:20px; height:20px; vertical-align:middle; margin-right:8px;"> Join Google Meet';
+                    joinBtn.style.background = '#ffffff'; 
+                    joinBtn.style.color = '#3c4043';
+                    joinBtn.style.border = '1px solid #dadce0';
+                    joinBtn.style.boxShadow = '0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15)';
+                    
+                    joinBtn.removeAttribute('onclick'); 
+                    
                     joinBtn.onclick = function(e) {
                         e.preventDefault();
-                        if (window.activeRoomName) {
-                            startZegoCall(window.activeRoomName, 'Student');
+                        if (window.activeMeetLink) {
+                            window.open(window.activeMeetLink, '_blank');
                         }
                     };
                 }
             }
         } else {
-            window.activeRoomName = null;
+            window.activeMeetLink = null;
             if(joinArea) joinArea.style.display = 'none';
-            if(window.zp) { 
-                window.zp.destroy(); 
-                window.zp = null;
-                let zegoContainer = document.getElementById('zego-full-screen-container');
-                if(zegoContainer) zegoContainer.style.display = 'none';
-                Swal.fire('Session Ended', 'The teacher has ended the class.', 'info'); 
-            }
         }
     });
 };
-
-// --- 3. ZEGOCLOUD CALLING LOGIC (AUTO-LOAD & FULL SCREEN) ---
-window.startZegoCall = function(room, displayName) {
-    // যদি ZegoCloud লিংক HTML এ না থাকে, তবে JS নিজেই তা নিয়ে আসবে
-    if (typeof ZegoUIKitPrebuilt === 'undefined') {
-        Swal.fire({ 
-            title: 'Connecting Camera...', 
-            text: 'Please wait a moment', 
-            allowOutsideClick: false, 
-            didOpen: () => { Swal.showLoading(); } 
-        });
-        
-        const script = document.createElement('script');
-        script.src = "https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js";
-        script.onload = () => {
-            Swal.close();
-            executeZegoCall(room, displayName);
-        };
-        document.head.appendChild(script);
-    } else {
-        executeZegoCall(room, displayName);
-    }
-};
-
-// আসল কলিং ফাংশন
-function executeZegoCall(room, displayName) {
-    const userID = "ID_" + Math.floor(Math.random() * 10000);
-    const userName = displayName || "User";
-    
-    // ZegoCloud টোকেন জেনারেট
-    const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
-        ZEGO_APP_ID, ZEGO_SERVER_SECRET, room, userID, userName
-    );
-    
-    // ডাইনামিক ফুলস্ক্রিন কন্টেইনার তৈরি করা
-    let container = document.getElementById('zego-full-screen-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'zego-full-screen-container';
-        document.body.appendChild(container);
-    }
-    
-    container.style.display = 'block';
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '100vw';
-    container.style.height = '100vh';
-    container.style.zIndex = '999999';
-    container.style.background = '#1e293b';
-
-    // স্টুডেন্টের জয়েন এরিয়া লুকানো
-    const joinArea = document.getElementById('studentJoinArea');
-    if(joinArea) joinArea.style.display = 'none';
-    
-    // ZegoCloud কল স্টার্ট
-    window.zp = ZegoUIKitPrebuilt.create(kitToken);
-    window.zp.joinRoom({
-        container: container,
-        scenario: { mode: ZegoUIKitPrebuilt.VideoConference },
-        showPreJoinView: false, // প্রি-জয়েন স্ক্রিন স্কিপ করে সরাসরি ক্লাসে ঢুকবে
-        turnOnMicrophoneWhenJoining: true,
-        turnOnCameraWhenJoining: true,
-        showMyCameraToggleButton: true,
-        showMyMicrophoneToggleButton: true,
-        showAudioVideoSettingsButton: true,
-        showScreenSharingButton: true,
-        showTextChat: true,
-        showUserList: true,
-        onLeaveRoom: () => {
-            container.style.display = 'none';
-            window.zp.destroy();
-            window.zp = null;
-            
-            if(displayName === 'Teacher') {
-                window.endLiveClassManager();
-            } else {
-                if(joinArea) joinArea.style.display = 'block'; // ক্লাস থেকে বের হলে আবার জয়েন বাটন দেখাবে
-            }
-        }
-    });
-}
