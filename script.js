@@ -9326,6 +9326,7 @@ window.markAbsentContacted = async function(studentId) {
 // ==========================================
 
 window.activeMeetingLink = null;
+window.activeRoomName = null; // 🟢 FIX: এই লাইনটি না থাকায় বাটনে ক্লিক কাজ করছিল না
 
 // --- 1. MANAGER (TEACHER) SIDE ---
 window.openStartLiveClassModal = function() {
@@ -9392,7 +9393,6 @@ window.startManagerLiveClass = async function(studentIds, meetingLink) {
     }
     
     try {
-        // ফায়ারবেসে লিংক এবং স্টুডেন্ট আইডি সেভ করা
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
             meetingLink: meetingLink,
             allowed_students: studentIds, 
@@ -9442,12 +9442,14 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         
         if (data && data.active && data.allowed_students && data.allowed_students.includes(strStudentId)) {
             window.activeMeetingLink = data.meetingLink;
+            window.activeRoomName = data.meetingLink; // 🟢 Fallback for HTML button compatibility
             if(joinArea) {
                 joinArea.style.display = 'block';
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
             }
         } else {
             window.activeMeetingLink = null;
+            window.activeRoomName = null;
             if(joinArea) joinArea.style.display = 'none';
         }
     }, (error) => {
@@ -9456,8 +9458,8 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
 };
 
 // --- 3. OVERRIDE HTML BUTTON FUNCTION ---
-// এইচটিএমএল-এর "Join Class" বাটনে আগের ফাংশনটাই কল করা আছে, তাই আমরা ওটার কাজটা বদলে দিলাম। 
-window.startJitsiCall = function() {
+// 🟢 প্যারামিটারগুলো রাখা হয়েছে যাতে HTML এর onclick="startJitsiCall(activeRoomName, ...)" ফাংশনটি এরর না দেয়
+window.startJitsiCall = function(room, containerId, displayName) {
     if (window.activeMeetingLink) {
         window.open(window.activeMeetingLink, '_blank'); // স্টুডেন্টদের নতুন ট্যাবে লিংক ওপেন হবে
     } else {
