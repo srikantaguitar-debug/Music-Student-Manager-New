@@ -9322,18 +9322,20 @@ window.markAbsentContacted = async function(studentId) {
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
 // ==========================================
-// 🟢 LIVE CLASS & JITSI MEET LOGIC
+// 🟢 LIVE CLASS LOGIC (GOOGLE MEET / ZOOM LINK PASTE)
 // ==========================================
 
-window.activeRoomName = null;
-window.jitsiApi = null;
+window.activeMeetingLink = null;
 
-// --- ১. MANAGER (TEACHER) SIDE ---
+// --- 1. MANAGER (TEACHER) SIDE ---
 window.openStartLiveClassModal = function() {
     const activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    let cbHtml = '<input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0 0 15px 0; font-size: 14px; box-sizing: border-box;">';
-    cbHtml += '<div id="live-student-list-container" style="text-align:left; max-height:300px; overflow-y:auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; background: var(--bg-card);">';
+    // 🟢 লিংক পেস্ট করার জন্য নতুন ইনপুট ফিল্ড
+    let cbHtml = '<input type="url" id="live-class-link" placeholder="🔗 Paste Google Meet / Zoom link here..." class="swal2-input" style="width: 100%; margin: 0 0 15px 0; font-size: 14px; box-sizing: border-box;" required>';
+    
+    cbHtml += '<input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0 0 15px 0; font-size: 14px; box-sizing: border-box;">';
+    cbHtml += '<div id="live-student-list-container" style="text-align:left; max-height:250px; overflow-y:auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; background: var(--bg-card);">';
     
     activeSt.forEach(s => {
         const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
@@ -9352,20 +9354,23 @@ window.openStartLiveClassModal = function() {
     cbHtml += '</div>';
 
     Swal.fire({
-        title: 'Select Students',
+        title: 'Start Live Class',
         html: cbHtml,
         showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-video"></i> Start Class',
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send Link & Start',
         confirmButtonColor: 'var(--primary)',
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
-            // আইডিগুলোকে String হিসেবে নিচ্ছি যাতে কোনোভাবেই মিসম্যাচ না হয়
+            const meetingLink = document.getElementById('live-class-link').value.trim();
             const checked = Array.from(document.querySelectorAll('.live-student-cb:checked')).map(cb => String(cb.value));
-            if(checked.length === 0) { Swal.showValidationMessage('Please select at least 1 student'); return false; }
-            return checked;
+            
+            if(!meetingLink) { Swal.showValidationMessage('Please paste a meeting link!'); return false; }
+            if(checked.length === 0) { Swal.showValidationMessage('Please select at least 1 student!'); return false; }
+            
+            return { link: meetingLink, ids: checked };
         }
     }).then(res => {
-        if(res.isConfirmed) startManagerLiveClass(res.value);
+        if(res.isConfirmed) startManagerLiveClass(res.value.ids, res.value.link);
     });
 };
 
@@ -9379,33 +9384,37 @@ window.filterLiveStudentList = function() {
     });
 };
 
-window.startManagerLiveClass = async function(studentIds) {
+window.startManagerLiveClass = async function(studentIds, meetingLink) {
     const user = firebase.auth().currentUser;
     if(!user) {
         Swal.fire('Error', 'You are not logged in properly.', 'error');
         return;
     }
     
-    const roomName = "MusicClass_" + Date.now(); // Unique room name
-    
     try {
-        // Saving to database directly using user.uid
+        // ফায়ারবেসে লিংক এবং স্টুডেন্ট আইডি সেভ করা
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
-            roomName: roomName,
-            allowed_students: studentIds, // Array of String IDs
+            meetingLink: meetingLink,
+            allowed_students: studentIds, 
             active: true,
             timestamp: new Date().toISOString() 
         });
 
-        // Open Jitsi for teacher
         document.getElementById('endClassBtn').style.display = 'block';
-        startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
         
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Class Started Successfully!', showConfirmButton: false, timer: 1500});
+        // শিক্ষকের জন্য গুগল মিট সরাসরি ওপেন করে দেওয়া হবে
+        window.open(meetingLink, '_blank');
+        
+        Swal.fire({
+            title: 'Class is Live! 🎥',
+            text: 'Link successfully sent to students. After finishing your class, return here and click "End Current Class".',
+            icon: 'success',
+            confirmButtonColor: 'var(--primary)'
+        });
         
     } catch (e) {
         console.error("Error starting class:", e);
-        Swal.fire('Database Error', 'Failed to save data to Firebase. Please check your internet connection.', 'error');
+        Swal.fire('Database Error', 'Failed to save data. Please check internet.', 'error');
     }
 };
 
@@ -9419,28 +9428,12 @@ window.endLiveClassManager = async function() {
         console.log("Delete error", e);
     }
     
-    if(window.jitsiApi) {
-        try { window.jitsiApi.dispose(); } catch(e){}
-        window.jitsiApi = null;
-    }
-    
-    document.getElementById('jitsi-container-manager').style.display = 'none';
-    
-    // 🟢 ক্লাস শেষের পর বাটনটিকে আগের জায়গায় ফিরিয়ে আনা
-    const endBtn = document.getElementById('endClassBtn');
-    if(endBtn) {
-        endBtn.style.display = 'none';
-        endBtn.style.position = 'relative';
-        endBtn.style.transform = 'none';
-        endBtn.style.width = '100%';
-        endBtn.style.boxShadow = 'none';
-    }
-    
-    Swal.fire('Ended', 'Live class has been ended successfully.', 'success');
+    document.getElementById('endClassBtn').style.display = 'none';
+    Swal.fire('Ended', 'Live class ended and link removed from student portals.', 'success');
 };
 
 
-// --- ২. STUDENT PORTAL SIDE ---
+// --- 2. STUDENT PORTAL SIDE ---
 window.listenForLiveClassesStudent = function(managerUid, studentId) {
     db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
         const data = doc.data();
@@ -9448,65 +9441,26 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         const strStudentId = String(studentId); 
         
         if (data && data.active && data.allowed_students && data.allowed_students.includes(strStudentId)) {
-            window.activeRoomName = data.roomName;
+            window.activeMeetingLink = data.meetingLink;
             if(joinArea) {
                 joinArea.style.display = 'block';
-                if (navigator.vibrate) navigator.vibrate(200);
+                if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
             }
         } else {
-            window.activeRoomName = null;
+            window.activeMeetingLink = null;
             if(joinArea) joinArea.style.display = 'none';
-            if(window.jitsiApi && document.getElementById('jitsi-container-student').style.display === 'block') { 
-                window.jitsiApi.dispose(); 
-                window.jitsiApi = null;
-                document.getElementById('jitsi-container-student').style.display = 'none'; 
-                Swal.fire('Session Ended', 'The teacher has ended the class.', 'info'); 
-            }
         }
     }, (error) => {
         console.log("Error listening to live classes: ", error);
     });
 };
 
-
-// --- ৩. COMMON JITSI FUNCTION (Unlimited Time in New Tab) ---
-window.startJitsiCall = function(room, containerId, displayName) {
-    if (!room) {
-        Swal.fire('Wait', 'Class link is missing or expired.', 'error');
-        return;
-    }
-
-    // Jitsi-এর সরাসরি লিংক তৈরি
-    const roomLink = `https://meet.jit.si/${room}#userInfo.displayName="${displayName || 'Student'}"`;
-
-    // সরাসরি নতুন ট্যাবে বা Jitsi মোবাইল অ্যাপে ওপেন হবে (এখানে ৫ মিনিটের লিমিট নেই)
-    window.open(roomLink, '_blank');
-
-    // শিক্ষকের জন্য End Class বাটন দেখানোর লজিক
-    const endBtn = document.getElementById('endClassBtn');
-    if (endBtn && displayName === 'Teacher') {
-        endBtn.style.display = 'block';
-        endBtn.style.position = 'relative';
-        endBtn.style.transform = 'none';
-        endBtn.style.width = '100%';
-        
-        Swal.fire({
-            title: 'Class is Live! 🎥',
-            text: 'Your class has opened in a new tab/app. Once finished, come back here and click "End Current Class".',
-            icon: 'info',
-            confirmButtonText: 'Got it',
-            confirmButtonColor: 'var(--primary)'
-        });
-    }
-    
-    // স্টুডেন্টের জন্য মেসেজ
-    if (displayName !== 'Teacher') {
-        Swal.fire({
-            title: 'Joined! 🎓',
-            text: 'Your class is opened in a new tab or Jitsi app. Please return to this portal when the class ends.',
-            icon: 'success',
-            confirmButtonText: 'Okay',
-            confirmButtonColor: 'var(--success)'
-        });
+// --- 3. OVERRIDE HTML BUTTON FUNCTION ---
+// এইচটিএমএল-এর "Join Class" বাটনে আগের ফাংশনটাই কল করা আছে, তাই আমরা ওটার কাজটা বদলে দিলাম। 
+window.startJitsiCall = function() {
+    if (window.activeMeetingLink) {
+        window.open(window.activeMeetingLink, '_blank'); // স্টুডেন্টদের নতুন ট্যাবে লিংক ওপেন হবে
+    } else {
+        Swal.fire('Error', 'Class link is no longer active.', 'error');
     }
 };
