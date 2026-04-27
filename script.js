@@ -927,8 +927,14 @@ document.body.innerHTML = `
                     <span style="font-weight:600;">Class:</span> <span style="color:var(--text-main);">${s.class || 'N/A'}</span>
                 </div>
                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-                    <span style="font-weight:600;">Fee Amount:</span> <span style="color:var(--success); font-weight:700;">₹${s.fee_amount || 500}</span>
-                </div>
+    <span style="font-weight:600;">Fee Amount:</span> 
+    <span style="color:var(--success); font-weight:700;">
+        ₹${s.fee_amount || 500} 
+        <span style="font-size:11px; color:var(--text-muted); font-weight:500;">
+            ${s.fee_type === 'per_class' ? '/ Class' : '/ Month'}
+        </span>
+    </span>
+</div>
                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
                     <span style="font-weight:600;">Phone:</span> <span style="color:var(--text-main);">${s.phone || 'N/A'}</span>
                 </div>
@@ -1955,6 +1961,7 @@ async function addStudent() {
     const day = document.getElementById('studentDay').value; 
     const time = document.getElementById('studentTime').value; 
     const fee = parseFloat(document.getElementById('studentFee').value) || DEFAULT_FEE; 
+    const feeType = document.getElementById('studentFeeType').value; // 🟢 NEW: Fee Type
     const email = document.getElementById('studentEmail').value; 
     const guardian = document.getElementById('guardianName').value; 
     const phone = document.getElementById('phone').value; 
@@ -1985,8 +1992,8 @@ async function addStudent() {
         ? `<div style="margin-top:5px;"><img src="${currentStudentSignature}" style="max-height: 40px; border:1px solid #ddd; padding:2px;"></div>` 
         : '<span style="color:red;">No</span>';
 
-// Date of Birth একটু সুন্দর করে দেখানোর জন্য (DD/MM/YYYY)
     const dobDisplay = dob ? new Date(dob).toLocaleDateString('en-IN') : '-';
+    const feeTypeDisplay = feeType === 'per_class' ? 'Per Class' : 'Monthly'; // 🟢 NEW: পপআপের জন্য
 
     const detailsHtml = `
         <div style="text-align: center;">${photoDisplay}</div>
@@ -1994,7 +2001,7 @@ async function addStudent() {
             <div><strong>Name:</strong> ${name}</div>
             <div><strong>Class:</strong> ${className || '-'}</div>
             <div><strong>Time:</strong> ${day || ''} ${timeDisplay || ''}</div>
-            <div><strong>Fee:</strong> ₹${fee}</div>
+            <div><strong>Fee:</strong> ₹${fee} <span style="color:var(--primary); font-size:12px; font-weight:bold;">(${feeTypeDisplay})</span></div>
             <div><strong>Phone:</strong> ${phone || '-'}</div>
             <div><strong>Guardian:</strong> ${guardian || '-'}</div>
             <div><strong>Address:</strong> ${address || '-'}</div>
@@ -2027,6 +2034,7 @@ async function addStudent() {
             class_day: day, 
             class_time: time, 
             fee_amount: fee, 
+            fee_type: feeType, // 🟢 NEW: ডাটাবেসে সেভ হচ্ছে
             email, 
             guardian, 
             phone, 
@@ -2040,7 +2048,6 @@ async function addStudent() {
 
         students.push(newStudent); 
         
-        // 🟢 ম্যাজিক: 'await' সরিয়ে দিয়ে সরাসরি UI আপডেট করা হলো
         document.getElementById('studentName').value = ''; 
         document.getElementById('studentClass').value = ''; 
         document.getElementById('studentFee').value = ''; 
@@ -2081,7 +2088,6 @@ async function addStudent() {
             allowOutsideClick: false 
         });
 
-        // 🟢 ব্যাকগ্রাউন্ডে নীরবে ডেটাবেসে আপলোড হবে
         db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(newStudent.id)).set(newStudent).catch(e => console.log(e));
         dbSet('studentSerialCounter', studentSerialCounter).catch(e => console.log(e));
     } 
@@ -3137,7 +3143,8 @@ function exportStudentDetailsAsPDF(studentId) {
     addInfo("Name:", student.name);
     addInfo("ID No:", student.serial_no.toString());
     addInfo("Class:", student.class);
-    addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE}/-`);
+    const feeTypePdf = student.fee_type === 'per_class' ? '/ Class' : '/ Month';
+addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE} ${feeTypePdf}`);
     addInfo("Joined:", new Date(student.joining_date).toLocaleDateString('en-IN'));
     
     // 🟢 PDF Inactive Details Logic Start
@@ -4762,7 +4769,8 @@ function showStudentDetails(studentId) {
     const className = student.class || 'Music Class';
     document.getElementById('modalClass').innerHTML = `<span style="display: inline-block; background: #000000; color: #ffffff; padding: 5px 15px; border-radius: 20px; font-size: 13px; font-weight: 500; margin-top: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">🎵 ${className}</span>`;
     document.getElementById('modalDayTime').textContent = (student.class_day || '') + " " + (student.class_time ? formatTime12H(student.class_time) : ''); 
-    document.getElementById('modalFeeAmount').textContent = `₹${student.fee_amount || DEFAULT_FEE}`; 
+    const feeTypeText = student.fee_type === 'per_class' ? '/ Class' : '/ Month';
+document.getElementById('modalFeeAmount').textContent = `₹${student.fee_amount || DEFAULT_FEE} ${feeTypeText}`; 
     document.getElementById('modalGuardianName').textContent = student.guardian || 'N/A'; 
     document.getElementById('modalPhone').innerHTML = student.phone ? `${student.phone}` : 'N/A'; 
     document.getElementById('modalEmail').innerHTML = student.email ? `${student.email}` : 'N/A'; 
@@ -7113,13 +7121,20 @@ function openEditStudentModal(id) {
     document.getElementById('editStudentDay').value = student.class_day || '';
     document.getElementById('editStudentTime').value = student.class_time || '';
     document.getElementById('editStudentFee').value = student.fee_amount || DEFAULT_FEE;
+    
+    // 🟢 NEW: Edit ফর্মে Monthly/Per Class লোড করা
+    const editFeeTypeEl = document.getElementById('editStudentFeeType');
+    if (editFeeTypeEl) {
+        editFeeTypeEl.value = student.fee_type || 'monthly';
+    }
+
     document.getElementById('editPhone').value = student.phone || '';
     document.getElementById('editGuardianName').value = student.guardian || '';
     document.getElementById('editStudentEmail').value = student.email || '';
     document.getElementById('editAddress').value = student.address || '';
     document.getElementById('editStudentDOB').value = student.dob || '';
-    document.getElementById('editAllowProfile').checked = student.allow_profile_view !== false; // Default true
-    // 🟢 চেকবক্সের ডেটা লোড করা (ডিফল্ট true থাকবে)
+    document.getElementById('editAllowProfile').checked = student.allow_profile_view !== false; 
+    
     const practiceLogCheckbox = document.getElementById('editAllowPracticeLog');
     if(practiceLogCheckbox) {
         practiceLogCheckbox.checked = student.allow_practice_log !== false; 
@@ -7153,6 +7168,14 @@ async function saveStudentChanges() {
     const day = document.getElementById('editStudentDay').value;
     const time = document.getElementById('editStudentTime').value;
     const fee = parseFloat(document.getElementById('editStudentFee').value) || DEFAULT_FEE;
+    
+    // 🟢 NEW: এডিট করার সময় Fee Type আপডেট করা
+    let feeType = 'monthly';
+    const editFeeTypeEl = document.getElementById('editStudentFeeType');
+    if (editFeeTypeEl) {
+        feeType = editFeeTypeEl.value;
+    }
+
     const phone = document.getElementById('editPhone').value;
     const guardian = document.getElementById('editGuardianName').value;
     const email = document.getElementById('editStudentEmail').value;
@@ -7160,14 +7183,12 @@ async function saveStudentChanges() {
     const dob = document.getElementById('editStudentDOB').value;
     const allowProfile = document.getElementById('editAllowProfile').checked;
     
-    // 🟢 চেকবক্সের ডেটা সেভ করা
     let allowPracticeLog = true;
     const practiceLogCheckbox = document.getElementById('editAllowPracticeLog');
     if (practiceLogCheckbox) {
         allowPracticeLog = practiceLogCheckbox.checked;
     }
 
-    // 🟢 ছবি সেট করা (এটি ওপরে আনা হয়েছে এরর ফিক্স করার জন্য)
     let finalPhoto = students[studentIndex].photo;
     if (isPhotoDeletedInEdit) {
         finalPhoto = null;
@@ -7175,11 +7196,10 @@ async function saveStudentChanges() {
         finalPhoto = currentEditPhotoBase64;
     }
 
-    // 🟢 স্টুডেন্ট আপডেট করার সময় সবকিছু একসাথে সেভ হচ্ছে (ডুপ্লিকেট রিমুভ করা হয়েছে)
     students[studentIndex] = {
         ...students[studentIndex],
         name, class: className, class_day: day, class_time: time,
-        fee_amount: fee, phone, guardian, email, address, dob,
+        fee_amount: fee, fee_type: feeType, phone, guardian, email, address, dob, // 🟢 NEW: fee_type সেভ হলো
         photo: finalPhoto,
         allow_profile_view: allowProfile,
         allow_practice_log: allowPracticeLog
