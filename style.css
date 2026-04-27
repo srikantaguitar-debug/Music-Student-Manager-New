@@ -17,6 +17,23 @@ html, body {
     .d-rem-btn { background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all 0.3s; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); flex-shrink: 0; margin-left: 10px; }
     .d-rem-btn:hover { transform: scale(1.1) rotate(10deg); box-shadow: 0 6px 15px rgba(16, 185, 129, 0.4); }
     [data-theme="dark"] .d-rem-icon { background: rgba(251, 191, 36, 0.2); }
+    /* SweetAlert Global Theme Sync */
+.swal2-popup {
+    background-color: var(--bg-card) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 16px !important;
+}
+
+.swal2-title, .swal2-html-container {
+    color: var(--text-main) !important;
+}
+
+.swal2-input, .swal2-select, .swal2-textarea {
+    background-color: var(--bg-input) !important;
+    color: var(--text-main) !important;
+    border: 1px solid var(--border-color) !important;
+}
 /* =========================================
        🎨 APP THEMES CSS (ALL COLORS)
        ========================================= */
