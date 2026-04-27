@@ -9420,11 +9420,22 @@ window.endLiveClassManager = async function() {
     }
     
     if(window.jitsiApi) {
-        window.jitsiApi.dispose();
+        try { window.jitsiApi.dispose(); } catch(e){}
         window.jitsiApi = null;
     }
+    
     document.getElementById('jitsi-container-manager').style.display = 'none';
-    document.getElementById('endClassBtn').style.display = 'none';
+    
+    // 🟢 ক্লাস শেষের পর বাটনটিকে আগের জায়গায় ফিরিয়ে আনা
+    const endBtn = document.getElementById('endClassBtn');
+    if(endBtn) {
+        endBtn.style.display = 'none';
+        endBtn.style.position = 'relative';
+        endBtn.style.transform = 'none';
+        endBtn.style.width = '100%';
+        endBtn.style.boxShadow = 'none';
+    }
+    
     Swal.fire('Ended', 'Live class has been ended successfully.', 'success');
 };
 
@@ -9485,7 +9496,33 @@ window.startJitsiCall = function(room, containerId, displayName) {
         }
     };
 
-    document.getElementById(containerId).style.display = 'block';
+    // 🟢 কন্টেইনারটিকে ফুল স্ক্রিন (Full Screen) করার লজিক
+    const container = document.getElementById(containerId);
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '100vw';
+    container.style.height = '100vh';
+    container.style.zIndex = '999999';
+    container.style.margin = '0';
+    container.style.borderRadius = '0';
+    container.style.border = 'none';
+    container.style.background = '#000';
+    container.style.display = 'block';
+
+    // 🟢 শিক্ষকের জন্য "End Class" বাটনটি ফুল স্ক্রিনের ওপরে ভাসিয়ে রাখা
+    const endBtn = document.getElementById('endClassBtn');
+    if (endBtn && displayName === 'Teacher') {
+        endBtn.style.display = 'block';
+        endBtn.style.position = 'fixed';
+        endBtn.style.bottom = '20px';
+        endBtn.style.left = '50%';
+        endBtn.style.transform = 'translateX(-50%)';
+        endBtn.style.zIndex = '9999999';
+        endBtn.style.width = '80%';
+        endBtn.style.maxWidth = '300px';
+        endBtn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4)';
+    }
     
     if(document.getElementById('studentJoinArea')) {
         document.getElementById('studentJoinArea').style.display = 'none';
@@ -9493,12 +9530,18 @@ window.startJitsiCall = function(room, containerId, displayName) {
     
     window.jitsiApi = new JitsiMeetExternalAPI(domain, options);
 
+    // 🟢 যখন কেউ লাল বাটন দিয়ে কল কাটবে (Hangup)
     window.jitsiApi.addEventListener('videoConferenceLeft', () => {
-        document.getElementById(containerId).style.display = 'none';
-        document.getElementById(containerId).innerHTML = '';
-        window.jitsiApi = null;
-        if(containerId === 'jitsi-container-student') {
-            document.getElementById('studentJoinArea').style.display = 'block';
+        container.style.display = 'none';
+        container.innerHTML = '';
+        
+        if (displayName === 'Teacher') {
+            window.endLiveClassManager(); // শিক্ষক বের হলে ক্লাস এন্ড হবে
+        } else {
+            window.jitsiApi = null;
+            if(containerId === 'jitsi-container-student') {
+                document.getElementById('studentJoinArea').style.display = 'block';
+            }
         }
     });
 };
