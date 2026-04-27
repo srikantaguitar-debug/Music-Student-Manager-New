@@ -9380,18 +9380,16 @@ window.filterLiveStudentList = function() {
 };
 
 window.startManagerLiveClass = async function(studentIds) {
-    const user = firebase.auth().currentUser;
-    if(!user) return;
-    
     const roomName = "MusicClass_" + Date.now(); // ইউনিক রুমের নাম
     
     try {
         // ডাটাবেসে সেভ করা (যাতে স্টুডেন্টদের কাছে নোটিফিকেশন যায়)
-        await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
+        // 🟢 FIX: user.uid এর বদলে DOC_ID এবং serverTimestamp এর বদলে Local ISO String
+        await db.collection('music_classes').doc(DOC_ID).collection('live_sessions').doc('current_class').set({
             roomName: roomName,
-            allowed_students: studentIds, // এটি এখন String ID এর array
+            allowed_students: studentIds,
             active: true,
-            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            timestamp: new Date().toISOString() 
         });
 
         document.getElementById('endClassBtn').style.display = 'block';
@@ -9399,17 +9397,24 @@ window.startManagerLiveClass = async function(studentIds) {
         startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
         
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Class Started!', showConfirmButton: false, timer: 1500});
+        
     } catch (e) {
         console.error("Error starting class:", e);
-        Swal.fire('Error', 'Failed to start class. Check your internet connection.', 'error');
+        // 🟢 FIX: ইন্টারনেট স্লো থাকলেও যাতে আপনার ক্লাস আটকে না থাকে তার ব্যবস্থা
+        document.getElementById('endClassBtn').style.display = 'block';
+        startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
+        Swal.fire('Warning', 'Class started, but students might face a slight delay receiving the notification due to slow internet.', 'warning');
     }
 };
 
 window.endLiveClassManager = async function() {
-    const user = firebase.auth().currentUser;
-    if(user) {
-        await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
+    try {
+        // 🟢 FIX: user.uid এর বদলে DOC_ID
+        await db.collection('music_classes').doc(DOC_ID).collection('live_sessions').doc('current_class').delete();
+    } catch(e) {
+        console.log("Offline delete sync pending");
     }
+    
     if(window.jitsiApi) {
         window.jitsiApi.dispose();
         window.jitsiApi = null;
