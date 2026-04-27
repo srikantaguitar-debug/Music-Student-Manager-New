@@ -9491,3 +9491,22 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         console.log("Error: ", error);
     });
 };
+// 🟢 MANAGER: অ্যাপ রিস্টার্ট করলেও 'End Class' বাটন ধরে রাখার লজিক
+firebase.auth().onAuthStateChanged((user) => {
+    // ম্যানেজার যদি লগইন করা থাকে, তবেই চেক করবে
+    if (user) {
+        // রিয়েল-টাইমে ডেটাবেস চেক করবে কোনো ক্লাস চলছে কিনা
+        db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
+            const endBtn = document.getElementById('endClassBtn');
+            if (endBtn) {
+                // যদি ডেটাবেসে ক্লাস অ্যাক্টিভ থাকে, তবে বাটনটি দেখাবে
+                if (doc.exists && doc.data().active) {
+                    endBtn.style.display = 'block'; 
+                } else {
+                    // ক্লাস না থাকলে বাটন লুকাবে
+                    endBtn.style.display = 'none';  
+                }
+            }
+        });
+    }
+});
