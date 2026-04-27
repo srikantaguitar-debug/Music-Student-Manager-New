@@ -9490,8 +9490,31 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
     });
 };
 
-// --- 3. ZEGOCLOUD CALLING LOGIC (FULL SCREEN IN-APP) ---
+// --- 3. ZEGOCLOUD CALLING LOGIC (AUTO-LOAD & FULL SCREEN) ---
 window.startZegoCall = function(room, displayName) {
+    // যদি ZegoCloud লিংক HTML এ না থাকে, তবে JS নিজেই তা নিয়ে আসবে
+    if (typeof ZegoUIKitPrebuilt === 'undefined') {
+        Swal.fire({ 
+            title: 'Connecting Camera...', 
+            text: 'Please wait a moment', 
+            allowOutsideClick: false, 
+            didOpen: () => { Swal.showLoading(); } 
+        });
+        
+        const script = document.createElement('script');
+        script.src = "https://unpkg.com/@zegocloud/zego-uikit-prebuilt/zego-uikit-prebuilt.js";
+        script.onload = () => {
+            Swal.close();
+            executeZegoCall(room, displayName);
+        };
+        document.head.appendChild(script);
+    } else {
+        executeZegoCall(room, displayName);
+    }
+};
+
+// আসল কলিং ফাংশন
+function executeZegoCall(room, displayName) {
     const userID = "ID_" + Math.floor(Math.random() * 10000);
     const userName = displayName || "User";
     
@@ -9500,7 +9523,7 @@ window.startZegoCall = function(room, displayName) {
         ZEGO_APP_ID, ZEGO_SERVER_SECRET, room, userID, userName
     );
     
-    // 🟢 ম্যাজিক: ডাইনামিক ফুলস্ক্রিন কন্টেইনার তৈরি করা (যাতে HTML এ কিছু না করতে হয়)
+    // ডাইনামিক ফুলস্ক্রিন কন্টেইনার তৈরি করা
     let container = document.getElementById('zego-full-screen-container');
     if (!container) {
         container = document.createElement('div');
@@ -9517,7 +9540,7 @@ window.startZegoCall = function(room, displayName) {
     container.style.zIndex = '999999';
     container.style.background = '#1e293b';
 
-    // স্টুডেন্টের জয়েন এরিয়া লুকানো
+    // স্টুডেন্টের জয়েন এরিয়া লুকানো
     const joinArea = document.getElementById('studentJoinArea');
     if(joinArea) joinArea.style.display = 'none';
     
@@ -9526,7 +9549,7 @@ window.startZegoCall = function(room, displayName) {
     window.zp.joinRoom({
         container: container,
         scenario: { mode: ZegoUIKitPrebuilt.VideoConference },
-        showPreJoinView: false, // প্রি-জয়েন স্ক্রিন স্কিপ করে সরাসরি ক্লাসে ঢুকবে
+        showPreJoinView: false, // প্রি-জয়েন স্ক্রিন স্কিপ করে সরাসরি ক্লাসে ঢুকবে
         turnOnMicrophoneWhenJoining: true,
         turnOnCameraWhenJoining: true,
         showMyCameraToggleButton: true,
@@ -9543,8 +9566,8 @@ window.startZegoCall = function(room, displayName) {
             if(displayName === 'Teacher') {
                 window.endLiveClassManager();
             } else {
-                if(joinArea) joinArea.style.display = 'block'; // ক্লাস থেকে বের হলে আবার জয়েন বাটন দেখাবে
+                if(joinArea) joinArea.style.display = 'block'; // ক্লাস থেকে বের হলে আবার জয়েন বাটন দেখাবে
             }
         }
     });
-};
+}
