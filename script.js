@@ -9322,16 +9322,19 @@ window.markAbsentContacted = async function(studentId) {
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
 // ==========================================
-// 🟢 LIVE CLASS LOGIC (JITSI UNLIMITED - NEW TAB)
+// 🟢 LIVE CLASS LOGIC (ZEGOCLOUD - UNLIMITED IN-APP)
 // ==========================================
 
-window.activeRoomName = null;
+const ZEGO_APP_ID = 278338090; 
+const ZEGO_SERVER_SECRET = "518806d130755a4827252b3f82de42d44cd8a1e808e3de2d1640e7e748ab5335"; 
 
-// --- ১. MANAGER (TEACHER) SIDE (Updated with Select All) ---
+window.activeRoomName = null;
+window.zp = null;
+
+// --- 1. MANAGER (TEACHER) SIDE ---
 window.openStartLiveClassModal = function() {
     const activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    // 🟢 'Select All' চেক বক্স এবং সার্চ ইনপুট
     let cbHtml = `
         <div style="margin-bottom: 15px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:var(--bg-input); padding:10px 15px; border-radius:10px; border:1px solid var(--border-color);">
@@ -9341,7 +9344,6 @@ window.openStartLiveClassModal = function() {
                 </label>
                 <span style="font-size:12px; color:var(--text-muted); font-weight:600;">(${activeSt.length})</span>
             </div>
-            
             <input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0; font-size: 14px; box-sizing: border-box;">
         </div>
     `;
@@ -9365,7 +9367,7 @@ window.openStartLiveClassModal = function() {
     cbHtml += '</div>';
 
     Swal.fire({
-        title: 'Start Jitsi Class',
+        title: 'Start ZegoCloud Class',
         html: cbHtml,
         showCancelButton: true,
         confirmButtonText: '<i class="fas fa-video"></i> Start Class',
@@ -9381,45 +9383,30 @@ window.openStartLiveClassModal = function() {
     });
 };
 
-// 🟢 সব স্টুডেন্ট একসাথে সিলেক্ট করার লজিক
 window.toggleSelectAllStudents = function(source) {
-    const checkboxes = document.querySelectorAll('.live-student-cb');
-    checkboxes.forEach(cb => {
-        // শুধুমাত্র যেগুলো সার্চে দেখা যাচ্ছে সেগুলো সিলেক্ট হবে (ঐচ্ছিক)
-        // আমরা এখানে সব অ্যাক্টিভ স্টুডেন্টকেই সিলেক্ট করছি
-        cb.checked = source.checked;
-    });
+    document.querySelectorAll('.live-student-cb').forEach(cb => cb.checked = source.checked);
 };
 
-// 🟢 যদি ম্যানুয়ালি সব টিক দেওয়া হয়, তবে উপরের 'Select All' অটোমেটিক টিক হয়ে যাবে
 window.checkSelectAllStatus = function() {
     const allCbs = document.querySelectorAll('.live-student-cb');
     const checkedCbs = document.querySelectorAll('.live-student-cb:checked');
     const selectAllCb = document.getElementById('select-all-live');
-    
-    if (selectAllCb) {
-        selectAllCb.checked = (allCbs.length === checkedCbs.length);
-    }
+    if (selectAllCb) selectAllCb.checked = (allCbs.length === checkedCbs.length);
 };
 
 window.filterLiveStudentList = function() {
     const filter = document.getElementById('search-live-student').value.toUpperCase();
-    const items = document.querySelectorAll('.live-student-item');
-    items.forEach(item => {
+    document.querySelectorAll('.live-student-item').forEach(item => {
         const name = item.querySelector('.live-student-name').textContent.toUpperCase();
-        if (name.indexOf(filter) > -1) item.style.display = "flex";
-        else item.style.display = "none";
+        item.style.display = (name.indexOf(filter) > -1) ? "flex" : "none";
     });
 };
 
 window.startManagerLiveClass = async function(studentIds) {
     const user = firebase.auth().currentUser;
-    if(!user) {
-        Swal.fire('Error', 'You are not logged in properly.', 'error');
-        return;
-    }
+    if(!user) return;
     
-    const roomName = "MusicClassesPro_" + Date.now(); // 🟢 Jitsi Room Name
+    const roomName = "MusicClassesPro_" + Date.now(); 
     
     try {
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
@@ -9430,43 +9417,37 @@ window.startManagerLiveClass = async function(studentIds) {
         });
 
         document.getElementById('endClassBtn').style.display = 'block';
-        
-        // 🟢 শিক্ষকের জন্য সরাসরি Jitsi লিংক ওপেন করা
-        startJitsiCall(roomName, null, 'Teacher');
+        startZegoCall(roomName, 'Teacher');
         
         Swal.fire({
-            title: 'Class is Live! 🎥',
-            text: 'Students have been notified. After finishing the class, return to this app and click "End Current Class".',
-            icon: 'success',
-            confirmButtonColor: 'var(--primary)'
+            toast: true, position: 'top-end', icon: 'success', title: 'Class Started!', showConfirmButton: false, timer: 1500
         });
-        
     } catch (e) {
-        console.error("Error starting class:", e);
-        Swal.fire('Database Error', 'Failed to save data. Please check internet.', 'error');
+        console.error(e);
+        Swal.fire('Database Error', 'Please check Firestore Rules.', 'error');
     }
 };
 
 window.endLiveClassManager = async function() {
     const user = firebase.auth().currentUser;
     try {
-        if(user) {
-            await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
-        }
-    } catch(e) {
-        console.log("Delete error", e);
+        if(user) await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
+    } catch(e) {}
+    
+    if(window.zp) {
+        window.zp.destroy();
+        window.zp = null;
     }
     
+    let zegoContainer = document.getElementById('zego-full-screen-container');
+    if(zegoContainer) zegoContainer.style.display = 'none';
+    
     document.getElementById('endClassBtn').style.display = 'none';
-    Swal.fire('Ended', 'Live class ended and notification removed from student portals.', 'success');
+    Swal.fire('Ended', 'Class ended successfully.', 'success');
 };
 
 
-// 🟢 গ্লোবাল ভেরিয়েবল (HTML এর এরর থেকে বাঁচাতে)
-window.activeRoomName = null;
-var activeRoomName = null; 
-
-// --- 2. STUDENT PORTAL SIDE (Click Fixed) ---
+// --- 2. STUDENT PORTAL SIDE ---
 window.listenForLiveClassesStudent = function(managerUid, studentId) {
     db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
         const data = doc.data();
@@ -9480,33 +9461,13 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
                 joinArea.style.display = 'block';
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
                 
-                // 🟢 FIX: HTML বাটনের কাজ JS দিয়ে জোর করে সেট করা হলো
                 const joinBtn = joinArea.querySelector('button');
                 if(joinBtn) {
-                    joinBtn.removeAttribute('onclick'); // HTML-এর পুরানো ভুল কোড মুছে ফেলা হলো
-                    
+                    joinBtn.removeAttribute('onclick'); // আগের HTML কোড মুছে ফেলবে
                     joinBtn.onclick = function(e) {
                         e.preventDefault();
                         if (window.activeRoomName) {
-                            const meetingUrl = `https://meet.jit.si/${window.activeRoomName}`;
-                            
-                            // নতুন ট্যাবে ক্লাস ওপেন করা
-                            const newWindow = window.open(meetingUrl, '_blank');
-                            
-                            // ব্রাউজার যদি পপআপ ব্লক করে (Popup Blocker)
-                            if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-                                Swal.fire({
-                                    icon: 'warning',
-                                    title: 'Popup Blocked!',
-                                    html: `আপনার ব্রাউজার সরাসরি ট্যাব ওপেন হতে দিচ্ছে না।<br><br>
-                                           <a href="${meetingUrl}" target="_blank" style="display:inline-block; background:var(--primary); color:#fff; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold; margin-top:10px; box-shadow:0 4px 10px rgba(0,0,0,0.2);">
-                                              🎥 Click Here to Join
-                                           </a>`,
-                                    showConfirmButton: false
-                                });
-                            }
-                        } else {
-                            Swal.fire('Error', 'Class has ended or is not active.', 'error');
+                            startZegoCall(window.activeRoomName, 'Student');
                         }
                     };
                 }
@@ -9514,19 +9475,72 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         } else {
             window.activeRoomName = null;
             if(joinArea) joinArea.style.display = 'none';
+            if(window.zp) { 
+                window.zp.destroy(); 
+                window.zp = null;
+                let zegoContainer = document.getElementById('zego-full-screen-container');
+                if(zegoContainer) zegoContainer.style.display = 'none';
+                Swal.fire('Session Ended', 'The teacher has ended the class.', 'info'); 
+            }
         }
-    }, (error) => {
-        console.log("Error listening to live classes: ", error);
     });
 };
 
-// --- 3. COMMON JITSI CALL (TEACHER SIDE) ---
-window.startJitsiCall = function(room, containerId, displayName) {
-    let finalRoomName = room || window.activeRoomName;
-    if (finalRoomName) {
-        const meetingUrl = `https://meet.jit.si/${finalRoomName}`;
-        window.open(meetingUrl, '_blank');
-    } else {
-        Swal.fire('Error', 'Class link is no longer active.', 'error');
+// --- 3. ZEGOCLOUD CALLING LOGIC (FULL SCREEN IN-APP) ---
+window.startZegoCall = function(room, displayName) {
+    const userID = "ID_" + Math.floor(Math.random() * 10000);
+    const userName = displayName || "User";
+    
+    // ZegoCloud টোকেন জেনারেট
+    const kitToken = ZegoUIKitPrebuilt.generateKitTokenForTest(
+        ZEGO_APP_ID, ZEGO_SERVER_SECRET, room, userID, userName
+    );
+    
+    // 🟢 ম্যাজিক: ডাইনামিক ফুলস্ক্রিন কন্টেইনার তৈরি করা (যাতে HTML এ কিছু না করতে হয়)
+    let container = document.getElementById('zego-full-screen-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'zego-full-screen-container';
+        document.body.appendChild(container);
     }
+    
+    container.style.display = 'block';
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '0';
+    container.style.width = '100vw';
+    container.style.height = '100vh';
+    container.style.zIndex = '999999';
+    container.style.background = '#1e293b';
+
+    // স্টুডেন্টের জয়েন এরিয়া লুকানো
+    const joinArea = document.getElementById('studentJoinArea');
+    if(joinArea) joinArea.style.display = 'none';
+    
+    // ZegoCloud কল স্টার্ট
+    window.zp = ZegoUIKitPrebuilt.create(kitToken);
+    window.zp.joinRoom({
+        container: container,
+        scenario: { mode: ZegoUIKitPrebuilt.VideoConference },
+        showPreJoinView: false, // প্রি-জয়েন স্ক্রিন স্কিপ করে সরাসরি ক্লাসে ঢুকবে
+        turnOnMicrophoneWhenJoining: true,
+        turnOnCameraWhenJoining: true,
+        showMyCameraToggleButton: true,
+        showMyMicrophoneToggleButton: true,
+        showAudioVideoSettingsButton: true,
+        showScreenSharingButton: true,
+        showTextChat: true,
+        showUserList: true,
+        onLeaveRoom: () => {
+            container.style.display = 'none';
+            window.zp.destroy();
+            window.zp = null;
+            
+            if(displayName === 'Teacher') {
+                window.endLiveClassManager();
+            } else {
+                if(joinArea) joinArea.style.display = 'block'; // ক্লাস থেকে বের হলে আবার জয়েন বাটন দেখাবে
+            }
+        }
+    });
 };
