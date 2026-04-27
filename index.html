@@ -11,6 +11,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src='https://meet.jit.si/external_api.js'></script>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#4f46e5">
@@ -174,6 +175,11 @@
             <button class="nav-item" onclick="openTab('studentMgmt')"><i class="fas fa-users"></i><span>Students</span></button>
             <button class="nav-item" onclick="openTab('reports')"><i class="fas fa-file-invoice"></i><span>Report</span></button>
             <button class="nav-item" onclick="openTab('analytics')"><i class="fas fa-chart-line"></i><span>Analytic</span></button>
+            
+            <button class="nav-item" onclick="openTab('liveClass')">
+                <i class="fas fa-video" style="color: #ef4444;"></i>
+                <span>Live</span>
+            </button>
         </div>
 
         <div class="tab-buttons">
@@ -613,6 +619,22 @@
         </thead>
         <tbody id="salesList"></tbody>
     </table>
+</div>
+<div id="liveClass" class="tab-content">
+    <div class="card" style="text-align: center;">
+        <h2 style="color: var(--info);"><i class="fas fa-chalkboard-teacher"></i> Manager Live Session</h2>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Select students and start a live video class.</p>
+        
+        <button class="btn-primary" onclick="openStartLiveClassModal()" style="padding: 15px; font-size: 16px; width: 100%; border-radius: 12px; margin-bottom: 20px; font-weight: bold;">
+            <i class="fas fa-video"></i> Select Students & Start Class
+        </button>
+        
+        <button class="btn-danger" onclick="endLiveClassManager()" style="padding: 12px; width: 100%; border-radius: 12px; margin-bottom: 15px; display: none; font-weight: bold;" id="endClassBtn">
+            <i class="fas fa-stop-circle"></i> End Current Class
+        </button>
+        
+        <div id="jitsi-container-manager" style="height: 550px; width: 100%; border-radius: 12px; overflow: hidden; display: none; border: 2px solid var(--primary);"></div>
+    </div>
 </div>
 
         <div id="settings" class="tab-content">
