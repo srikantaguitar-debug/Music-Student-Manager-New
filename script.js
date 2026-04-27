@@ -9462,6 +9462,10 @@ window.endLiveClassManager = async function() {
 };
 
 
+// 🟢 গ্লোবাল ভেরিয়েবল (HTML এর এরর থেকে বাঁচাতে)
+window.activeRoomName = null;
+var activeRoomName = null; 
+
 // --- 2. STUDENT PORTAL SIDE ---
 window.listenForLiveClassesStudent = function(managerUid, studentId) {
     db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
@@ -9470,13 +9474,17 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         const strStudentId = String(studentId); 
         
         if (data && data.active && data.allowed_students && data.allowed_students.includes(strStudentId)) {
+            // 🟢 দুটি ভেরিয়েবলেই ডাটা সেট করা হলো যাতে HTML এরর না দেয়
             window.activeRoomName = data.roomName;
+            activeRoomName = data.roomName; 
+            
             if(joinArea) {
                 joinArea.style.display = 'block';
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
             }
         } else {
             window.activeRoomName = null;
+            activeRoomName = null;
             if(joinArea) joinArea.style.display = 'none';
         }
     }, (error) => {
@@ -9486,12 +9494,27 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
 
 // --- 3. COMMON JITSI CALL (NEW TAB FOR UNLIMITED TIME) ---
 window.startJitsiCall = function(room, containerId, displayName) {
-    let finalRoomName = room || window.activeRoomName;
+    // রুমের নাম HTML থেকে আসুক বা আমাদের ভেরিয়েবল থেকে, সেটা ধরবে
+    let finalRoomName = room || window.activeRoomName || activeRoomName;
     
     if (finalRoomName) {
-        // 🟢 সরাসরি Jitsi Meet এর অরিজিনাল ওয়েবসাইটে পাঠিয়ে দেওয়া হচ্ছে (বক্সের ভেতরে নয়)
         const meetingUrl = `https://meet.jit.si/${finalRoomName}`;
-        window.open(meetingUrl, '_blank');
+        
+        // 🟢 ব্রাউজারে নতুন ট্যাব ওপেন করার চেষ্টা
+        const newWindow = window.open(meetingUrl, '_blank');
+        
+        // 🟢 যদি ব্রাউজার পপআপ ব্লক করে দেয় (Popup Blocker)
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Browser Blocked the Class!',
+                html: `Your browser is blocking the new tab.<br><br>
+                       <a href="${meetingUrl}" target="_blank" style="display:inline-block; background:var(--primary); color:#fff; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:bold;">
+                          🎥 Click Here to Open Video
+                       </a>`,
+                showConfirmButton: false
+            });
+        }
     } else {
         Swal.fire('Error', 'Class link is no longer active.', 'error');
     }
