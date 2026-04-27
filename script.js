@@ -9322,27 +9322,37 @@ window.markAbsentContacted = async function(studentId) {
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
 // ==========================================
-// 🟢 LIVE CLASS LOGIC (GOOGLE MEET / ZOOM LINK PASTE)
+// 🟢 LIVE CLASS LOGIC (JITSI UNLIMITED - NEW TAB)
 // ==========================================
 
-window.activeMeetingLink = null;
-window.activeRoomName = null; // 🟢 FIX: এই লাইনটি না থাকায় বাটনে ক্লিক কাজ করছিল না
+window.activeRoomName = null;
 
-// --- 1. MANAGER (TEACHER) SIDE ---
+// --- ১. MANAGER (TEACHER) SIDE (Updated with Select All) ---
 window.openStartLiveClassModal = function() {
     const activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    // 🟢 লিংক পেস্ট করার জন্য নতুন ইনপুট ফিল্ড
-    let cbHtml = '<input type="url" id="live-class-link" placeholder="🔗 Paste Google Meet / Zoom link here..." class="swal2-input" style="width: 100%; margin: 0 0 15px 0; font-size: 14px; box-sizing: border-box;" required>';
-    
-    cbHtml += '<input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0 0 15px 0; font-size: 14px; box-sizing: border-box;">';
+    // 🟢 'Select All' চেক বক্স এবং সার্চ ইনপুট
+    let cbHtml = `
+        <div style="margin-bottom: 15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; background:var(--bg-input); padding:10px 15px; border-radius:10px; border:1px solid var(--border-color);">
+                <label style="cursor:pointer; display:flex; align-items:center; gap:10px; font-weight:bold; font-size:14px; color:var(--text-main);">
+                    <input type="checkbox" id="select-all-live" onchange="window.toggleSelectAllStudents(this)" style="width:20px; height:20px; accent-color:var(--primary); cursor:pointer;"> 
+                    Select All Students
+                </label>
+                <span style="font-size:12px; color:var(--text-muted); font-weight:600;">(${activeSt.length})</span>
+            </div>
+            
+            <input type="text" id="search-live-student" placeholder="🔍 Search student..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0; font-size: 14px; box-sizing: border-box;">
+        </div>
+    `;
+
     cbHtml += '<div id="live-student-list-container" style="text-align:left; max-height:250px; overflow-y:auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; background: var(--bg-card);">';
     
     activeSt.forEach(s => {
         const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
         cbHtml += `
         <label class="live-student-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background 0.2s;">
-            <input type="checkbox" class="live-student-cb" value="${s.id}" style="width:20px; height:20px; margin-right:12px; accent-color: var(--primary); cursor:pointer;">
+            <input type="checkbox" class="live-student-cb" value="${s.id}" style="width:20px; height:20px; margin-right:12px; accent-color: var(--primary); cursor:pointer;" onchange="window.checkSelectAllStatus()">
             <img src="${photoSrc}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
             <div style="line-height: 1.2; flex-grow: 1;">
                 <span class="live-student-name" style="font-weight: 600; font-size: 14px; color: var(--text-main);">${s.name}</span><br>
@@ -9355,24 +9365,41 @@ window.openStartLiveClassModal = function() {
     cbHtml += '</div>';
 
     Swal.fire({
-        title: 'Start Live Class',
+        title: 'Start Jitsi Class',
         html: cbHtml,
         showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send Link & Start',
+        confirmButtonText: '<i class="fas fa-video"></i> Start Class',
         confirmButtonColor: 'var(--primary)',
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
-            const meetingLink = document.getElementById('live-class-link').value.trim();
             const checked = Array.from(document.querySelectorAll('.live-student-cb:checked')).map(cb => String(cb.value));
-            
-            if(!meetingLink) { Swal.showValidationMessage('Please paste a meeting link!'); return false; }
             if(checked.length === 0) { Swal.showValidationMessage('Please select at least 1 student!'); return false; }
-            
-            return { link: meetingLink, ids: checked };
+            return checked;
         }
     }).then(res => {
-        if(res.isConfirmed) startManagerLiveClass(res.value.ids, res.value.link);
+        if(res.isConfirmed) startManagerLiveClass(res.value);
     });
+};
+
+// 🟢 সব স্টুডেন্ট একসাথে সিলেক্ট করার লজিক
+window.toggleSelectAllStudents = function(source) {
+    const checkboxes = document.querySelectorAll('.live-student-cb');
+    checkboxes.forEach(cb => {
+        // শুধুমাত্র যেগুলো সার্চে দেখা যাচ্ছে সেগুলো সিলেক্ট হবে (ঐচ্ছিক)
+        // আমরা এখানে সব অ্যাক্টিভ স্টুডেন্টকেই সিলেক্ট করছি
+        cb.checked = source.checked;
+    });
+};
+
+// 🟢 যদি ম্যানুয়ালি সব টিক দেওয়া হয়, তবে উপরের 'Select All' অটোমেটিক টিক হয়ে যাবে
+window.checkSelectAllStatus = function() {
+    const allCbs = document.querySelectorAll('.live-student-cb');
+    const checkedCbs = document.querySelectorAll('.live-student-cb:checked');
+    const selectAllCb = document.getElementById('select-all-live');
+    
+    if (selectAllCb) {
+        selectAllCb.checked = (allCbs.length === checkedCbs.length);
+    }
 };
 
 window.filterLiveStudentList = function() {
@@ -9385,16 +9412,18 @@ window.filterLiveStudentList = function() {
     });
 };
 
-window.startManagerLiveClass = async function(studentIds, meetingLink) {
+window.startManagerLiveClass = async function(studentIds) {
     const user = firebase.auth().currentUser;
     if(!user) {
         Swal.fire('Error', 'You are not logged in properly.', 'error');
         return;
     }
     
+    const roomName = "MusicClassesPro_" + Date.now(); // 🟢 Jitsi Room Name
+    
     try {
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
-            meetingLink: meetingLink,
+            roomName: roomName,
             allowed_students: studentIds, 
             active: true,
             timestamp: new Date().toISOString() 
@@ -9402,12 +9431,12 @@ window.startManagerLiveClass = async function(studentIds, meetingLink) {
 
         document.getElementById('endClassBtn').style.display = 'block';
         
-        // শিক্ষকের জন্য গুগল মিট সরাসরি ওপেন করে দেওয়া হবে
-        window.open(meetingLink, '_blank');
+        // 🟢 শিক্ষকের জন্য সরাসরি Jitsi লিংক ওপেন করা
+        startJitsiCall(roomName, null, 'Teacher');
         
         Swal.fire({
             title: 'Class is Live! 🎥',
-            text: 'Link successfully sent to students. After finishing your class, return here and click "End Current Class".',
+            text: 'Students have been notified. After finishing the class, return to this app and click "End Current Class".',
             icon: 'success',
             confirmButtonColor: 'var(--primary)'
         });
@@ -9429,7 +9458,7 @@ window.endLiveClassManager = async function() {
     }
     
     document.getElementById('endClassBtn').style.display = 'none';
-    Swal.fire('Ended', 'Live class ended and link removed from student portals.', 'success');
+    Swal.fire('Ended', 'Live class ended and notification removed from student portals.', 'success');
 };
 
 
@@ -9441,14 +9470,12 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
         const strStudentId = String(studentId); 
         
         if (data && data.active && data.allowed_students && data.allowed_students.includes(strStudentId)) {
-            window.activeMeetingLink = data.meetingLink;
-            window.activeRoomName = data.meetingLink; // 🟢 Fallback for HTML button compatibility
+            window.activeRoomName = data.roomName;
             if(joinArea) {
                 joinArea.style.display = 'block';
                 if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
             }
         } else {
-            window.activeMeetingLink = null;
             window.activeRoomName = null;
             if(joinArea) joinArea.style.display = 'none';
         }
@@ -9457,11 +9484,14 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
     });
 };
 
-// --- 3. OVERRIDE HTML BUTTON FUNCTION ---
-// 🟢 প্যারামিটারগুলো রাখা হয়েছে যাতে HTML এর onclick="startJitsiCall(activeRoomName, ...)" ফাংশনটি এরর না দেয়
+// --- 3. COMMON JITSI CALL (NEW TAB FOR UNLIMITED TIME) ---
 window.startJitsiCall = function(room, containerId, displayName) {
-    if (window.activeMeetingLink) {
-        window.open(window.activeMeetingLink, '_blank'); // স্টুডেন্টদের নতুন ট্যাবে লিংক ওপেন হবে
+    let finalRoomName = room || window.activeRoomName;
+    
+    if (finalRoomName) {
+        // 🟢 সরাসরি Jitsi Meet এর অরিজিনাল ওয়েবসাইটে পাঠিয়ে দেওয়া হচ্ছে (বক্সের ভেতরে নয়)
+        const meetingUrl = `https://meet.jit.si/${finalRoomName}`;
+        window.open(meetingUrl, '_blank');
     } else {
         Swal.fire('Error', 'Class link is no longer active.', 'error');
     }
