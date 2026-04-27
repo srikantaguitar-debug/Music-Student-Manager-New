@@ -9444,7 +9444,7 @@ window.endLiveClassManager = async function() {
     Swal.fire('Ended', 'Class ended and notification removed.', 'success');
 };
 
-// --- ২. STUDENT PORTAL SIDE ---
+// --- ২. STUDENT PORTAL SIDE (Final Fixed) ---
 window.listenForLiveClassesStudent = function(managerUid, studentId) {
     db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
         const data = doc.data();
@@ -9460,23 +9460,25 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
                 
                 const joinBtn = joinArea.querySelector('button');
                 if(joinBtn) {
-                    joinBtn.innerHTML = '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/9b/Google_Meet_icon_%282020%29.svg/512px-Google_Meet_icon_%282020%29.svg.png" style="width:20px; height:20px; vertical-align:middle; margin-right:8px;"> Join Google Meet';
+                    // বাটন ডিজাইন আপডেট (ভাঙা ইমেজ রিমুভড)
+                    joinBtn.innerHTML = '<i class="fas fa-video" style="margin-right:10px; color:#10b981;"></i> Join Google Meet';
                     joinBtn.style.background = '#ffffff'; 
-                    joinBtn.style.color = '#3c4043';
-                    joinBtn.style.border = '1px solid #dadce0';
-                    joinBtn.style.boxShadow = '0 1px 2px 0 rgba(60,64,67,0.3), 0 1px 3px 1px rgba(60,64,67,0.15)';
+                    joinBtn.style.color = '#1e293b';
+                    joinBtn.style.fontWeight = 'bold';
+                    joinBtn.style.border = '2px solid #10b981';
                     
-                    joinBtn.removeAttribute('onclick'); 
-                    
-                    joinBtn.onclick = function(e) {
-                        e.preventDefault();
+                    // পুরানো ক্লিক ইভেন্ট ডিলিট করে নতুন করে সেট করা
+                    joinBtn.onclick = null;
+                    joinBtn.onclick = function() {
                         if (window.activeMeetLink) {
-                            // 🟢 স্টুডেন্টদের ক্ষেত্রেও 404 ফিক্স করা হলো
                             let finalLink = window.activeMeetLink.trim();
-                            if (!finalLink.startsWith('http://') && !finalLink.startsWith('https://')) {
+                            // লিংকে https:// না থাকলে অ্যাড করে নেবে
+                            if (!finalLink.startsWith('http')) {
                                 finalLink = 'https://' + finalLink;
                             }
                             window.open(finalLink, '_blank');
+                        } else {
+                            Swal.fire('Error', 'No valid link found!', 'error');
                         }
                     };
                 }
@@ -9485,5 +9487,7 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
             window.activeMeetLink = null;
             if(joinArea) joinArea.style.display = 'none';
         }
+    }, (error) => {
+        console.log("Error: ", error);
     });
 };
