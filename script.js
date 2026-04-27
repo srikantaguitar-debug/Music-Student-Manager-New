@@ -9469,79 +9469,44 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
 };
 
 
-// --- ৩. COMMON JITSI FUNCTION ---
+// --- ৩. COMMON JITSI FUNCTION (Unlimited Time in New Tab) ---
 window.startJitsiCall = function(room, containerId, displayName) {
     if (!room) {
         Swal.fire('Wait', 'Class link is missing or expired.', 'error');
         return;
     }
 
-    const domain = 'meet.jit.si';
-    const options = {
-        roomName: room,
-        width: '100%',
-        height: '100%',
-        parentNode: document.querySelector('#' + containerId),
-        userInfo: { displayName: displayName || 'Student' },
-        configOverwrite: { 
-            startWithAudioMuted: false, 
-            disableDeepLinking: true, 
-            prejoinPageEnabled: false
-        },
-        interfaceConfigOverwrite: {
-            TOOLBAR_BUTTONS: [
-                'microphone', 'camera', 'fullscreen', 'fodeviceselection', 
-                'hangup', 'chat', 'settings', 'videoquality', 'tileview'
-            ],
-        }
-    };
+    // Jitsi-এর সরাসরি লিংক তৈরি
+    const roomLink = `https://meet.jit.si/${room}#userInfo.displayName="${displayName || 'Student'}"`;
 
-    // 🟢 কন্টেইনারটিকে ফুল স্ক্রিন (Full Screen) করার লজিক
-    const container = document.getElementById(containerId);
-    container.style.position = 'fixed';
-    container.style.top = '0';
-    container.style.left = '0';
-    container.style.width = '100vw';
-    container.style.height = '100vh';
-    container.style.zIndex = '999999';
-    container.style.margin = '0';
-    container.style.borderRadius = '0';
-    container.style.border = 'none';
-    container.style.background = '#000';
-    container.style.display = 'block';
+    // সরাসরি নতুন ট্যাবে বা Jitsi মোবাইল অ্যাপে ওপেন হবে (এখানে ৫ মিনিটের লিমিট নেই)
+    window.open(roomLink, '_blank');
 
-    // 🟢 শিক্ষকের জন্য "End Class" বাটনটি ফুল স্ক্রিনের ওপরে ভাসিয়ে রাখা
+    // শিক্ষকের জন্য End Class বাটন দেখানোর লজিক
     const endBtn = document.getElementById('endClassBtn');
     if (endBtn && displayName === 'Teacher') {
         endBtn.style.display = 'block';
-        endBtn.style.position = 'fixed';
-        endBtn.style.bottom = '20px';
-        endBtn.style.left = '50%';
-        endBtn.style.transform = 'translateX(-50%)';
-        endBtn.style.zIndex = '9999999';
-        endBtn.style.width = '80%';
-        endBtn.style.maxWidth = '300px';
-        endBtn.style.boxShadow = '0 4px 15px rgba(0,0,0,0.4)';
-    }
-    
-    if(document.getElementById('studentJoinArea')) {
-        document.getElementById('studentJoinArea').style.display = 'none';
-    }
-    
-    window.jitsiApi = new JitsiMeetExternalAPI(domain, options);
-
-    // 🟢 যখন কেউ লাল বাটন দিয়ে কল কাটবে (Hangup)
-    window.jitsiApi.addEventListener('videoConferenceLeft', () => {
-        container.style.display = 'none';
-        container.innerHTML = '';
+        endBtn.style.position = 'relative';
+        endBtn.style.transform = 'none';
+        endBtn.style.width = '100%';
         
-        if (displayName === 'Teacher') {
-            window.endLiveClassManager(); // শিক্ষক বের হলে ক্লাস এন্ড হবে
-        } else {
-            window.jitsiApi = null;
-            if(containerId === 'jitsi-container-student') {
-                document.getElementById('studentJoinArea').style.display = 'block';
-            }
-        }
-    });
+        Swal.fire({
+            title: 'Class is Live! 🎥',
+            text: 'Your class has opened in a new tab/app. Once finished, come back here and click "End Current Class".',
+            icon: 'info',
+            confirmButtonText: 'Got it',
+            confirmButtonColor: 'var(--primary)'
+        });
+    }
+    
+    // স্টুডেন্টের জন্য মেসেজ
+    if (displayName !== 'Teacher') {
+        Swal.fire({
+            title: 'Joined! 🎓',
+            text: 'Your class is opened in a new tab or Jitsi app. Please return to this portal when the class ends.',
+            icon: 'success',
+            confirmButtonText: 'Okay',
+            confirmButtonColor: 'var(--success)'
+        });
+    }
 };
