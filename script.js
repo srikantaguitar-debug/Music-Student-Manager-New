@@ -9386,10 +9386,10 @@ window.startManagerLiveClass = async function(studentIds) {
         return;
     }
     
-    const roomName = "MusicClass_" + Date.now(); // ইউনিক রুমের নাম
+    const roomName = "MusicClass_" + Date.now(); // Unique room name
     
     try {
-        // 🟢 FIX: ডাটাবেসে সেভ করার জন্য সরাসরি user.uid ব্যবহার করা হলো
+        // Saving to database directly using user.uid
         await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
             roomName: roomName,
             allowed_students: studentIds, // Array of String IDs
@@ -9397,7 +9397,7 @@ window.startManagerLiveClass = async function(studentIds) {
             timestamp: new Date().toISOString() 
         });
 
-        // সাকসেস হলে শিক্ষকের জন্য ক্লাস ওপেন হবে
+        // Open Jitsi for teacher
         document.getElementById('endClassBtn').style.display = 'block';
         startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
         
@@ -9405,14 +9405,13 @@ window.startManagerLiveClass = async function(studentIds) {
         
     } catch (e) {
         console.error("Error starting class:", e);
-        Swal.fire('Database Error', 'ফায়ারবেসে ডেটা সেভ হতে সমস্যা হচ্ছে। আপনার ইন্টারনেট কানেকশন চেক করুন।', 'error');
+        Swal.fire('Database Error', 'Failed to save data to Firebase. Please check your internet connection.', 'error');
     }
 };
 
 window.endLiveClassManager = async function() {
     const user = firebase.auth().currentUser;
     try {
-        // 🟢 FIX: ক্লাস ডিলিট করার জন্যও সরাসরি user.uid
         if(user) {
             await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
         }
@@ -9435,14 +9434,12 @@ window.listenForLiveClassesStudent = function(managerUid, studentId) {
     db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
         const data = doc.data();
         const joinArea = document.getElementById('studentJoinArea');
-        const strStudentId = String(studentId); // স্টুডেন্টের আইডি String এ কনভার্ট করা হলো
+        const strStudentId = String(studentId); 
         
-        // চেক করা হচ্ছে ডেটা আছে কিনা, অ্যাক্টিভ কিনা এবং স্টুডেন্টের আইডি লিস্টে আছে কিনা
         if (data && data.active && data.allowed_students && data.allowed_students.includes(strStudentId)) {
             window.activeRoomName = data.roomName;
             if(joinArea) {
                 joinArea.style.display = 'block';
-                // এলার্ট সাউন্ড বা ভাইব্রেশন (যদি ব্রাউজার সাপোর্ট করে)
                 if (navigator.vibrate) navigator.vibrate(200);
             }
         } else {
