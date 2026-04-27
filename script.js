@@ -792,6 +792,14 @@ document.body.innerHTML = `
             ${hallOfFameHtml}
             
             ${noticeHtml}
+            <div id="studentJoinArea" style="display:none; background: #ecfdf5; border: 2px dashed #10b981; padding: 20px; border-radius: 16px; margin: 20px 0; text-align:center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
+    <h3 style="color:#047857; margin:0 0 10px 0;"><i class="fas fa-satellite-dish fa-fade" style="color: red;"></i> Live Class Started!</h3>
+    <p style="font-size: 12px; color: #065f46; margin-bottom: 15px;">Your teacher is waiting for you in the class.</p>
+    <button onclick="startJitsiCall(activeRoomName, 'jitsi-container-student', '${s.name}')" style="background:#10b981; color:white; border:none; padding:12px 20px; border-radius:8px; font-weight:bold; font-size:16px; cursor:pointer; width: 100%; box-shadow: 0 4px 10px rgba(16,185,129,0.3);">
+        <i class="fas fa-video"></i> Join Class Now
+    </button>
+</div>
+<div id="jitsi-container-student" style="height: 500px; width: 100%; border-radius: 12px; overflow: hidden; display: none; margin: 20px 0; border: 2px solid var(--primary); box-shadow: 0 10px 25px rgba(0,0,0,0.1);"></div>
             <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
                 <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
                     <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
@@ -938,6 +946,7 @@ document.body.innerHTML = `
 `;
 
 setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+listenForLiveClassesStudent(managerUid, studentViewId);
 
         // 🟢 NEW: Security - Disable Copy, Selection, and Right-Click in Student Portal
         document.body.style.userSelect = 'none';
@@ -9312,3 +9321,171 @@ window.markAbsentContacted = async function(studentId) {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Marked as Contacted!', showConfirmButton: false, timer: 1500 });
     renderDashboard(); // সাথে সাথে ড্যাশবোর্ড আপডেট হবে
 };
+// ==========================================
+// 🟢 LIVE CLASS & JITSI MEET LOGIC
+// ==========================================
+
+let activeRoomName = null;
+let jitsiApi = null;
+
+// --- ১. MANAGER (TEACHER) SIDE ---
+function openStartLiveClassModal() {
+    const activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    
+    let html = `
+        <input type="text" id="search-live-student" placeholder="🔍 Search student by name..." class="swal2-input" onkeyup="filterLiveStudentList()" style="width: 100%; margin: 0 0 15px 0; font-size: 14px; box-sizing: border-box;">
+        <div id="live-student-list-container" style="text-align:left; max-height:300px; overflow-y:auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 5px; background: var(--bg-card);">
+    `;
+    
+    activeSt.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        html += `
+        <label class="live-student-item" style="display:flex; align-items:center; padding:10px; border-bottom:1px solid var(--border-color); cursor:pointer; transition: background 0.2s;">
+            <input type="checkbox" class="live-student-cb" value="${s.id}" style="width:20px; height:20px; margin-right:12px; accent-color: var(--primary); cursor:pointer;">
+            <img src="${photoSrc}" style="width: 38px; height: 38px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
+            <div style="line-height: 1.2; flex-grow: 1;">
+                <span class="live-student-name" style="font-weight: 600; font-size: 14px; color: var(--text-main);">${s.name}</span><br>
+                <span style="font-size: 11px; color: var(--text-muted);">${s.class || 'Music'}</span>
+            </div>
+        </label>`;
+    });
+    
+    if(activeSt.length === 0) {
+        html += `<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;">No active students found</div>`;
+    }
+    
+    html += '</div>';
+
+    Swal.fire({
+        title: 'Select Students',
+        html: html,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-video"></i> Start Class',
+        confirmButtonColor: 'var(--primary)',
+        cancelButtonColor: '#ef4444',
+        preConfirm: () => {
+            const checked = Array.from(document.querySelectorAll('.live-student-cb:checked')).map(cb => parseInt(cb.value));
+            if(checked.length === 0) { Swal.showValidationMessage('Please select at least 1 student'); return false; }
+            return checked;
+        }
+    }).then(res => {
+        if(res.isConfirmed) startManagerLiveClass(res.value);
+    });
+}
+
+// 🟢 Search Student Logic for Live Class
+function filterLiveStudentList() {
+    const filter = document.getElementById('search-live-student').value.toUpperCase();
+    const items = document.querySelectorAll('.live-student-item');
+    
+    items.forEach(item => {
+        const name = item.querySelector('.live-student-name').textContent.toUpperCase();
+        if (name.indexOf(filter) > -1) {
+            item.style.display = "flex";
+        } else {
+            item.style.display = "none";
+        }
+    });
+}
+
+async function startManagerLiveClass(studentIds) {
+    const user = firebase.auth().currentUser;
+    if(!user) return;
+    
+    const roomName = "MusicClass_" + Date.now(); // ইউনিক রুমের নাম
+    
+    // ডাটাবেসে সেভ করা (যাতে স্টুডেন্টদের কাছে নোটিফিকেশন যায়)
+    await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
+        roomName: roomName,
+        allowed_students: studentIds,
+        active: true,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    document.getElementById('endClassBtn').style.display = 'block';
+    // শিক্ষকের জন্য জিৎসি ওপেন করা
+    startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
+}
+
+async function endLiveClassManager() {
+    const user = firebase.auth().currentUser;
+    if(user) {
+        await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
+    }
+    if(jitsiApi) {
+        jitsiApi.dispose();
+        jitsiApi = null;
+    }
+    document.getElementById('jitsi-container-manager').style.display = 'none';
+    document.getElementById('endClassBtn').style.display = 'none';
+    Swal.fire('Ended', 'Live class has been ended successfully.', 'success');
+}
+
+// --- ২. STUDENT PORTAL SIDE ---
+function listenForLiveClassesStudent(managerUid, studentId) {
+    // ரியেল-টাইম চেক করবে স্যার ক্লাস শুরু করেছেন কিনা
+    db.collection('music_classes').doc(managerUid).collection('live_sessions').doc('current_class').onSnapshot((doc) => {
+        const data = doc.data();
+        const joinArea = document.getElementById('studentJoinArea');
+        
+        if (data && data.active && data.allowed_students && data.allowed_students.includes(parseInt(studentId))) {
+            // যদি স্টুডেন্টের আইডি লিস্টে থাকে
+            activeRoomName = data.roomName;
+            if(joinArea) joinArea.style.display = 'block';
+        } else {
+            // ক্লাস শেষ হলে বা আইডি না থাকলে
+            activeRoomName = null;
+            if(joinArea) joinArea.style.display = 'none';
+            if(jitsiApi && document.getElementById('jitsi-container-student').style.display === 'block') { 
+                jitsiApi.dispose(); 
+                jitsiApi = null;
+                document.getElementById('jitsi-container-student').style.display = 'none'; 
+                Swal.fire('Session Ended', 'The teacher has ended the class.', 'info'); 
+            }
+        }
+    });
+}
+
+
+// --- ৩. COMMON JITSI FUNCTION ---
+function startJitsiCall(room, containerId, displayName) {
+    const domain = 'meet.jit.si';
+    const options = {
+        roomName: room,
+        width: '100%',
+        height: '100%',
+        parentNode: document.querySelector('#' + containerId),
+        userInfo: { displayName: displayName },
+        configOverwrite: { 
+            startWithAudioMuted: false, 
+            disableDeepLinking: true, 
+            prejoinPageEnabled: false // সরাসরি ক্লাসে ঢুকবে
+        },
+        interfaceConfigOverwrite: {
+            TOOLBAR_BUTTONS: [
+                'microphone', 'camera', 'fullscreen', 'fodeviceselection', 
+                'hangup', 'chat', 'settings', 'videoquality', 'tileview'
+            ],
+        }
+    };
+
+    // কন্টেইনার ভিজিবল করা
+    document.getElementById(containerId).style.display = 'block';
+    
+    // স্টুডেন্টের ক্ষেত্রে জয়েন বাটন হাইড করা
+    if(document.getElementById('studentJoinArea')) {
+        document.getElementById('studentJoinArea').style.display = 'none';
+    }
+    
+    jitsiApi = new JitsiMeetExternalAPI(domain, options);
+
+    // কেউ কল কাটলে কী হবে
+    jitsiApi.addEventListener('videoConferenceLeft', () => {
+        document.getElementById(containerId).style.display = 'none';
+        document.getElementById(containerId).innerHTML = '';
+        jitsiApi = null;
+        if(containerId === 'jitsi-container-student') {
+            document.getElementById('studentJoinArea').style.display = 'block'; // বাটন আবার দেখাবে
+        }
+    });
+}
