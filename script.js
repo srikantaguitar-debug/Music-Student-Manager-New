@@ -9380,39 +9380,44 @@ window.filterLiveStudentList = function() {
 };
 
 window.startManagerLiveClass = async function(studentIds) {
+    const user = firebase.auth().currentUser;
+    if(!user) {
+        Swal.fire('Error', 'You are not logged in properly.', 'error');
+        return;
+    }
+    
     const roomName = "MusicClass_" + Date.now(); // ইউনিক রুমের নাম
     
     try {
-        // ডাটাবেসে সেভ করা (যাতে স্টুডেন্টদের কাছে নোটিফিকেশন যায়)
-        // 🟢 FIX: user.uid এর বদলে DOC_ID এবং serverTimestamp এর বদলে Local ISO String
-        await db.collection('music_classes').doc(DOC_ID).collection('live_sessions').doc('current_class').set({
+        // 🟢 FIX: ডাটাবেসে সেভ করার জন্য সরাসরি user.uid ব্যবহার করা হলো
+        await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').set({
             roomName: roomName,
-            allowed_students: studentIds,
+            allowed_students: studentIds, // Array of String IDs
             active: true,
             timestamp: new Date().toISOString() 
         });
 
+        // সাকসেস হলে শিক্ষকের জন্য ক্লাস ওপেন হবে
         document.getElementById('endClassBtn').style.display = 'block';
-        // শিক্ষকের জন্য জিৎসি ওপেন করা
         startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
         
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Class Started!', showConfirmButton: false, timer: 1500});
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Class Started Successfully!', showConfirmButton: false, timer: 1500});
         
     } catch (e) {
         console.error("Error starting class:", e);
-        // 🟢 FIX: ইন্টারনেট স্লো থাকলেও যাতে আপনার ক্লাস আটকে না থাকে তার ব্যবস্থা
-        document.getElementById('endClassBtn').style.display = 'block';
-        startJitsiCall(roomName, 'jitsi-container-manager', 'Teacher');
-        Swal.fire('Warning', 'Class started, but students might face a slight delay receiving the notification due to slow internet.', 'warning');
+        Swal.fire('Database Error', 'ফায়ারবেসে ডেটা সেভ হতে সমস্যা হচ্ছে। আপনার ইন্টারনেট কানেকশন চেক করুন।', 'error');
     }
 };
 
 window.endLiveClassManager = async function() {
+    const user = firebase.auth().currentUser;
     try {
-        // 🟢 FIX: user.uid এর বদলে DOC_ID
-        await db.collection('music_classes').doc(DOC_ID).collection('live_sessions').doc('current_class').delete();
+        // 🟢 FIX: ক্লাস ডিলিট করার জন্যও সরাসরি user.uid
+        if(user) {
+            await db.collection('music_classes').doc(user.uid).collection('live_sessions').doc('current_class').delete();
+        }
     } catch(e) {
-        console.log("Offline delete sync pending");
+        console.log("Delete error", e);
     }
     
     if(window.jitsiApi) {
