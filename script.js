@@ -7311,16 +7311,29 @@ window.openSaleStudentSelector = function() {
 
 window.selectOutsiderCustomer = async function() {
     Swal.close();
+    
+    // 🟢 আগে থেকে ডেটা থাকলে সেটা মেমরি থেকে বের করে আনা
+    let existName = '', existPhone = '', existAddr = '';
+    try {
+        const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
+        if(gDataStr) {
+            const gData = JSON.parse(gDataStr);
+            existName = gData.name || '';
+            existPhone = gData.phone || '';
+            existAddr = gData.address || '';
+        }
+    } catch(e) {}
+
     const { value: guestInfo } = await Swal.fire({
         title: 'Customer Details',
         html: `
-            <input id="swal-guest-name" class="swal2-input" placeholder="Customer Name *" style="font-size:14px; margin-bottom:10px;">
-            <input id="swal-guest-phone" class="swal2-input" type="tel" placeholder="Phone Number (Optional)" style="font-size:14px; margin-bottom:10px;">
-            <input id="swal-guest-address" class="swal2-input" placeholder="Address (Optional)" style="font-size:14px; margin-top:0;">
+            <input id="swal-guest-name" class="swal2-input" placeholder="Customer Name *" value="${existName}" style="font-size:14px; margin-bottom:10px;">
+            <input id="swal-guest-phone" class="swal2-input" type="tel" placeholder="Phone Number (Optional)" value="${existPhone}" style="font-size:14px; margin-bottom:10px;">
+            <input id="swal-guest-address" class="swal2-input" placeholder="Address (Optional)" value="${existAddr}" style="font-size:14px; margin-top:0;">
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Add Customer',
+        confirmButtonText: existName ? 'Update Customer' : 'Add Customer',
         confirmButtonColor: 'var(--success)',
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
@@ -7347,21 +7360,6 @@ window.selectOutsiderCustomer = async function() {
         imgEl.src = 'https://via.placeholder.com/40?text=G'; 
         imgEl.style.display = 'block';
     }
-};
-
-window.selectStudentForSale = function(id, name, photoUrl) {
-    document.getElementById('saleStudentId').value = id;
-    document.getElementById('saleSelectedName').dataset.guestData = ''; // 🟢 ক্লিয়ার করা হলো
-    
-    const nameEl = document.getElementById('saleSelectedName');
-    nameEl.textContent = name;
-    nameEl.style.color = "var(--text-main)";
-    
-    const imgEl = document.getElementById('saleSelectedPhoto');
-    imgEl.src = photoUrl;
-    imgEl.style.display = 'block';
-
-    Swal.close();
 };
 window.generateSaleStudentListHtml = function(studentsList) {
     let html = '';
@@ -7532,11 +7530,11 @@ window.renderSalesUI = function() {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
         const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         
-        // 🟢 ম্যাজিক ফিক্স: নামের উপর ক্লিক করার লজিক (viewBuyerProfile)
+        // 🟢 ম্যাজিক ফিক্স: নামের কালার থিমের সাথে মেলানো হয়েছে এবং Call বাটন অ্যাড করা হয়েছে
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
                 <td style="padding: 2px 5px; vertical-align: middle;">
-                    <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:14px; color:var(--primary); cursor:pointer; text-decoration:underline; text-underline-offset:2px;">${s.studentName}</strong>
+                    <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:14.5px; color:var(--text-main); cursor:pointer;">${s.studentName}</strong>
                     <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;">
                         <span style="color:#0ea5e9; font-weight:600;">${s.item}</span> &nbsp;|&nbsp; 📅 ${dateStr}
                     </div>
@@ -7555,10 +7553,33 @@ window.renderSalesUI = function() {
                        <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-trash"></i></button>
                        <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; font-size:16px;"><i class="fab fa-whatsapp"></i></button>
                        <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-sms"></i></button>
+                       <button class="btn-call" onclick="window.callBuyer(${s.id})" title="Call" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-phone-alt"></i></button>
                     </div>
                 </td>
             </tr>`;
     });
+};
+
+// 🟢 NEW: Call Button Logic
+window.callBuyer = function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    
+    let phone = '';
+    if(sale.studentId !== 0 && sale.studentId !== 'guest') {
+        const student = students.find(st => st.id == sale.studentId);
+        if(student) phone = student.phone || '';
+    } else {
+        phone = sale.guestPhone || ''; 
+    }
+    
+    if (!phone) {
+        Swal.fire('Error', 'Customer phone number is missing!', 'error');
+        return;
+    }
+
+    // সরাসরি ডায়ালারে ফোন নম্বর পাঠিয়ে দেবে
+    window.location.href = `tel:${phone}`;
 };
 
 // 🟢 NEW: প্রোফাইল ভিউ ফাংশন
@@ -8137,8 +8158,11 @@ window.processSale = function() {
 
 window.cancelSaleEdit = function() {
     document.getElementById('saleStudentId').value = '';
-    document.getElementById('saleSelectedName').textContent = '🔍 Click here to search student...';
-    document.getElementById('saleSelectedName').style.color = 'var(--text-muted)';
+    const nameEl = document.getElementById('saleSelectedName');
+    nameEl.textContent = '🔍 Click here to search student...';
+    nameEl.style.color = 'var(--text-muted)';
+    nameEl.dataset.guestData = ''; // 🟢 ক্লিয়ার করা হলো
+    
     document.getElementById('saleSelectedPhoto').style.display = 'none';
     document.getElementById('itemName').value = '';
     document.getElementById('saleQty').value = '1'; 
@@ -8308,13 +8332,13 @@ window.sendSaleWhatsApp = async function(saleId) {
     if(!sale) return;
     
     let phone = '';
-    // যদি রেগুলার স্টুডেন্ট হয়
     if(sale.studentId !== 0 && sale.studentId !== 'guest') {
         const student = students.find(st => st.id == sale.studentId);
         if(student) phone = student.phone || '';
+    } else {
+        phone = sale.guestPhone || ''; // 🟢 গেস্টের সেভ করা নম্বর নিলো
     }
 
-    // 🟢 যদি গেস্ট হয়, তাহলে পপআপে নম্বর চাইবে
     if(!phone) {
         const { value: guestPhone } = await Swal.fire({
             title: 'Enter WhatsApp Number',
@@ -8331,7 +8355,8 @@ window.sendSaleWhatsApp = async function(saleId) {
     if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
     let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
     
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\n*${typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes'}*`;
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\n*${instName}*`;
     
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
@@ -8339,21 +8364,27 @@ window.sendSaleWhatsApp = async function(saleId) {
 window.sendSaleSMS = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
     if(!sale) return;
-    const student = students.find(st => st.id == sale.studentId);
     
-    if(sale && student) {
-        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-        if (!cleanPhone) {
-            Swal.fire('Error', 'Student phone number is missing!', 'error');
-            return;
-        }
-        let dueMsg = sale.due > 0 ? `\nCurrent Due: Rs.${sale.due}\nPlease clear your due amount of Rs.${sale.due} as soon as possible.` : '';
-        
-        // 🟢 Srikanta Banerjee এর জায়গায় INSTITUTE_NAME বসানো হয়েছে
-        const msg = `Hello ${student.name},\n\nThis is your Money Receipt for ${sale.item}.\n\nTotal Price: Rs.${sale.price}\nAmount Paid: Rs.${sale.paid}${dueMsg}\n\nRegards,\n${INSTITUTE_NAME}`;
-        
-        window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
+    let phone = '';
+    if(sale.studentId !== 0 && sale.studentId !== 'guest') {
+        const student = students.find(st => st.id == sale.studentId);
+        if(student) phone = student.phone || '';
+    } else {
+        phone = sale.guestPhone || ''; // 🟢 গেস্টের সেভ করা নম্বর নিলো
     }
+    
+    if (!phone) {
+        Swal.fire('Error', 'Customer phone number is missing!', 'error');
+        return;
+    }
+
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    let dueMsg = sale.due > 0 ? `\nCurrent Due: Rs.${sale.due}\nPlease clear your due amount of Rs.${sale.due} as soon as possible.` : '';
+    
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for ${sale.item}.\n\nTotal Price: Rs.${sale.price}\nAmount Paid: Rs.${sale.paid}${dueMsg}\n\nRegards,\n${instName}`;
+    
+    window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
 };
 window.resendSaleReceipt = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
