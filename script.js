@@ -7615,7 +7615,6 @@ window.viewBuyerProfile = function(saleId) {
 };
 
 window.editSaleRecord = function(saleId) {
-    // String দিয়ে চেক করা হচ্ছে যাতে কোনোভাবেই মিস না হয়
     const sale = salesDataArray.find(s => String(s.id) === String(saleId));
     if(!sale) return;
     
@@ -7623,22 +7622,23 @@ window.editSaleRecord = function(saleId) {
     const nameEl = document.getElementById('saleSelectedName');
     const imgEl = document.getElementById('saleSelectedPhoto');
 
-    // 🟢 গেস্ট কাস্টমার চেক করার পারফেক্ট লজিক
-    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
+    // 🟢 গেস্ট কাস্টমার চেক করার পারফেক্ট লজিক (sale.studentId 0 হলেও ধরবে)
+    const isGuest = (sale.studentId == 0 || sale.studentId === '0' || sale.studentId === 'guest' || !sale.studentId);
 
     if (isGuest) {
-        sIdInput.value = 'guest';
+        if(sIdInput) sIdInput.value = 'guest';
         
-        // গেস্টের তথ্য মেমরিতে সেভ করা হচ্ছে যাতে পপআপে অটো চলে আসে
         const gData = {
             name: sale.studentName || 'Walk-in Customer',
             phone: sale.guestPhone || '',
             address: sale.guestAddress || ''
         };
-        nameEl.dataset.guestData = JSON.stringify(gData);
         
-        nameEl.innerHTML = `${sale.studentName} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
-        nameEl.style.color = "var(--text-main)";
+        if(nameEl) {
+            nameEl.dataset.guestData = JSON.stringify(gData);
+            nameEl.innerHTML = `${gData.name} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
+            nameEl.style.color = "var(--text-main)";
+        }
         
         if(imgEl) {
             imgEl.src = 'https://via.placeholder.com/40?text=G';
@@ -7663,8 +7663,12 @@ window.editSaleRecord = function(saleId) {
     }
     
     window.renderCart();
-    document.getElementById('amountPaid').value = sale.paid || 0;
-    document.getElementById('editSaleId').value = sale.id;
+    
+    const paidInput = document.getElementById('amountPaid');
+    if(paidInput) paidInput.value = sale.paid || 0;
+    
+    const editIdInput = document.getElementById('editSaleId');
+    if(editIdInput) editIdInput.value = sale.id;
 
     const btn = document.getElementById('saleProcessBtn');
     if(btn) {
@@ -8481,15 +8485,13 @@ window.showSalesDuesPopup = function() {
         return;
     }
 
-    // 🟢 Container style আপডেট করা হয়েছে যাতে overflow ঠিক থাকে
     let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
     
     dueRecords.forEach(sale => {
         const student = students.find(st => st.id == sale.studentId);
-        const photoSrc = student && student.photo ? student.photo : 'https://via.placeholder.com/50?text=S';
+        const photoSrc = student && student.photo ? student.photo : (sale.studentId == 0 || sale.studentId == 'guest' ? 'https://via.placeholder.com/50?text=G' : 'https://via.placeholder.com/50?text=S');
         const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
         
-        // 🟢 Mobile view ঠিক করার জন্য flex-direction এবং padding আপডেট করা হয়েছে
         listHtml += `
             <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                 
@@ -8512,7 +8514,7 @@ window.showSalesDuesPopup = function() {
                         <div style="font-size: 11px; color: #be123c; font-weight: bold; text-transform: uppercase;">Total Due</div>
                         <div style="font-weight: 900; font-size: 18px; color: #e11d48;">₹${sale.due}</div>
                     </div>
-                    <button onclick="Swal.close(); window.editSaleRecord(${sale.id});" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
+                    <button onclick="Swal.close(); setTimeout(() => { window.editSaleRecord(${sale.id}); }, 300);" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
                         Pay Now
                     </button>
                 </div>
@@ -8526,7 +8528,6 @@ window.showSalesDuesPopup = function() {
         html: listHtml,
         showConfirmButton: true,
         confirmButtonText: 'Close',
-        // 🟢 Close বাটনটি লাল করা হয়েছে
         confirmButtonColor: '#ef4444', 
         width: '95%',
         padding: '15px'
