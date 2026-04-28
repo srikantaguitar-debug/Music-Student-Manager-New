@@ -2571,10 +2571,18 @@ function showClassStudents(className) {
     tableHead.innerHTML = '<th>ID</th><th>Student</th><th>Contact</th>'; 
     tableBody.innerHTML = ''; 
     
-    // এখানে s.class.trim() যোগ করা হয়েছে যাতে স্পেস থাকলেও সব স্টুডেন্টকে খুঁজে পায়
-    const classStudents = students.filter(s => isStudentCurrentlyActive(s) && (s.class ? s.class.trim() : 'Unassigned') === className); 
+    // স্পেস থাকলেও সব স্টুডেন্টকে খুঁজে পাওয়ার লজিক
+    const classStudents = students.filter(s => isStudentCurrentlyActive(s) && (s.class ? s.class.trim().replace(/\s+/g, ' ') : 'Unassigned') === className); 
     
-    classStudents.forEach(s => { tableBody.innerHTML += `<tr><td>${s.serial_no}</td><td>${getStudentHtml(s)}</td><td>${getContactButtons(s.id)}</td></tr>`; }); 
+    // 🟢 ম্যাজিক ফিক্স: getContactButtons এর বদলে getAllContactButtons দেওয়া হলো
+    classStudents.forEach(s => { 
+        tableBody.innerHTML += `<tr>
+            <td>${s.serial_no}</td>
+            <td>${getStudentHtml(s)}</td>
+            <td>${getAllContactButtons(s)}</td>
+        </tr>`; 
+    }); 
+    
     document.getElementById('classStudentsModal').style.display = 'flex'; 
 }
 
