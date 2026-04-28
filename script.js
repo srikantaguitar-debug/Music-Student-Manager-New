@@ -9643,7 +9643,12 @@ window.exportDashboardPDF = function() {
         } 
     }); 
     
-    const classCounts = activeStudents.reduce((acc, student) => { const className = student.class || 'Unassigned'; acc[className] = (acc[className] || 0) + 1; return acc; }, {}); 
+    // 🟢 ম্যাজিক ফিক্স: স্পেসের সমস্যার জন্য যাতে PDF-এ ডুপ্লিকেট ক্লাস না তৈরি হয়
+    const classCounts = activeStudents.reduce((acc, student) => { 
+        let className = student.class ? student.class.trim().replace(/\s+/g, ' ') : 'Unassigned'; 
+        acc[className] = (acc[className] || 0) + 1; 
+        return acc; 
+    }, {});
     const { jsPDF } = window.jspdf; const doc = new jsPDF(); let y = 20; doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.text((typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes'), 105, y, {align: "center"}); y += 10; doc.setFontSize(14); doc.text("Complete Dashboard Report", 105, y, {align: "center"}); y += 8; doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 105, y, {align: "center"}); y += 15; doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Student Statistics", 15, y); y += 7; doc.setFontSize(11); doc.setFont("helvetica", "normal"); doc.text(`Total Students: ${students.length}`, 20, y); y += 6; doc.text(`Active Students: ${activeStudents.length}`, 20, y); y += 6; doc.text(`Inactive Students: ${students.length - activeStudents.length}`, 20, y); y += 12; doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Financial Overview", 15, y); y += 7; doc.setFontSize(11); doc.setFont("helvetica", "normal"); doc.text(`Current Month (${window.formatMonthYear(currentMonthStr)}) Collected: Rs. ${monthlyCollected}`, 20, y); y += 6; doc.text(`Current Month Due: Rs. ${monthlyDueAmount}`, 20, y); y += 6; doc.text(`Yearly Collected: Rs. ${yearlyCollected}`, 20, y); y += 6; doc.text(`Yearly Due: Rs. ${yearlyDueAmount}`, 20, y); y += 12; doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Class Strength", 15, y); y += 7; doc.setFontSize(11); doc.setFont("helvetica", "normal"); Object.entries(classCounts).sort().forEach(([className, count]) => { doc.text(`${className}: ${count} students`, 20, y); y += 6; }); 
     if (typeof window.addWatermarkAndSignatureToPdf === 'function') window.addWatermarkAndSignatureToPdf(doc); 
     doc.save(`Dashboard_Full_Report_${currentMonthStr}.pdf`); 
