@@ -7291,10 +7291,14 @@ window.openSaleStudentSelector = function() {
     let listHtml = window.generateSaleStudentListHtml(tempSalesActiveStudents);
 
     Swal.fire({
-        title: 'Select Student',
+        title: 'Select Customer',
         html: `
+            <button onclick="window.selectOutsiderCustomer()" style="width:100%; padding:12px; background:var(--primary); color:white; border:none; border-radius:8px; margin-bottom:15px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <i class="fas fa-user-plus"></i> Outside Customer / Guest
+            </button>
+            <div style="text-align:center; color:var(--text-muted); margin-bottom:10px; font-size:12px; font-weight:bold;">--- OR SELECT STUDENT ---</div>
             <input type="text" id="swal-search-sale-student" class="swal2-input" placeholder="🔍 Search by name or ID..." style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="window.filterSaleStudentList()">
-            <div id="sale-student-list" style="width:100%; max-height: 280px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); text-align:left;">
+            <div id="sale-student-list" style="width:100%; max-height: 230px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); text-align:left;">
                 ${listHtml}
             </div>
         `,
@@ -7305,6 +7309,60 @@ window.openSaleStudentSelector = function() {
     });
 };
 
+window.selectOutsiderCustomer = async function() {
+    Swal.close();
+    const { value: guestInfo } = await Swal.fire({
+        title: 'Customer Details',
+        html: `
+            <input id="swal-guest-name" class="swal2-input" placeholder="Customer Name *" style="font-size:14px; margin-bottom:10px;">
+            <input id="swal-guest-phone" class="swal2-input" type="tel" placeholder="Phone Number (Optional)" style="font-size:14px; margin-bottom:10px;">
+            <input id="swal-guest-address" class="swal2-input" placeholder="Address (Optional)" style="font-size:14px; margin-top:0;">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Add Customer',
+        confirmButtonColor: 'var(--success)',
+        cancelButtonColor: '#ef4444',
+        preConfirm: () => {
+            const name = document.getElementById('swal-guest-name').value.trim();
+            const phone = document.getElementById('swal-guest-phone').value.trim();
+            const address = document.getElementById('swal-guest-address').value.trim();
+            if (!name) {
+                Swal.showValidationMessage('Name is required!');
+                return false;
+            }
+            return { name, phone, address };
+        }
+    });
+
+    if (guestInfo) {
+        document.getElementById('saleStudentId').value = 'guest'; 
+        document.getElementById('saleSelectedName').dataset.guestData = JSON.stringify(guestInfo); 
+        
+        const nameEl = document.getElementById('saleSelectedName');
+        nameEl.innerHTML = `${guestInfo.name} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
+        nameEl.style.color = "var(--text-main)";
+        
+        const imgEl = document.getElementById('saleSelectedPhoto');
+        imgEl.src = 'https://via.placeholder.com/40?text=G'; 
+        imgEl.style.display = 'block';
+    }
+};
+
+window.selectStudentForSale = function(id, name, photoUrl) {
+    document.getElementById('saleStudentId').value = id;
+    document.getElementById('saleSelectedName').dataset.guestData = ''; // 🟢 ক্লিয়ার করা হলো
+    
+    const nameEl = document.getElementById('saleSelectedName');
+    nameEl.textContent = name;
+    nameEl.style.color = "var(--text-main)";
+    
+    const imgEl = document.getElementById('saleSelectedPhoto');
+    imgEl.src = photoUrl;
+    imgEl.style.display = 'block';
+
+    Swal.close();
+};
 window.generateSaleStudentListHtml = function(studentsList) {
     let html = '';
     studentsList.forEach(s => {
@@ -7426,7 +7484,6 @@ window.renderSalesUI = function() {
     const searchInput = document.getElementById('searchSalesHistoryInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-    // --- 🟢 NEW: মোট Due এবং Due থাকা রেকর্ডগুলো গোনা হচ্ছে ---
     let totalDueAmount = 0;
     let dueRecords = [];
     
@@ -7437,7 +7494,6 @@ window.renderSalesUI = function() {
         }
     });
 
-    // 🟢 NEW: Sales ট্যাবের ঠিক উপরে লাল বাটনটি (Due Button) তৈরি করা হচ্ছে
     let dueAlertContainer = document.getElementById('salesDueAlertContainer');
     if (!dueAlertContainer) {
         const searchBar = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement;
@@ -7474,14 +7530,13 @@ window.renderSalesUI = function() {
     
     filteredSales.forEach(s => {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
-        // তারিখটাকে আরেকটু ছোট ফরম্যাটে করা হয়েছে
         const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         
-        // 🟢 ম্যাজিক ফিক্স: অপ্রয়োজনীয় padding একদম কমিয়ে দেওয়া হয়েছে।
+        // 🟢 ম্যাজিক ফিক্স: নামের উপর ক্লিক করার লজিক (viewBuyerProfile)
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
                 <td style="padding: 2px 5px; vertical-align: middle;">
-                    <strong style="font-size:14.5px; color:var(--text-main);">${s.studentName}</strong>
+                    <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:14px; color:var(--primary); cursor:pointer; text-decoration:underline; text-underline-offset:2px;">${s.studentName}</strong>
                     <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;">
                         <span style="color:#0ea5e9; font-weight:600;">${s.item}</span> &nbsp;|&nbsp; 📅 ${dateStr}
                     </div>
@@ -7506,6 +7561,76 @@ window.renderSalesUI = function() {
     });
 };
 
+// 🟢 NEW: প্রোফাইল ভিউ ফাংশন
+window.viewBuyerProfile = function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if (!sale) return;
+
+    if (sale.studentId !== 0 && sale.studentId !== 'guest') {
+        // যদি রেগুলার স্টুডেন্ট হয়
+        showStudentDetails(sale.studentId);
+    } else {
+        // যদি গেস্ট হয়, সুন্দর একটি পপআপে দেখাবে
+        Swal.fire({
+            title: 'Guest Customer Details',
+            html: `
+                <div style="text-align:left; background:var(--bg-input); padding:15px; border-radius:10px; border:1px solid var(--border-color); line-height:1.6;">
+                    <div style="font-size:16px; font-weight:bold; color:var(--text-main); margin-bottom:10px; border-bottom:1px dashed var(--border-color); padding-bottom:5px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-user-circle" style="color:var(--primary); font-size:24px;"></i> ${sale.studentName}
+                    </div>
+                    <div style="color:var(--text-main); font-size:14px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-phone-alt" style="color:#10b981; width:20px; text-align:center;"></i> <strong>Phone:</strong> ${sale.guestPhone || '<span style="color:gray;">Not provided</span>'}
+                    </div>
+                    <div style="color:var(--text-main); font-size:14px; margin-top:8px; display:flex; align-items:center; gap:8px;">
+                        <i class="fas fa-map-marker-alt" style="color:#ef4444; width:20px; text-align:center;"></i> <strong>Address:</strong> ${sale.guestAddress || '<span style="color:gray;">Not provided</span>'}
+                    </div>
+                </div>
+            `,
+            showCloseButton: true,
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: 'var(--primary)'
+        });
+    }
+};
+
+window.editSaleRecord = function(saleId) {
+    const sale = salesDataArray.find(s => s.id === saleId);
+    if(!sale) return;
+    
+    // 🟢 এডিটের সময় যদি গেস্ট হয়, তবে ডেটা পপআপে লোড হবে
+    if (sale.studentId === 0 || sale.studentId === 'guest') {
+        document.getElementById('saleStudentId').value = 'guest';
+        document.getElementById('saleSelectedName').dataset.guestData = JSON.stringify({name: sale.studentName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
+        const nameEl = document.getElementById('saleSelectedName');
+        nameEl.innerHTML = `${sale.studentName} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
+        nameEl.style.color = "var(--text-main)";
+        const imgEl = document.getElementById('saleSelectedPhoto');
+        imgEl.src = 'https://via.placeholder.com/40?text=G';
+        imgEl.style.display = 'block';
+    } else {
+        const student = students.find(st => st.id == sale.studentId);
+        if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
+    }
+
+    if (sale.cart && Array.isArray(sale.cart)) {
+        window.saleCart = [...sale.cart];
+    } else {
+        let extractedName = sale.item; let extractedQty = 1;
+        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
+        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
+        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
+    }
+    
+    window.renderCart();
+    document.getElementById('amountPaid').value = sale.paid;
+    document.getElementById('editSaleId').value = sale.id;
+
+    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
+    document.getElementById('saleProcessBtn').className = 'btn-warning';
+    document.getElementById('saleCancelEditBtn').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
 window.backupSalesData = async function() {
     if(salesDataArray.length === 0) {
         Swal.fire('Info', 'No sales data to backup for this year.', 'info');
@@ -7785,22 +7910,40 @@ window.renderStockTable = function() {
     });
 
     if (filteredStock.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
+        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
         return;
     }
 
     filteredStock.forEach(item => {
-        const stockColor = item.qty <= 2 ? 'color: var(--danger); font-weight: bold;' : 'color: var(--success); font-weight: bold;';
+        // স্টকের পরিমাণ ২ বা তার কম হলে লাল দেখাবে, নাহলে সবুজ
+        const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
         
-        // 🟢 এখানে আগের সুন্দর বাটন ডিজাইন দেওয়া হলো
+        // 🟢 ম্যাজিক ফিক্স: কার্ডের সাইজ একদম ছোট এবং সুন্দর করার জন্য ফ্লেক্সবক্স ডিজাইন
         tbody.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--border-color);">
-                <td style="padding: 8px 4px; color: var(--text-main); font-weight: 500; font-size: 12px;">${item.name}</td>
-                <td style="padding: 8px 4px; color: var(--text-main); font-size: 12px;">₹${item.price}</td>
-                <td style="padding: 8px 4px; font-size: 12px; ${stockColor}">${item.qty} pcs</td>
-                <td style="padding: 8px 4px; text-align: right; white-space: nowrap;">
-                    <button class="btn-warning" onclick="window.editStockItem(${item.id})" style="padding:4px 8px; font-size:10px; border-radius:4px; border:none; color:white; margin-right:4px;"><i class="fas fa-edit"></i> Edit</button>
-                    <button class="btn-danger" onclick="window.deleteStockItem(${item.id})" style="padding:4px 8px; font-size:10px; border-radius:4px; border:none; color:white;"><i class="fas fa-trash"></i> Delete</button>
+            <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <td style="display: block; padding: 0; border: none; text-align: left;">
+                    
+                    <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 8px; line-height: 1.3;">
+                        ${item.name}
+                    </div>
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        
+                        <div style="display: flex; gap: 8px; font-size: 12px; font-weight: bold; align-items: center;">
+                            <span style="color: var(--text-muted);">₹${item.price}</span>
+                            <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
+                        </div>
+                        
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                        
+                    </div>
                 </td>
             </tr>
         `;
@@ -7907,7 +8050,7 @@ window.processSale = function() {
     const editId = document.getElementById('editSaleId').value;
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
 
-    if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a student!', showConfirmButton: false, timer: 2000}); return; }
+    if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); return; }
     if (window.saleCart.length === 0) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); return; }
 
     let cartTotal = 0;
@@ -7920,24 +8063,51 @@ window.processSale = function() {
     const finalItemName = combinedNamesArray.join(', '); 
     const due = cartTotal - paid;
     const currentYear = document.getElementById('salesYearFilter').value;
-    const student = students.find(s => s.id == sId);
+    
+    let finalStudentId, finalStudentName;
+    let isGuest = false;
+    let guestPhone = '', guestAddress = '';
+
+    // 🟢 গেস্ট নাকি রেগুলার স্টুডেন্ট চেক
+    if (sId === 'guest') {
+        finalStudentId = 0; 
+        isGuest = true;
+        try {
+            const gData = JSON.parse(document.getElementById('saleSelectedName').dataset.guestData || '{}');
+            finalStudentName = gData.name || 'Walk-in Customer';
+            guestPhone = gData.phone || '';
+            guestAddress = gData.address || '';
+        } catch(e) {
+            finalStudentName = 'Walk-in Customer';
+        }
+    } else {
+        const student = students.find(s => s.id == sId);
+        finalStudentId = student.id;
+        finalStudentName = student.name;
+    }
 
     if (editId) {
         const index = salesDataArray.findIndex(s => s.id == editId);
         if(index > -1) {
-            salesDataArray[index] = { ...salesDataArray[index], studentId: student.id, studentName: student.name, item: finalItemName, cart: [...window.saleCart], price: cartTotal, paid: paid, due: due };
+            salesDataArray[index] = { 
+                ...salesDataArray[index], studentId: finalStudentId, studentName: finalStudentName, 
+                item: finalItemName, cart: [...window.saleCart], price: cartTotal, paid: paid, due: due,
+                guestPhone: guestPhone, guestAddress: guestAddress 
+            };
         }
-        window.addAccessoryDueToStudent(student.id, parseInt(editId), finalItemName, due); 
+        if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, parseInt(editId), finalItemName, due); 
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
     } else {
         const newSaleId = Date.now();
         const saleData = {
-            id: newSaleId, studentId: student.id, studentName: student.name, item: finalItemName, cart: [...window.saleCart], price: cartTotal, paid: paid, due: due, date: new Date().toISOString().split('T')[0]
+            id: newSaleId, studentId: finalStudentId, studentName: finalStudentName, 
+            item: finalItemName, cart: [...window.saleCart], price: cartTotal, 
+            paid: paid, due: due, date: new Date().toISOString().split('T')[0],
+            guestPhone: guestPhone, guestAddress: guestAddress
         };
         salesDataArray.unshift(saleData);
-        window.addAccessoryDueToStudent(student.id, newSaleId, finalItemName, due); 
+        if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, newSaleId, finalItemName, due); 
         
-        // 🟢 NEW: স্টক আপডেট এবং ০ হলে ডিলিট করার লজিক
         let stockUpdated = false;
         window.saleCart.forEach(cartItem => {
             const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === cartItem.name.toLowerCase());
@@ -7948,16 +8118,16 @@ window.processSale = function() {
         });
         
         if (stockUpdated) {
-            // 🟢 যে আইটেমগুলোর স্টক ০ হয়ে গেছে, সেগুলোকে রিমুভ করা হচ্ছে
             window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
-            
             dbSet('stockData', window.stockInventory).catch(e=>console.log(e)); 
             window.renderStockTable(); 
             window.renderInventoryDropdown();
         }
 
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Completed!', showConfirmButton: false, timer: 1500});
-        setTimeout(() => window.generateSalePDF(saleData, student), 500);
+        
+        const pdfStudentData = isGuest ? { name: finalStudentName, phone: guestPhone, class: 'Guest Customer' } : students.find(s => s.id == finalStudentId);
+        setTimeout(() => window.generateSalePDF(saleData, pdfStudentData), 500);
     }
 
     window.renderSalesUI();
@@ -8136,18 +8306,34 @@ window.generateSalePDF = async function(sale, student) {
 window.sendSaleWhatsApp = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
     if(!sale) return;
-    const student = students.find(st => st.id == sale.studentId);
     
-    if(sale && student) {
-        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-        
-        // 🟢 Srikanta Banerjee এর জায়গায় INSTITUTE_NAME বসানো হয়েছে
-        const msg = `Hello ${student.name},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\n*${INSTITUTE_NAME}*`;
-        
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    let phone = '';
+    // যদি রেগুলার স্টুডেন্ট হয়
+    if(sale.studentId !== 0 && sale.studentId !== 'guest') {
+        const student = students.find(st => st.id == sale.studentId);
+        if(student) phone = student.phone || '';
     }
+
+    // 🟢 যদি গেস্ট হয়, তাহলে পপআপে নম্বর চাইবে
+    if(!phone) {
+        const { value: guestPhone } = await Swal.fire({
+            title: 'Enter WhatsApp Number',
+            input: 'tel',
+            inputPlaceholder: 'e.g. 9876543210',
+            showCancelButton: true,
+            confirmButtonColor: '#25D366'
+        });
+        if(!guestPhone) return;
+        phone = guestPhone;
+    }
+
+    let cleanPhone = phone.replace(/[^0-9]/g, '');
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
+    
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\n*${typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes'}*`;
+    
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
 window.sendSaleSMS = async function(saleId) {
