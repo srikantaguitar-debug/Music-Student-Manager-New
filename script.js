@@ -7622,43 +7622,37 @@ window.editSaleRecord = function(saleId) {
     const nameEl = document.getElementById('saleSelectedName');
     const imgEl = document.getElementById('saleSelectedPhoto');
 
-    // 🟢 Fail-Proof Logic: চেক করবে এটি রেগুলার স্টুডেন্ট কিনা। না হলে সোজা গেস্ট ধরবে।
-    const student = students.find(st => String(st.id) === String(sale.studentId));
+    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
 
-    if (student) {
-        // রেগুলার স্টুডেন্ট
-        if(sIdInput) sIdInput.value = student.id;
-        if(nameEl) {
-            nameEl.textContent = student.name;
-            nameEl.style.color = "var(--text-main)";
-            nameEl.dataset.guestData = ''; 
-        }
-        if(imgEl) {
-            imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
-            imgEl.style.display = 'block';
-        }
-    } else {
-        // গেস্ট কাস্টমার (বা ডিলিট হয়ে যাওয়া স্টুডেন্ট)
+    if (isGuest) {
         if(sIdInput) sIdInput.value = 'guest';
         
-        const gData = {
-            name: sale.studentName || 'Walk-in Customer',
-            phone: sale.guestPhone || '',
-            address: sale.guestAddress || ''
-        };
-        
+        const gName = sale.studentName || 'Walk-in Customer';
         if(nameEl) {
-            nameEl.dataset.guestData = JSON.stringify(gData);
-            nameEl.innerHTML = `${gData.name} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
-            nameEl.style.color = "var(--text-main)";
+            nameEl.dataset.guestData = JSON.stringify({name: gName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
+            nameEl.innerHTML = `<span style="color: var(--text-main); font-weight: bold;">${gName}</span> <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align: middle;">Guest</span>`;
         }
+        
         if(imgEl) {
             imgEl.src = 'https://via.placeholder.com/40?text=G';
             imgEl.style.display = 'block';
         }
+    } else {
+        const student = students.find(st => String(st.id) === String(sale.studentId));
+        if(student) {
+            if(sIdInput) sIdInput.value = student.id;
+            if(nameEl) {
+                nameEl.textContent = student.name;
+                nameEl.style.color = "var(--text-main)";
+                nameEl.dataset.guestData = ''; 
+            }
+            if(imgEl) {
+                imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
+                imgEl.style.display = 'block';
+            }
+        }
     }
 
-    // কার্টে আইটেম লোড করা
     if (sale.cart && Array.isArray(sale.cart)) {
         window.saleCart = [...sale.cart];
     } else {
@@ -8105,7 +8099,6 @@ window.processSale = function() {
     const editId = document.getElementById('editSaleId').value;
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
 
-    if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); return; }
     if (window.saleCart.length === 0) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); return; }
 
     let cartTotal = 0;
@@ -8123,31 +8116,48 @@ window.processSale = function() {
     let isGuest = false;
     let guestPhone = '', guestAddress = '';
 
-    if (sId === 'guest') {
-        finalStudentId = 0; 
-        isGuest = true;
-        try {
-            const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
-            const gData = gDataStr ? JSON.parse(gDataStr) : {};
-            
-            // 🟢 ফলব্যাক: যদি dataset না থাকে, স্ক্রিনের নাম থেকে নেবে
-            let displayFallback = document.getElementById('saleSelectedName').innerText.replace('Guest', '').trim();
-            finalStudentName = gData.name || displayFallback || 'Walk-in Customer';
-            guestPhone = gData.phone || '';
-            guestAddress = gData.address || '';
-        } catch(e) {
-            finalStudentName = 'Walk-in Customer';
+    // 🟢 ম্যাজিক ফিক্স: যদি এডিট মোড হয়, তবে স্ক্রিন থেকে নয়, ডাটাবেস থেকে ডেটা নেবে
+    if (editId) {
+        const existingSale = salesDataArray.find(s => String(s.id) === String(editId));
+        if (!existingSale) { Swal.fire('Error', 'Sale record not found!', 'error'); return; }
+        
+        finalStudentId = existingSale.studentId;
+        finalStudentName = existingSale.studentName;
+        guestPhone = existingSale.guestPhone || '';
+        guestAddress = existingSale.guestAddress || '';
+        
+        // আইডি 0 বা guest হলে সেটিকে গেস্ট হিসেবে ধরবে
+        if (String(finalStudentId) === '0' || finalStudentId === 'guest' || !finalStudentId) {
+            finalStudentId = 0;
+            isGuest = true;
         }
-    } else {
-        const student = students.find(s => String(s.id) === String(sId));
-        if(!student) {
-            Swal.fire('Error', 'Student not found in database', 'error');
-            return;
+    } 
+    // যদি নতুন সেল হয়, তবে আগের নিয়মে চেক করবে
+    else {
+        if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); return; }
+        
+        if (sId === 'guest') {
+            finalStudentId = 0; 
+            isGuest = true;
+            try {
+                const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
+                const gData = gDataStr ? JSON.parse(gDataStr) : {};
+                let displayFallback = document.getElementById('saleSelectedName').innerText.replace('Guest', '').trim();
+                finalStudentName = gData.name || displayFallback || 'Walk-in Customer';
+                guestPhone = gData.phone || '';
+                guestAddress = gData.address || '';
+            } catch(e) {
+                finalStudentName = 'Walk-in Customer';
+            }
+        } else {
+            const student = students.find(s => String(s.id) === String(sId));
+            if(!student) { Swal.fire('Error', 'Student not found', 'error'); return; }
+            finalStudentId = student.id;
+            finalStudentName = student.name;
         }
-        finalStudentId = student.id;
-        finalStudentName = student.name;
     }
 
+    // 🟢 ডেটা সেভ বা আপডেট করা
     if (editId) {
         const index = salesDataArray.findIndex(s => String(s.id) === String(editId));
         if(index > -1) {
