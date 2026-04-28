@@ -7622,10 +7622,23 @@ window.editSaleRecord = function(saleId) {
     const nameEl = document.getElementById('saleSelectedName');
     const imgEl = document.getElementById('saleSelectedPhoto');
 
-    // 🟢 গেস্ট কাস্টমার চেক করার পারফেক্ট লজিক (sale.studentId 0 হলেও ধরবে)
-    const isGuest = (sale.studentId == 0 || sale.studentId === '0' || sale.studentId === 'guest' || !sale.studentId);
+    // 🟢 Fail-Proof Logic: চেক করবে এটি রেগুলার স্টুডেন্ট কিনা। না হলে সোজা গেস্ট ধরবে।
+    const student = students.find(st => String(st.id) === String(sale.studentId));
 
-    if (isGuest) {
+    if (student) {
+        // রেগুলার স্টুডেন্ট
+        if(sIdInput) sIdInput.value = student.id;
+        if(nameEl) {
+            nameEl.textContent = student.name;
+            nameEl.style.color = "var(--text-main)";
+            nameEl.dataset.guestData = ''; 
+        }
+        if(imgEl) {
+            imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
+            imgEl.style.display = 'block';
+        }
+    } else {
+        // গেস্ট কাস্টমার (বা ডিলিট হয়ে যাওয়া স্টুডেন্ট)
         if(sIdInput) sIdInput.value = 'guest';
         
         const gData = {
@@ -7639,16 +7652,9 @@ window.editSaleRecord = function(saleId) {
             nameEl.innerHTML = `${gData.name} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
             nameEl.style.color = "var(--text-main)";
         }
-        
         if(imgEl) {
             imgEl.src = 'https://via.placeholder.com/40?text=G';
             imgEl.style.display = 'block';
-        }
-    } else {
-        // রেগুলার স্টুডেন্ট হলে
-        const student = students.find(st => String(st.id) === String(sale.studentId));
-        if(student) {
-            window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
         }
     }
 
@@ -8117,14 +8123,16 @@ window.processSale = function() {
     let isGuest = false;
     let guestPhone = '', guestAddress = '';
 
-    // 🟢 গেস্ট নাকি রেগুলার স্টুডেন্ট চেক
     if (sId === 'guest') {
         finalStudentId = 0; 
         isGuest = true;
         try {
             const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
             const gData = gDataStr ? JSON.parse(gDataStr) : {};
-            finalStudentName = gData.name || 'Walk-in Customer';
+            
+            // 🟢 ফলব্যাক: যদি dataset না থাকে, স্ক্রিনের নাম থেকে নেবে
+            let displayFallback = document.getElementById('saleSelectedName').innerText.replace('Guest', '').trim();
+            finalStudentName = gData.name || displayFallback || 'Walk-in Customer';
             guestPhone = gData.phone || '';
             guestAddress = gData.address || '';
         } catch(e) {
