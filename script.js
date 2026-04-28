@@ -7443,15 +7443,15 @@ window.renderSalesUI = function() {
         const searchBar = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement;
         dueAlertContainer = document.createElement('div');
         dueAlertContainer.id = 'salesDueAlertContainer';
-        dueAlertContainer.style.marginBottom = '15px';
+        dueAlertContainer.style.marginBottom = '10px';
         searchBar.parentNode.insertBefore(dueAlertContainer, searchBar);
     }
 
     if (dueRecords.length > 0) {
         dueAlertContainer.innerHTML = `
-            <button onclick="window.showSalesDuesPopup()" style="width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: bold; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; box-shadow: 0 4px 10px rgba(239,68,68,0.3); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-exclamation-triangle" style="font-size:18px;"></i> Unpaid Accessories</span>
-                <span style="background: white; color: #ef4444; padding: 4px 10px; border-radius: 20px; font-size: 12px; font-weight: 900; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
+            <button onclick="window.showSalesDuesPopup()" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; box-shadow: 0 4px 10px rgba(239,68,68,0.3); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
+                <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-exclamation-triangle" style="font-size:16px;"></i> Unpaid Accessories</span>
+                <span style="background: white; color: #ef4444; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 900; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
                     ${dueRecords.length} Dues (₹${totalDueAmount})
                 </span>
             </button>
@@ -7460,7 +7460,6 @@ window.renderSalesUI = function() {
     } else {
         dueAlertContainer.style.display = 'none';
     }
-    // -------------------------------------
 
     const filteredSales = salesDataArray.filter(s => {
         if (!filterText) return true;
@@ -7469,25 +7468,33 @@ window.renderSalesUI = function() {
     });
 
     if (filteredSales.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No sales found.</td></tr>';
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No sales found.</td></tr>';
         return;
     }
     
     filteredSales.forEach(s => {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
-        const dateStr = new Date(s.date).toLocaleDateString('en-IN');
+        // তারিখটাকে আরেকটু ছোট ফরম্যাটে করা হয়েছে
+        const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         
-        // 🟢 বাটনগুলোর সাইজ (width, height, font-size) বড় করা হয়েছে
+        // 🟢 ম্যাজিক ফিক্স: অপ্রয়োজনীয় padding একদম কমিয়ে দেওয়া হয়েছে।
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
-                <td style="padding:12px 6px; font-size:13px; vertical-align: middle;"><strong>${s.studentName}</strong><br><span style="font-size:11px; color:var(--text-muted); line-height:1.4; display:block; margin-top:3px;">${s.item} <br>📅 ${dateStr}</span></td>
-                <td style="font-weight:bold; padding:12px 6px; font-size:13px; vertical-align: middle;">₹${s.price}</td>
-                <td style="padding:12px 6px; font-size:12px; vertical-align: middle;">
-                    <span style="color:var(--success);">Paid: ₹${s.paid}</span><br>
-                    <span style="color:${statusClr}; font-weight:bold; margin-top:2px; display:inline-block;">Due: ₹${s.due}</span>
+                <td style="padding: 2px 5px; vertical-align: middle;">
+                    <strong style="font-size:14.5px; color:var(--text-main);">${s.studentName}</strong>
+                    <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;">
+                        <span style="color:#0ea5e9; font-weight:600;">${s.item}</span> &nbsp;|&nbsp; 📅 ${dateStr}
+                    </div>
                 </td>
-                <td class="action-buttons" style="padding:12px 6px; vertical-align: middle;">
-                    <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+                <td style="padding: 4px 5px 2px 5px; font-size:13px; vertical-align: middle;">
+                    <strong>Total: ₹${s.price}</strong>
+                </td>
+                <td style="padding: 2px 5px; font-size:12.5px; vertical-align: middle; display:flex; gap:10px; align-items:center;">
+                    <span style="color:var(--success); font-weight:600;">Paid: ₹${s.paid}</span>
+                    <span style="color:${statusClr}; font-weight:800; background:rgba(${s.due > 0 ? '239, 68, 68' : '16, 185, 129'}, 0.1); padding:2px 6px; border-radius:4px;">Due: ₹${s.due}</span>
+                </td>
+                <td class="action-buttons" style="padding: 8px 5px 2px 5px; vertical-align: middle;">
+                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                        <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-file-pdf"></i></button>
                        <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-edit"></i></button>
                        <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-trash"></i></button>
