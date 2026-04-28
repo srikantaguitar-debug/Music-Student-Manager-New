@@ -8095,11 +8095,15 @@ window.removeFromCart = function(index) {
 };
 
 window.processSale = function() {
-    const sId = document.getElementById('saleStudentId').value;
+    const sIdInput = document.getElementById('saleStudentId');
+    const sId = sIdInput ? sIdInput.value : '';
     const editId = document.getElementById('editSaleId').value;
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
 
-    if (window.saleCart.length === 0) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); return; }
+    if (window.saleCart.length === 0) { 
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); 
+        return; 
+    }
 
     let cartTotal = 0;
     let combinedNamesArray = [];
@@ -8116,7 +8120,7 @@ window.processSale = function() {
     let isGuest = false;
     let guestPhone = '', guestAddress = '';
 
-    // 🟢 ম্যাজিক ফিক্স: যদি এডিট মোড হয়, তবে স্ক্রিন থেকে নয়, ডাটাবেস থেকে ডেটা নেবে
+    // 🟢 এডিট মোড: সরাসরি ডাটাবেস থেকে ডেটা নেবে, ইনপুট বক্স ফাঁকা থাকলেও এরর দেবে না!
     if (editId) {
         const existingSale = salesDataArray.find(s => String(s.id) === String(editId));
         if (!existingSale) { Swal.fire('Error', 'Sale record not found!', 'error'); return; }
@@ -8126,16 +8130,19 @@ window.processSale = function() {
         guestPhone = existingSale.guestPhone || '';
         guestAddress = existingSale.guestAddress || '';
         
-        // আইডি 0 বা guest হলে সেটিকে গেস্ট হিসেবে ধরবে
         if (String(finalStudentId) === '0' || finalStudentId === 'guest' || !finalStudentId) {
             finalStudentId = 0;
             isGuest = true;
         }
     } 
-    // যদি নতুন সেল হয়, তবে আগের নিয়মে চেক করবে
+    // 🟢 নতুন সেল মোড
     else {
-        if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); return; }
-        
+        // নতুন সেলের ক্ষেত্রে কাস্টমার সিলেক্ট করা বাধ্যতামূলক
+        if (!sId || sId.trim() === '') { 
+            Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); 
+            return; 
+        }
+
         if (sId === 'guest') {
             finalStudentId = 0; 
             isGuest = true;
@@ -8237,11 +8244,43 @@ window.cancelSaleEdit = function() {
 };
 
 window.editSaleRecord = function(saleId) {
-    const sale = salesDataArray.find(s => s.id === saleId);
+    const sale = salesDataArray.find(s => String(s.id) === String(saleId));
     if(!sale) return;
     
-    const student = students.find(st => st.id == sale.studentId);
-    if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
+    const sIdInput = document.getElementById('saleStudentId');
+    const nameEl = document.getElementById('saleSelectedName');
+    const imgEl = document.getElementById('saleSelectedPhoto');
+
+    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
+
+    if (isGuest) {
+        if(sIdInput) sIdInput.value = 'guest';
+        
+        const gName = sale.studentName || 'Walk-in Customer';
+        if(nameEl) {
+            nameEl.dataset.guestData = JSON.stringify({name: gName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
+            nameEl.innerHTML = `<span style="color: var(--text-main); font-weight: bold;">${gName}</span> <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align: middle;">Guest</span>`;
+        }
+        
+        if(imgEl) {
+            imgEl.src = 'https://via.placeholder.com/40?text=G';
+            imgEl.style.display = 'block';
+        }
+    } else {
+        const student = students.find(st => String(st.id) === String(sale.studentId));
+        if(student) {
+            if(sIdInput) sIdInput.value = student.id;
+            if(nameEl) {
+                nameEl.textContent = student.name;
+                nameEl.style.color = "var(--text-main)";
+                nameEl.dataset.guestData = ''; 
+            }
+            if(imgEl) {
+                imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
+                imgEl.style.display = 'block';
+            }
+        }
+    }
 
     if (sale.cart && Array.isArray(sale.cart)) {
         window.saleCart = [...sale.cart];
@@ -8253,12 +8292,21 @@ window.editSaleRecord = function(saleId) {
     }
     
     window.renderCart();
-    document.getElementById('amountPaid').value = sale.paid;
-    document.getElementById('editSaleId').value = sale.id;
+    
+    const paidInput = document.getElementById('amountPaid');
+    if(paidInput) paidInput.value = sale.paid || 0;
+    
+    const editIdInput = document.getElementById('editSaleId');
+    if(editIdInput) editIdInput.value = sale.id;
 
-    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
-    document.getElementById('saleProcessBtn').className = 'btn-warning';
-    document.getElementById('saleCancelEditBtn').style.display = 'block';
+    const btn = document.getElementById('saleProcessBtn');
+    if(btn) {
+        btn.innerHTML = '<i class="fas fa-save"></i> Update Sale';
+        btn.className = 'btn-warning';
+    }
+    const cancelBtn = document.getElementById('saleCancelEditBtn');
+    if(cancelBtn) cancelBtn.style.display = 'block';
+    
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
