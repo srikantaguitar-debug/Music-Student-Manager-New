@@ -7615,41 +7615,40 @@ window.viewBuyerProfile = function(saleId) {
 };
 
 window.editSaleRecord = function(saleId) {
-    const sale = salesDataArray.find(s => s.id === saleId);
+    // String দিয়ে চেক করা হচ্ছে যাতে কোনোভাবেই মিস না হয়
+    const sale = salesDataArray.find(s => String(s.id) === String(saleId));
     if(!sale) return;
     
     const sIdInput = document.getElementById('saleStudentId');
     const nameEl = document.getElementById('saleSelectedName');
     const imgEl = document.getElementById('saleSelectedPhoto');
 
-    // 🟢 গেস্ট কাস্টমার হলে তার তথ্যগুলো মেমরিতে লোড করা
-    if (sale.studentId === 0 || sale.studentId === 'guest' || !sale.studentId) {
-        // ১. হিডেন ইনপুটে 'guest' মান সেট করা (যাতে ভ্যালিডেশনে না আটকায়)
+    // 🟢 গেস্ট কাস্টমার চেক করার পারফেক্ট লজিক
+    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
+
+    if (isGuest) {
         sIdInput.value = 'guest';
         
-        // ২. গেস্টের ডেটা dataset-এ সেভ করা যাতে পপআপ খুললে নম্বর/ঠিকানা পাওয়া যায়
+        // গেস্টের তথ্য মেমরিতে সেভ করা হচ্ছে যাতে পপআপে অটো চলে আসে
         const gData = {
-            name: sale.studentName || '',
+            name: sale.studentName || 'Walk-in Customer',
             phone: sale.guestPhone || '',
             address: sale.guestAddress || ''
         };
         nameEl.dataset.guestData = JSON.stringify(gData);
         
-        // ৩. ডিসপ্লে নাম আপডেট
         nameEl.innerHTML = `${sale.studentName} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
         nameEl.style.color = "var(--text-main)";
-        imgEl.src = 'https://via.placeholder.com/40?text=G';
-        imgEl.style.display = 'block';
+        
+        if(imgEl) {
+            imgEl.src = 'https://via.placeholder.com/40?text=G';
+            imgEl.style.display = 'block';
+        }
     } else {
         // রেগুলার স্টুডেন্ট হলে
-        const student = students.find(st => st.id == sale.studentId);
+        const student = students.find(st => String(st.id) === String(sale.studentId));
         if(student) {
-            sIdInput.value = student.id;
-            nameEl.textContent = student.name;
-            nameEl.style.color = "var(--text-main)";
-            nameEl.dataset.guestData = ''; 
-            imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
-            imgEl.style.display = 'block';
+            window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
         }
     }
 
@@ -7657,17 +7656,23 @@ window.editSaleRecord = function(saleId) {
     if (sale.cart && Array.isArray(sale.cart)) {
         window.saleCart = [...sale.cart];
     } else {
-        window.saleCart = [{ name: sale.item, qty: 1, price: sale.price }];
+        let extractedName = sale.item; let extractedQty = 1;
+        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
+        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
+        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
     }
     
     window.renderCart();
-    document.getElementById('amountPaid').value = sale.paid;
+    document.getElementById('amountPaid').value = sale.paid || 0;
     document.getElementById('editSaleId').value = sale.id;
 
-    // বাটন টেক্সট পরিবর্তন
-    document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-save"></i> Update Sale';
-    document.getElementById('saleProcessBtn').className = 'btn-warning';
-    document.getElementById('saleCancelEditBtn').style.display = 'block';
+    const btn = document.getElementById('saleProcessBtn');
+    if(btn) {
+        btn.innerHTML = '<i class="fas fa-save"></i> Update Sale';
+        btn.className = 'btn-warning';
+    }
+    const cancelBtn = document.getElementById('saleCancelEditBtn');
+    if(cancelBtn) cancelBtn.style.display = 'block';
     
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -8086,21 +8091,12 @@ window.removeFromCart = function(index) {
 };
 
 window.processSale = function() {
-    // ১. কাস্টমার আইডি চেক
     const sId = document.getElementById('saleStudentId').value;
     const editId = document.getElementById('editSaleId').value;
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
 
-    // 🟢 গেস্ট বা স্টুডেন্ট কোনো আইডি না থাকলে শুধু তখনই এরর দেখাবে
-    if (!sId) { 
-        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); 
-        return; 
-    }
-    
-    if (window.saleCart.length === 0) { 
-        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); 
-        return; 
-    }
+    if (!sId) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); return; }
+    if (window.saleCart.length === 0) { Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); return; }
 
     let cartTotal = 0;
     let combinedNamesArray = [];
@@ -8117,12 +8113,13 @@ window.processSale = function() {
     let isGuest = false;
     let guestPhone = '', guestAddress = '';
 
-    // ২. ডেটা কালেকশন
+    // 🟢 গেস্ট নাকি রেগুলার স্টুডেন্ট চেক
     if (sId === 'guest') {
         finalStudentId = 0; 
         isGuest = true;
         try {
-            const gData = JSON.parse(document.getElementById('saleSelectedName').dataset.guestData || '{}');
+            const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
+            const gData = gDataStr ? JSON.parse(gDataStr) : {};
             finalStudentName = gData.name || 'Walk-in Customer';
             guestPhone = gData.phone || '';
             guestAddress = gData.address || '';
@@ -8139,7 +8136,6 @@ window.processSale = function() {
         finalStudentName = student.name;
     }
 
-    // ৩. সেভ বা আপডেট লজিক
     if (editId) {
         const index = salesDataArray.findIndex(s => String(s.id) === String(editId));
         if(index > -1) {
@@ -8169,15 +8165,21 @@ window.processSale = function() {
         salesDataArray.unshift(saleData);
         if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, newSaleId, finalItemName, due); 
         
-        // স্টক আপডেট
+        let stockUpdated = false;
         window.saleCart.forEach(cartItem => {
             const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === cartItem.name.toLowerCase());
             if (stockItem && stockItem.qty >= cartItem.qty) {
                 stockItem.qty -= cartItem.qty; 
+                stockUpdated = true;
             }
         });
-        window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
-        dbSet('stockData', window.stockInventory).catch(e=>{}); 
+        
+        if (stockUpdated) {
+            window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
+            dbSet('stockData', window.stockInventory).catch(e=>{}); 
+            window.renderStockTable(); 
+            window.renderInventoryDropdown();
+        }
 
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Completed!', showConfirmButton: false, timer: 1500});
         
