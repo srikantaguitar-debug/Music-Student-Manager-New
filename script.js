@@ -7312,7 +7312,7 @@ window.openSaleStudentSelector = function() {
 window.selectOutsiderCustomer = async function() {
     Swal.close();
     
-    // 🟢 আগে থেকে ডেটা থাকলে সেটা মেমরি থেকে বের করে আনা
+    // 🟢 আগে থেকে মেমরিতে ডেটা আছে কিনা চেক করা (এডিটের সময় থাকবে)
     let existName = '', existPhone = '', existAddr = '';
     try {
         const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
@@ -7333,7 +7333,7 @@ window.selectOutsiderCustomer = async function() {
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: existName ? 'Update Customer' : 'Add Customer',
+        confirmButtonText: existName ? 'Update Info' : 'Add Customer',
         confirmButtonColor: 'var(--success)',
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
@@ -7356,9 +7356,8 @@ window.selectOutsiderCustomer = async function() {
         nameEl.innerHTML = `${guestInfo.name} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
         nameEl.style.color = "var(--text-main)";
         
-        const imgEl = document.getElementById('saleSelectedPhoto');
-        imgEl.src = 'https://via.placeholder.com/40?text=G'; 
-        imgEl.style.display = 'block';
+        document.getElementById('saleSelectedPhoto').src = 'https://via.placeholder.com/40?text=G';
+        document.getElementById('saleSelectedPhoto').style.display = 'block';
     }
 };
 window.generateSaleStudentListHtml = function(studentsList) {
@@ -7619,28 +7618,37 @@ window.editSaleRecord = function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
     if(!sale) return;
     
-    // 🟢 এডিটের সময় যদি গেস্ট হয়, তবে ডেটা পপআপে লোড হবে
+    const sIdInput = document.getElementById('saleStudentId');
+    const nameEl = document.getElementById('saleSelectedName');
+    const imgEl = document.getElementById('saleSelectedPhoto');
+
+    // 🟢 গেস্ট কাস্টমার হলে তার আগের ডেটা ড্রপডাউনে লোড করা
     if (sale.studentId === 0 || sale.studentId === 'guest') {
-        document.getElementById('saleStudentId').value = 'guest';
-        document.getElementById('saleSelectedName').dataset.guestData = JSON.stringify({name: sale.studentName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
-        const nameEl = document.getElementById('saleSelectedName');
+        sIdInput.value = 'guest';
+        
+        // গেস্টের তথ্য মেমরিতে সেভ করা হচ্ছে যাতে পপআপে অটো চলে আসে
+        const gData = {
+            name: sale.studentName,
+            phone: sale.guestPhone || '',
+            address: sale.guestAddress || ''
+        };
+        nameEl.dataset.guestData = JSON.stringify(gData);
+        
         nameEl.innerHTML = `${sale.studentName} <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px;">Guest</span>`;
         nameEl.style.color = "var(--text-main)";
-        const imgEl = document.getElementById('saleSelectedPhoto');
         imgEl.src = 'https://via.placeholder.com/40?text=G';
         imgEl.style.display = 'block';
     } else {
+        // রেগুলার স্টুডেন্ট হলে
         const student = students.find(st => st.id == sale.studentId);
         if(student) window.selectStudentForSale(student.id, student.name, student.photo || 'https://via.placeholder.com/35?text=S');
     }
 
+    // কার্টে আইটেম লোড করা
     if (sale.cart && Array.isArray(sale.cart)) {
         window.saleCart = [...sale.cart];
     } else {
-        let extractedName = sale.item; let extractedQty = 1;
-        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
-        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
-        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
+        window.saleCart = [{ name: sale.item, qty: 1, price: sale.price }];
     }
     
     window.renderCart();
