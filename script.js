@@ -7259,30 +7259,57 @@ let salesDataArray = [];
 let tempSalesActiveStudents = [];
 
 window.fetchSalesData = async function() {
-    const yearInput = document.getElementById('salesYearFilter');
-    if (!yearInput.value) yearInput.value = new Date().getFullYear();
-    const year = yearInput.value;
+    let yearInput = document.getElementById('salesYearFilter');
+    // যদি ইনপুট বক্স থাকে এবং ফাঁকা থাকে, তবে বর্তমান সাল বসাবে
+    if (yearInput && !yearInput.value && yearInput.tagName.toLowerCase() === 'input') {
+        yearInput.value = new Date().getFullYear();
+    }
+    const year = yearInput ? yearInput.value : new Date().getFullYear().toString();
 
     const user = firebase.auth().currentUser;
     if (user) {
         try {
-            const doc = await db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').doc(String(year)).get();
-            if (doc.exists) {
-                salesDataArray = doc.data().records || [];
-            } else {
+            if (year === 'Lifetime') {
+                // Lifetime সিলেক্ট করলে সব সালের সেলস একসাথে আনবে
+                const snap = await db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').get();
                 salesDataArray = [];
+                snap.forEach(doc => {
+                    if (doc.data().records) {
+                        salesDataArray = salesDataArray.concat(doc.data().records);
+                    }
+                });
+            } else {
+                // নির্দিষ্ট সালের সেলস আনবে
+                const doc = await db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').doc(String(year)).get();
+                if (doc.exists) {
+                    salesDataArray = doc.data().records || [];
+                } else {
+                    salesDataArray = [];
+                }
             }
+            // তারিখ অনুযায়ী সাজানো
+            salesDataArray.sort((a,b) => new Date(b.date) - new Date(a.date));
         } catch(e) { console.error("Error fetching sales:", e); }
     }
     window.renderSalesUI();
 };
 
-window.syncSalesToFirebase = function(year) {
+window.syncSalesToFirebase = function() {
     const user = firebase.auth().currentUser;
     if (user) {
-        db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').doc(String(year)).set({
-            records: salesDataArray
-        }).catch(e => console.error("Sales Sync failed", e));
+        // সাল অনুযায়ী সেলস আলাদা করে ফায়ারবেসে সেভ করা হচ্ছে
+        let salesByYear = {};
+        salesDataArray.forEach(s => {
+            const y = new Date(s.date).getFullYear().toString();
+            if(!salesByYear[y]) salesByYear[y] = [];
+            salesByYear[y].push(s);
+        });
+
+        Object.keys(salesByYear).forEach(y => {
+            db.collection(COLLECTION_NAME).doc(user.uid).collection('accessory_sales').doc(y).set({
+                records: salesByYear[y]
+            }).catch(e => console.error("Sales Sync failed", e));
+        });
     }
 };
 
@@ -7410,7 +7437,8 @@ window.calculateSaleDue = function() {
     let cartTotal = 0;
     window.saleCart.forEach(item => cartTotal += item.price);
     
-    const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const paidVal = document.getElementById('amountPaid').value;
+    const paid = paidVal === '' ? 0 : parseFloat(paidVal);
     const due = cartTotal - paid;
     
     const display = document.getElementById('saleDueDisplay');
@@ -7418,11 +7446,51 @@ window.calculateSaleDue = function() {
         if (due > 0) {
             display.innerHTML = `Current Due: <span style="color:var(--danger);">₹${due}</span>`;
             display.style.background = 'rgba(239, 68, 68, 0.1)';
+        } else if (due < 0) {
+            // 🟢 নতুন: যদি কাস্টমার বেশি টাকা দেয়, তবে Return Change দেখাবে
+            display.innerHTML = `Return Change: <span style="color:var(--warning);">₹${Math.abs(due)}</span>`;
+            display.style.background = 'rgba(245, 158, 11, 0.1)';
         } else {
             display.innerHTML = `Current Due: <span style="color:var(--success);">₹0 (Fully Paid)</span>`;
             display.style.background = 'rgba(16, 185, 129, 0.1)';
         }
     }
+};
+
+window.renderCart = function() {
+    const container = document.getElementById('saleCartContainer');
+    const list = document.getElementById('saleCartList');
+    const totalSpan = document.getElementById('cartTotalPrice');
+
+    if (window.saleCart.length === 0) {
+        if(container) container.style.display = 'none';
+        if(totalSpan) totalSpan.textContent = '0';
+        window.calculateSaleDue();
+        return;
+    }
+
+    if(list) list.innerHTML = '';
+    let grandTotal = 0;
+
+    window.saleCart.forEach((item, index) => {
+        grandTotal += item.price;
+        if(list) {
+            list.innerHTML += `
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span><b>${item.name}</b> (x${item.qty})</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: 600;">₹${item.price}</span>
+                        <button onclick="window.removeFromCart(${index})" style="background: none; border: none; color: var(--danger); cursor: pointer;"><i class="fas fa-times"></i></button>
+                    </div>
+                </li>
+            `;
+        }
+    });
+
+    if(totalSpan) totalSpan.textContent = grandTotal;
+    if(container) container.style.display = 'block';
+    
+    window.calculateSaleDue(); // কার্ট আপডেট হলে ডিউ-ও আপডেট হবে
 };
 
 window.addAccessoryDueToStudent = function(studentId, saleId, item, due) {
@@ -7467,7 +7535,7 @@ window.deleteSaleRecord = function(saleId) {
             salesDataArray = salesDataArray.filter(s => s.id !== saleId);
             window.renderSalesUI();
             const currentYear = document.getElementById('salesYearFilter').value;
-            window.syncSalesToFirebase(currentYear);
+            window.syncSalesToFirebase();
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
         }
     });
@@ -7480,16 +7548,111 @@ window.renderSalesUI = function() {
     
     const searchInput = document.getElementById('searchSalesHistoryInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
+    let yearFilter = document.getElementById('salesYearFilter');
+    let monthFilter = document.getElementById('salesMonthFilter');
+
+    if (yearFilter && yearFilter.tagName.toLowerCase() === 'input') {
+        const parent = yearFilter.parentNode;
+        const newYearSelect = document.createElement('select');
+        newYearSelect.id = 'salesYearFilter';
+        newYearSelect.style.cssText = "padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 13px; font-weight: bold; background: var(--bg-input); color: var(--text-main); outline: none; cursor: pointer;";
+        
+        const currentY = new Date().getFullYear();
+        newYearSelect.innerHTML = `
+            <option value="Lifetime">Lifetime</option>
+            <option value="${currentY-1}">${currentY-1}</option>
+            <option value="${currentY}" selected>${currentY}</option>
+            <option value="${currentY+1}">${currentY+1}</option>
+        `;
+        parent.replaceChild(newYearSelect, yearFilter);
+        yearFilter = newYearSelect;
+        yearFilter.onchange = window.fetchSalesData; 
+    }
+
+    if (!monthFilter && yearFilter) {
+        monthFilter = document.createElement('select');
+        monthFilter.id = 'salesMonthFilter';
+        monthFilter.style.cssText = yearFilter.style.cssText;
+        monthFilter.style.marginLeft = '8px';
+        monthFilter.innerHTML = `
+            <option value="All">Full Year</option>
+            <option value="01">Jan</option><option value="02">Feb</option>
+            <option value="03">Mar</option><option value="04">Apr</option>
+            <option value="05">May</option><option value="06">Jun</option>
+            <option value="07">Jul</option><option value="08">Aug</option>
+            <option value="09">Sep</option><option value="10">Oct</option>
+            <option value="11">Nov</option><option value="12">Dec</option>
+        `;
+        const curM = (new Date().getMonth() + 1).toString().padStart(2, '0');
+        monthFilter.value = curM; 
+        monthFilter.onchange = window.renderSalesUI;
+        yearFilter.parentNode.insertBefore(monthFilter, yearFilter.nextSibling);
+    }
+
+    const selectedYear = yearFilter ? yearFilter.value : new Date().getFullYear().toString();
+    const selectedMonth = monthFilter ? monthFilter.value : (new Date().getMonth() + 1).toString().padStart(2, '0');
 
     let totalDueAmount = 0;
     let dueRecords = [];
-    
-    salesDataArray.forEach(s => {
+    let totalSalesAmount = 0;
+    let totalProfit = 0;
+
+    const filteredSales = salesDataArray.filter(s => {
+        const sDate = new Date(s.date);
+        const sYear = sDate.getFullYear().toString();
+        const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
+        
+        const matchYear = (selectedYear === 'Lifetime' || sYear === selectedYear);
+        const matchMonth = (selectedMonth === 'All' || sMonth === selectedMonth);
+        const matchSearch = (!filterText || `${s.studentName} ${s.item}`.toLowerCase().includes(filterText));
+        
+        return matchYear && matchMonth && matchSearch;
+    });
+
+    filteredSales.forEach(s => {
         if (s.due > 0) {
             totalDueAmount += s.due;
             dueRecords.push(s);
         }
+        
+        totalSalesAmount += s.price;
+        
+        if (s.due <= 0) {
+            let totalBuyPrice = 0;
+            if (s.cart && s.cart.length > 0) {
+                s.cart.forEach(cItem => { totalBuyPrice += (cItem.buyPrice || 0); });
+            }
+            totalProfit += (s.price - totalBuyPrice);
+        }
     });
+
+    let profitDash = document.getElementById('salesProfitDashboard');
+    if (!profitDash) {
+        profitDash = document.createElement('div');
+        profitDash.id = 'salesProfitDashboard';
+        const containerToInsert = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement.parentElement;
+        containerToInsert.insertBefore(profitDash, containerToInsert.firstChild);
+    }
+    
+    let periodText = '';
+    if (selectedYear === 'Lifetime') periodText = 'Lifetime';
+    else if (selectedMonth === 'All') periodText = selectedYear;
+    else periodText = document.querySelector(`#salesMonthFilter option[value="${selectedMonth}"]`).text + ' ' + selectedYear;
+    
+    // 🟢 ম্যাজিক ফিক্স: Sales বক্সে ক্লিক করলে Search বক্স ক্লিয়ার হবে এবং Profit বক্সে ক্লিক করলে ডিটেইলড রিপোর্ট আসবে
+    // 🟢 ম্যাজিক ফিক্স: Sales বক্সে ক্লিক করলে এখন showSalesBreakdown পপআপ ওপেন হবে
+    profitDash.innerHTML = `
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <div onclick="window.showSalesBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 15px; border-radius: 12px; border: 1px solid #7dd3fc; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
+                <div style="font-size: 11px; color: #0284c7; font-weight: 800; text-transform: uppercase;">${periodText} Sales</div>
+                <div style="font-size: 20px; font-weight: 900; color: #0369a1; margin-top: 5px;">₹${totalSalesAmount}</div>
+            </div>
+            <div onclick="window.showProfitBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 15px; border-radius: 12px; border: 1px solid #86efac; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
+                <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase;">${periodText} Profit</div>
+                <div style="font-size: 20px; font-weight: 900; color: #15803d; margin-top: 5px;">₹${totalProfit}</div>
+            </div>
+        </div>
+    `;
 
     let dueAlertContainer = document.getElementById('salesDueAlertContainer');
     if (!dueAlertContainer) {
@@ -7514,14 +7677,8 @@ window.renderSalesUI = function() {
         dueAlertContainer.style.display = 'none';
     }
 
-    const filteredSales = salesDataArray.filter(s => {
-        if (!filterText) return true;
-        const searchContent = `${s.studentName} ${s.item}`.toLowerCase();
-        return searchContent.includes(filterText);
-    });
-
     if (filteredSales.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No sales found.</td></tr>';
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No sales found for this period.</td></tr>';
         return;
     }
     
@@ -7529,7 +7686,6 @@ window.renderSalesUI = function() {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
         const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         
-        // 🟢 ম্যাজিক ফিক্স: নামের কালার থিমের সাথে মেলানো হয়েছে এবং Call বাটন অ্যাড করা হয়েছে
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
                 <td style="padding: 2px 5px; vertical-align: middle;">
@@ -7855,12 +8011,65 @@ setTimeout(() => {
 window.stockInventory = [];
 
 window.openStockModal = function() {
+    const nameInput = document.getElementById('newStockName');
+    
+    // ডিজাইন ঠিক না থাকলে নতুন করে সাজাবে
+    if (!document.getElementById('newStockBuyPrice')) {
+        // ফর্মের মূল কন্টেইনারটা খুঁজে বের করা
+        const formContainer = nameInput.closest('.form-grid') || nameInput.parentElement.parentElement;
+        
+        // কন্টেইনারের ডিজাইন ফ্লেক্সবক্স দিয়ে সাজানো হচ্ছে
+        formContainer.style.display = 'flex';
+        formContainer.style.flexDirection = 'column';
+        formContainer.style.gap = '15px';
+        
+        // নতুন এবং পারফেক্ট HTML লেআউট
+        formContainer.innerHTML = `
+            <!-- প্রথম লাইন: Item Name (পুরো জায়গা নেবে) -->
+            <div style="width: 100%;">
+                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Item Name</label>
+                <input id="newStockName" class="swal2-input" placeholder="e.g. Pick" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+            </div>
+            
+            <!-- দ্বিতীয় লাইন: পাশাপাশি ৩টি কলাম (Buy, Sell, Qty) -->
+            <div style="display: flex; gap: 8px; width: 100%;">
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Buy (₹)</label>
+                    <input type="number" id="newStockBuyPrice" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Sell (₹)</label>
+                    <input type="number" id="newStockPrice" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Qty</label>
+                    <input type="number" id="newStockQty" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+            </div>
+            <input type="hidden" id="editStockId">
+        `;
+    } else {
+        // পপআপ আগে থেকেই ঠিক থাকলে শুধু ঘরগুলো ফাঁকা করে দেবে
+        document.getElementById('newStockName').value = '';
+        document.getElementById('newStockBuyPrice').value = '';
+        document.getElementById('newStockPrice').value = '';
+        document.getElementById('newStockQty').value = '';
+        document.getElementById('editStockId').value = '';
+    }
+
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-plus"></i> Add / Update Stock';
+        btn.style.background = ''; 
+    }
+
     window.renderStockTable();
     document.getElementById('stockModal').style.display = 'flex';
 };
 
 window.addStockItem = async function() {
     const name = document.getElementById('newStockName').value.trim();
+    const buyPrice = parseFloat(document.getElementById('newStockBuyPrice').value) || 0; 
     const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
     const qty = parseInt(document.getElementById('newStockQty').value) || 0;
     
@@ -7870,21 +8079,24 @@ window.addStockItem = async function() {
     if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
 
     if (editId) {
-        const index = window.stockInventory.findIndex(i => i.id == editId);
+        const index = window.stockInventory.findIndex(i => String(i.id) === String(editId));
         if (index > -1) {
-            window.stockInventory[index] = { ...window.stockInventory[index], name, price, qty };
+            window.stockInventory[index] = { ...window.stockInventory[index], name, price, buyPrice, qty };
         }
     } else {
         const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
         if (existingIndex > -1) {
             window.stockInventory[existingIndex].price = price;
+            window.stockInventory[existingIndex].buyPrice = buyPrice;
             window.stockInventory[existingIndex].qty += qty;
         } else {
-            window.stockInventory.push({ id: Date.now(), name, price, qty });
+            window.stockInventory.push({ id: Date.now(), name, price, buyPrice, qty });
         }
     }
 
+    // ইনপুট বক্স ক্লিয়ার
     document.getElementById('newStockName').value = '';
+    document.getElementById('newStockBuyPrice').value = '';
     document.getElementById('newStockPrice').value = '';
     document.getElementById('newStockQty').value = '';
     if(editIdInput) editIdInput.value = '';
@@ -7903,46 +8115,30 @@ window.addStockItem = async function() {
 };
 
 window.editStockItem = function(id) {
-    const item = window.stockInventory.find(i => i.id === id);
+    const item = window.stockInventory.find(i => String(i.id) === String(id));
     if (!item) return;
 
+    // যদি ডিজাইন লোড না হয়ে থাকে, আগে ডিজাইন লোড করবে
+    if (!document.getElementById('newStockBuyPrice')) {
+        window.openStockModal();
+        document.getElementById('stockModal').style.display = 'none'; // লুকাবে, কারণ নিচে আবার খুলবে
+    }
+
     document.getElementById('newStockName').value = item.name;
+    document.getElementById('newStockBuyPrice').value = item.buyPrice || 0;
     document.getElementById('newStockPrice').value = item.price;
     document.getElementById('newStockQty').value = item.qty;
     
     let editIdInput = document.getElementById('editStockId');
-    if(!editIdInput) {
-        editIdInput = document.createElement('input');
-        editIdInput.type = 'hidden';
-        editIdInput.id = 'editStockId';
-        document.querySelector('#stockModal .form-grid').appendChild(editIdInput);
-    }
-    editIdInput.value = item.id;
+    if(editIdInput) editIdInput.value = item.id;
 
     const btn = document.querySelector('#stockModal .btn-primary');
     if (btn) {
         btn.innerHTML = '<i class="fas fa-save"></i> Update Stock Item';
         btn.style.background = '#f59e0b'; 
     }
-};
-
-window.deleteStockItem = async function(id) {
-    Swal.fire({
-        title: 'Delete Item?',
-        text: "Are you sure you want to remove this item from stock?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, delete it'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            window.stockInventory = window.stockInventory.filter(i => i.id !== id);
-            window.renderStockTable();
-            window.renderInventoryDropdown();
-            await dbSet('stockData', window.stockInventory);
-            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
-        }
-    });
+    
+    document.getElementById('stockModal').style.display = 'flex';
 };
 
 window.renderStockTable = function() {
@@ -7964,40 +8160,56 @@ window.renderStockTable = function() {
     }
 
     filteredStock.forEach(item => {
-        // স্টকের পরিমাণ ২ বা তার কম হলে লাল দেখাবে, নাহলে সবুজ
         const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
         
-        // 🟢 ম্যাজিক ফিক্স: কার্ডের সাইজ একদম ছোট এবং সুন্দর করার জন্য ফ্লেক্সবক্স ডিজাইন
+        // 🟢 নতুন: স্টক লিস্টে Buy Price দেখানোর ব্যবস্থা
         tbody.innerHTML += `
             <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <td style="display: block; padding: 0; border: none; text-align: left;">
-                    
                     <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 8px; line-height: 1.3;">
                         ${item.name}
                     </div>
-                    
                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                        
                         <div style="display: flex; gap: 8px; font-size: 12px; font-weight: bold; align-items: center;">
-                            <span style="color: var(--text-muted);">₹${item.price}</span>
+                            <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
+                            <span style="color: var(--text-muted);">Sell: ₹${item.price}</span>
                             <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
                         </div>
-                        
                         <div style="display: flex; gap: 6px;">
                             <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
-                                <i class="fas fa-edit"></i> Edit
+                                <i class="fas fa-edit"></i>
                             </button>
                             <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
-                                <i class="fas fa-trash"></i> Delete
+                                <i class="fas fa-trash"></i>
                             </button>
                         </div>
-                        
                     </div>
                 </td>
             </tr>
         `;
     });
 };
+
+window.deleteStockItem = async function(id) {
+    Swal.fire({
+        title: 'Delete Item?',
+        text: "Are you sure you want to remove this item from stock?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, delete it'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            window.stockInventory = window.stockInventory.filter(i => i.id !== id);
+            window.renderStockTable();
+            window.renderInventoryDropdown();
+            await dbSet('stockData', window.stockInventory);
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+        }
+    });
+};
+
+
 
 window.renderInventoryDropdown = function() {
     const datalist = document.getElementById('stockDataList');
@@ -8019,13 +8231,17 @@ window.autoFillItemPrice = function() {
     
     if (item) {
         window.currentUnitPrice = item.price; 
-        window.updateSalePriceCalc(); 
-        if (item.qty <= 0) Swal.fire({toast: true, position: 'top-end', icon: 'error', title: 'Out of Stock!', showConfirmButton: false, timer: 2000});
+        const qty = parseInt(document.getElementById('saleQty').value) || 1;
+        document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
+    } else {
+        // 🟢 ম্যাজিক ফিক্স: স্টক না মিললে দামের ঘর আর ফাঁকা (Clear) করবে না।
+        window.currentUnitPrice = 0;
     }
 };
 
 window.updateSalePriceCalc = function() {
     const qty = parseInt(document.getElementById('saleQty').value) || 1;
+    // শুধুমাত্র স্টকের আইটেম সিলেক্ট করা থাকলেই অটোমেটিক দাম গুণ করবে।
     if (window.currentUnitPrice > 0) {
         document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
     }
@@ -8036,18 +8252,26 @@ window.addToCart = function() {
     const qty = parseInt(document.getElementById('saleQty').value) || 1;
     const totalItemPrice = parseFloat(document.getElementById('itemPrice').value);
 
+    // নাম বা দাম না থাকলে ওয়ার্নিং দেবে
     if (!name || isNaN(totalItemPrice) || qty < 1) {
         Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Enter item name and price!', showConfirmButton: false, timer: 2000});
         return;
     }
 
     const stockItemCheck = window.stockInventory.find(i => i.name.toLowerCase() === name.toLowerCase());
-    if (stockItemCheck && stockItemCheck.qty < qty) {
-        Swal.fire('Low Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left.`, 'warning');
+    let buyPriceTotal = 0;
+    
+    if (stockItemCheck) {
+        if (stockItemCheck.qty < qty) {
+            Swal.fire('Low Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left.`, 'warning');
+        }
+        buyPriceTotal = (stockItemCheck.buyPrice || 0) * qty; 
     }
 
-    window.saleCart.push({ name: name, qty: qty, price: totalItemPrice });
+    // কার্টে আইটেম ঢোকানো হলো
+    window.saleCart.push({ name: name, qty: qty, price: totalItemPrice, buyPrice: buyPriceTotal });
     
+    // অ্যাড হওয়ার পর ইনপুট বক্সগুলো ফাঁকা করে দেওয়া হলো
     document.getElementById('itemName').value = '';
     document.getElementById('saleQty').value = '1';
     document.getElementById('itemPrice').value = '';
@@ -8218,7 +8442,7 @@ window.processSale = function() {
 
     window.renderSalesUI();
     window.cancelSaleEdit();
-    window.syncSalesToFirebase(currentYear);
+    window.syncSalesToFirebase();
 };
 
 window.cancelSaleEdit = function() {
@@ -9987,4 +10211,169 @@ window.exportDashboardPDF = function() {
     const { jsPDF } = window.jspdf; const doc = new jsPDF(); let y = 20; doc.setFontSize(18); doc.setFont("helvetica", "bold"); doc.text((typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes'), 105, y, {align: "center"}); y += 10; doc.setFontSize(14); doc.text("Complete Dashboard Report", 105, y, {align: "center"}); y += 8; doc.setFontSize(10); doc.setFont("helvetica", "normal"); doc.text(`Generated: ${new Date().toLocaleDateString('en-IN')}`, 105, y, {align: "center"}); y += 15; doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Student Statistics", 15, y); y += 7; doc.setFontSize(11); doc.setFont("helvetica", "normal"); doc.text(`Total Students: ${students.length}`, 20, y); y += 6; doc.text(`Active Students: ${activeStudents.length}`, 20, y); y += 6; doc.text(`Inactive Students: ${students.length - activeStudents.length}`, 20, y); y += 12; doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Financial Overview", 15, y); y += 7; doc.setFontSize(11); doc.setFont("helvetica", "normal"); doc.text(`Current Month (${window.formatMonthYear(currentMonthStr)}) Collected: Rs. ${monthlyCollected}`, 20, y); y += 6; doc.text(`Current Month Due: Rs. ${monthlyDueAmount}`, 20, y); y += 6; doc.text(`Yearly Collected: Rs. ${yearlyCollected}`, 20, y); y += 6; doc.text(`Yearly Due: Rs. ${yearlyDueAmount}`, 20, y); y += 12; doc.setFontSize(12); doc.setFont("helvetica", "bold"); doc.text("Class Strength", 15, y); y += 7; doc.setFontSize(11); doc.setFont("helvetica", "normal"); Object.entries(classCounts).sort().forEach(([className, count]) => { doc.text(`${className}: ${count} students`, 20, y); y += 6; }); 
     if (typeof window.addWatermarkAndSignatureToPdf === 'function') window.addWatermarkAndSignatureToPdf(doc); 
     doc.save(`Dashboard_Full_Report_${currentMonthStr}.pdf`); 
+};
+// 🟢 NEW: Sales Breakdown Report (ক্লিক করলে পপআপে হিস্ট্রি দেখাবে)
+window.showSalesBreakdown = function(year, month) {
+    let reportSales = salesDataArray.filter(s => {
+        const sDate = new Date(s.date);
+        const sYear = sDate.getFullYear().toString();
+        const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
+        
+        const matchYear = (year === 'Lifetime' || sYear === year);
+        const matchMonth = (month === 'All' || sMonth === month);
+        
+        return matchYear && matchMonth; // এখানে ডিউ এবং পেইড সব সেলই দেখাবে
+    });
+
+    if (reportSales.length === 0) {
+        Swal.fire('No Data', 'No sales found for this period.', 'info');
+        return;
+    }
+
+    let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
+    let totalSales = 0;
+    let totalDue = 0;
+
+    reportSales.forEach(sale => {
+        totalSales += sale.price;
+        totalDue += sale.due;
+        
+        const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
+        const statusClr = sale.due > 0 ? '#e11d48' : '#15803d';
+        const statusBg = sale.due > 0 ? '#fff1f2' : '#dcfce7';
+        const statusText = sale.due > 0 ? `Due: ₹${sale.due}` : 'Fully Paid';
+        
+        let itemsHtml = '';
+        if (sale.cart && sale.cart.length > 0) {
+            sale.cart.forEach(cItem => { 
+                itemsHtml += `<div style="font-size: 12px; color: var(--text-muted);">• ${cItem.name} (x${cItem.qty})</div>`;
+            });
+        } else {
+            itemsHtml = `<div style="font-size: 12px; color: var(--text-muted);">• ${sale.item}</div>`;
+        }
+
+        listHtml += `
+            <div style="background: var(--bg-input); padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <strong style="color:var(--text-main); font-size:14px;">${sale.studentName}</strong>
+                    <span style="color:var(--text-muted); font-size:11px;">${dateStr}</span>
+                </div>
+                
+                <div style="background: var(--bg-body); padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px dashed #cbd5e1;">
+                    ${itemsHtml}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                    <div style="font-size:12px;">
+                        <div style="color:var(--primary); font-weight:600;">Total: ₹${sale.price}</div>
+                        <div style="color:var(--success); font-weight:600;">Paid: ₹${sale.paid}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:11px; font-weight:bold; color:${statusClr}; padding: 4px 8px; background: ${statusBg}; border-radius: 6px;">${statusText}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listHtml += `
+        <div style="display: flex; gap: 8px; margin-top: 10px;">
+            <div style="flex: 1; background: #e0f2fe; color: #0369a1; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #7dd3fc;">
+                <div style="font-size:10px; font-weight:bold; text-transform:uppercase;">Total Sales</div>
+                <div style="font-size:16px; font-weight:900;">₹${totalSales}</div>
+            </div>
+            <div style="flex: 1; background: #fff1f2; color: #e11d48; padding: 10px; border-radius: 8px; text-align: center; border: 1px solid #fda4af;">
+                <div style="font-size:10px; font-weight:bold; text-transform:uppercase;">Total Due</div>
+                <div style="font-size:16px; font-weight:900;">₹${totalDue}</div>
+            </div>
+        </div>
+    </div>`;
+
+    Swal.fire({
+        title: 'Sales Breakdown',
+        html: listHtml,
+        showConfirmButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: '#0ea5e9',
+        width: '95%',
+        padding: '15px'
+    });
+};
+// 🟢 NEW: Profit Breakdown Report
+window.showProfitBreakdown = function(year, month) {
+    let reportSales = salesDataArray.filter(s => {
+        const sDate = new Date(s.date);
+        const sYear = sDate.getFullYear().toString();
+        const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
+        
+        const matchYear = (year === 'Lifetime' || sYear === year);
+        const matchMonth = (month === 'All' || sMonth === month);
+        
+        return matchYear && matchMonth && s.due <= 0; // শুধুমাত্র ফুল পেইড সেলগুলো প্রফিটে দেখাবে
+    });
+
+    if (reportSales.length === 0) {
+        Swal.fire('No Data', 'No fully paid sales found for this period to calculate profit.', 'info');
+        return;
+    }
+
+    let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
+    let totalProfit = 0;
+
+    reportSales.forEach(sale => {
+        let totalBuyPrice = 0;
+        let itemsHtml = '';
+        
+        if (sale.cart && sale.cart.length > 0) {
+            sale.cart.forEach(cItem => { 
+                totalBuyPrice += (cItem.buyPrice || 0); 
+                itemsHtml += `<div style="font-size: 11.5px; color: var(--text-muted); display:flex; justify-content:space-between;"><span>• ${cItem.name} (x${cItem.qty})</span> <span>[Buy: ₹${cItem.buyPrice || 0}]</span></div>`;
+            });
+        }
+        
+        let profit = sale.price - totalBuyPrice;
+        totalProfit += profit;
+        const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
+
+        listHtml += `
+            <div style="background: var(--bg-input); padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                    <strong style="color:var(--text-main); font-size:14px;">${sale.studentName}</strong>
+                    <span style="color:var(--text-muted); font-size:11px;">${dateStr}</span>
+                </div>
+                
+                <div style="background: var(--bg-body); padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px dashed #cbd5e1;">
+                    ${itemsHtml || `<div style="font-size: 11.5px; color: var(--text-muted);">• ${sale.item}</div>`}
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 8px;">
+                    <div style="font-size:12px;">
+                        <div style="color:var(--danger); font-weight:600;">Total Buy: ₹${totalBuyPrice}</div>
+                        <div style="color:var(--primary); font-weight:600;">Total Sell: ₹${sale.price}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:10px; font-weight:bold; color:var(--success); text-transform:uppercase;">Profit</div>
+                        <div style="font-size:16px; font-weight:900; color:#15803d;">₹${profit}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listHtml += `
+        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; box-shadow: 0 4px 6px rgba(16,185,129,0.3);">
+            <div style="font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Net Profit</div>
+            <div style="font-size:24px; font-weight:900;">₹${totalProfit}</div>
+        </div>
+    </div>`;
+
+    Swal.fire({
+        title: 'Profit Breakdown',
+        html: listHtml,
+        showConfirmButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: '#10b981',
+        width: '95%',
+        padding: '15px'
+    });
 };
