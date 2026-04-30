@@ -7443,14 +7443,21 @@ window.calculateSaleDue = function() {
     
     const display = document.getElementById('saleDueDisplay');
     if(display) {
-        if (due > 0) {
+        // 🟢 কার্ট ফাঁকা থাকলে একদম ক্লিন ভিউ দেখাবে
+        if (window.saleCart.length === 0) {
+            display.innerHTML = `Due: <span style="color:var(--success);">₹0</span>`;
+            display.style.background = 'rgba(16, 185, 129, 0.1)';
+        } 
+        else if (due > 0) {
             display.innerHTML = `Current Due: <span style="color:var(--danger);">₹${due}</span>`;
             display.style.background = 'rgba(239, 68, 68, 0.1)';
-        } else if (due < 0) {
-            // 🟢 নতুন: যদি কাস্টমার বেশি টাকা দেয়, তবে Return Change দেখাবে
+        } 
+        else if (due < 0) {
+            // যদি কাস্টমার বেশি টাকা দেয়, তবে Return Change দেখাবে
             display.innerHTML = `Return Change: <span style="color:var(--warning);">₹${Math.abs(due)}</span>`;
             display.style.background = 'rgba(245, 158, 11, 0.1)';
-        } else {
+        } 
+        else {
             display.innerHTML = `Current Due: <span style="color:var(--success);">₹0 (Fully Paid)</span>`;
             display.style.background = 'rgba(16, 185, 129, 0.1)';
         }
@@ -8014,24 +8021,31 @@ window.openStockModal = function() {
     const nameInput = document.getElementById('newStockName');
     
     // ডিজাইন ঠিক না থাকলে নতুন করে সাজাবে
-    if (!document.getElementById('newStockBuyPrice')) {
-        // ফর্মের মূল কন্টেইনারটা খুঁজে বের করা
+    if (!document.getElementById('stockImageInput')) {
         const formContainer = nameInput.closest('.form-grid') || nameInput.parentElement.parentElement;
         
-        // কন্টেইনারের ডিজাইন ফ্লেক্সবক্স দিয়ে সাজানো হচ্ছে
         formContainer.style.display = 'flex';
         formContainer.style.flexDirection = 'column';
         formContainer.style.gap = '15px';
         
-        // নতুন এবং পারফেক্ট HTML লেআউট
+        // 🟢 ছবি অ্যাড করার জায়গা সহ নতুন লেআউট
         formContainer.innerHTML = `
-            <!-- প্রথম লাইন: Item Name (পুরো জায়গা নেবে) -->
-            <div style="width: 100%;">
-                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Item Name</label>
-                <input id="newStockName" class="swal2-input" placeholder="e.g. Pick" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+            <!-- প্রথম লাইন: Photo + Item Name -->
+            <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                <div style="position:relative; width:50px; height:50px; border:2px dashed #cbd5e1; border-radius:8px; display:flex; justify-content:center; align-items:center; cursor:pointer; overflow:hidden; flex-shrink:0; background: var(--bg-body);" onclick="document.getElementById('stockImageInput').click()" title="Add Photo">
+                    <img id="stockImagePreview" src="" style="width:100%; height:100%; object-fit:cover; display:none;">
+                    <i id="stockImagePlaceholder" class="fas fa-camera" style="color:var(--primary); font-size:20px;"></i>
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size: 13px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Item Name</label>
+                    <input id="newStockName" class="swal2-input" placeholder="e.g. Pick" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
             </div>
             
-            <!-- দ্বিতীয় লাইন: পাশাপাশি ৩টি কলাম (Buy, Sell, Qty) -->
+            <!-- হিডেন ফাইল ইনপুট -->
+            <input type="file" id="stockImageInput" accept="image/*" style="display:none;" onchange="window.handleStockImageSelection(this)">
+            
+            <!-- দ্বিতীয় লাইন: পাশাপাশি ৩টি কলাম (Buy, Sell, Qty) -->
             <div style="display: flex; gap: 8px; width: 100%;">
                 <div style="flex: 1;">
                     <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Buy (₹)</label>
@@ -8055,7 +8069,14 @@ window.openStockModal = function() {
         document.getElementById('newStockPrice').value = '';
         document.getElementById('newStockQty').value = '';
         document.getElementById('editStockId').value = '';
+        document.getElementById('stockImageInput').value = '';
+        
+        document.getElementById('stockImagePreview').src = '';
+        document.getElementById('stockImagePreview').style.display = 'none';
+        document.getElementById('stockImagePlaceholder').style.display = 'block';
     }
+
+    window.currentStockImageBase64 = null; // মেমরি রিসেট
 
     const btn = document.querySelector('#stockModal .btn-primary');
     if (btn) {
@@ -8067,11 +8088,60 @@ window.openStockModal = function() {
     document.getElementById('stockModal').style.display = 'flex';
 };
 
+window.currentStockImageBase64 = null;
+
+// 🟢 NEW: ইমেজ কম্প্রেস করে ডেটাবেসের জন্য রেডি করার ফাংশন
+window.handleStockImageSelection = function(input) {
+    const file = input.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                // ছবিকে ছোট করে 300px উইডথ-এ আনা হচ্ছে যাতে ডেটাবেস ভারী না হয়
+                const maxWidth = 300; 
+                const scaleSize = maxWidth / img.width;
+                canvas.width = maxWidth;
+                canvas.height = img.height * scaleSize;
+                
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                window.currentStockImageBase64 = canvas.toDataURL('image/jpeg', 0.6); // 60% কোয়ালিটি
+                
+                document.getElementById('stockImagePreview').src = window.currentStockImageBase64;
+                document.getElementById('stockImagePreview').style.display = 'block';
+                document.getElementById('stockImagePlaceholder').style.display = 'none';
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
+// 🟢 NEW: লিস্ট থেকে ছবির ওপর ক্লিক করলে জুম করে দেখানোর ফাংশন
+window.viewStockImage = function(photoUrl, name) {
+    if (!photoUrl || photoUrl === 'undefined') {
+        Swal.fire({toast: true, position: 'top', icon: 'info', title: 'No Image Available', showConfirmButton: false, timer: 1500});
+        return;
+    }
+    Swal.fire({
+        title: name,
+        imageUrl: photoUrl,
+        imageWidth: '100%',
+        imageAlt: name,
+        showConfirmButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: 'var(--primary)',
+        padding: '10px'
+    });
+};
 window.addStockItem = async function() {
     const name = document.getElementById('newStockName').value.trim();
     const buyPrice = parseFloat(document.getElementById('newStockBuyPrice').value) || 0; 
     const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
     const qty = parseInt(document.getElementById('newStockQty').value) || 0;
+    const photo = window.currentStockImageBase64; // 🟢 ছবি মেমরি থেকে নেওয়া হলো
     
     const editIdInput = document.getElementById('editStockId');
     const editId = editIdInput ? editIdInput.value : '';
@@ -8082,6 +8152,8 @@ window.addStockItem = async function() {
         const index = window.stockInventory.findIndex(i => String(i.id) === String(editId));
         if (index > -1) {
             window.stockInventory[index] = { ...window.stockInventory[index], name, price, buyPrice, qty };
+            // যদি নতুন ছবি দিয়ে থাকে, তবেই ছবি আপডেট হবে
+            if (photo) window.stockInventory[index].photo = photo;
         }
     } else {
         const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
@@ -8089,16 +8161,23 @@ window.addStockItem = async function() {
             window.stockInventory[existingIndex].price = price;
             window.stockInventory[existingIndex].buyPrice = buyPrice;
             window.stockInventory[existingIndex].qty += qty;
+            if (photo) window.stockInventory[existingIndex].photo = photo;
         } else {
-            window.stockInventory.push({ id: Date.now(), name, price, buyPrice, qty });
+            window.stockInventory.push({ id: Date.now(), name, price, buyPrice, qty, photo });
         }
     }
 
-    // ইনপুট বক্স ক্লিয়ার
+    // ইনপুট বক্স ক্লিয়ার
     document.getElementById('newStockName').value = '';
     document.getElementById('newStockBuyPrice').value = '';
     document.getElementById('newStockPrice').value = '';
     document.getElementById('newStockQty').value = '';
+    document.getElementById('stockImageInput').value = '';
+    document.getElementById('stockImagePreview').src = '';
+    document.getElementById('stockImagePreview').style.display = 'none';
+    document.getElementById('stockImagePlaceholder').style.display = 'block';
+    window.currentStockImageBase64 = null;
+
     if(editIdInput) editIdInput.value = '';
     
     const btn = document.querySelector('#stockModal .btn-primary');
@@ -8118,10 +8197,9 @@ window.editStockItem = function(id) {
     const item = window.stockInventory.find(i => String(i.id) === String(id));
     if (!item) return;
 
-    // যদি ডিজাইন লোড না হয়ে থাকে, আগে ডিজাইন লোড করবে
-    if (!document.getElementById('newStockBuyPrice')) {
+    if (!document.getElementById('stockImageInput')) {
         window.openStockModal();
-        document.getElementById('stockModal').style.display = 'none'; // লুকাবে, কারণ নিচে আবার খুলবে
+        document.getElementById('stockModal').style.display = 'none'; 
     }
 
     document.getElementById('newStockName').value = item.name;
@@ -8129,6 +8207,19 @@ window.editStockItem = function(id) {
     document.getElementById('newStockPrice').value = item.price;
     document.getElementById('newStockQty').value = item.qty;
     
+    // 🟢 এডিটে ছবি লোড করা
+    if (item.photo) {
+        document.getElementById('stockImagePreview').src = item.photo;
+        document.getElementById('stockImagePreview').style.display = 'block';
+        document.getElementById('stockImagePlaceholder').style.display = 'none';
+        window.currentStockImageBase64 = item.photo;
+    } else {
+        document.getElementById('stockImagePreview').src = '';
+        document.getElementById('stockImagePreview').style.display = 'none';
+        document.getElementById('stockImagePlaceholder').style.display = 'block';
+        window.currentStockImageBase64 = null;
+    }
+
     let editIdInput = document.getElementById('editStockId');
     if(editIdInput) editIdInput.value = item.id;
 
@@ -8161,14 +8252,23 @@ window.renderStockTable = function() {
 
     filteredStock.forEach(item => {
         const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
+        // 🟢 ছবি না থাকলে একটি ডিফল্ট বক্স দেখাবে
+        const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/50?text=📦';
+        const safeName = item.name.replace(/'/g, "\\'"); // নামের ভেতর ' থাকলে যাতে কোড না ভাঙে
         
-        // 🟢 নতুন: স্টক লিস্টে Buy Price দেখানোর ব্যবস্থা
         tbody.innerHTML += `
             <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <td style="display: block; padding: 0; border: none; text-align: left;">
-                    <div style="font-weight: 600; font-size: 14px; color: var(--text-main); margin-bottom: 8px; line-height: 1.3;">
-                        ${item.name}
+                    
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <!-- 🟢 ম্যাজিক ফিক্স: ছবিতে ক্লিক করলে জুম হবে -->
+                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 35px; height: 35px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 10px; cursor: pointer; flex-shrink:0;" title="Click to view">
+                        
+                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main); line-height: 1.3;">
+                            ${item.name}
+                        </div>
                     </div>
+                    
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; gap: 8px; font-size: 12px; font-weight: bold; align-items: center;">
                             <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
@@ -8314,7 +8414,16 @@ window.renderCart = function() {
 };
 
 window.removeFromCart = function(index) {
+    // ১. কার্ট থেকে নির্দিষ্ট আইটেম ডিলিট করা
     window.saleCart.splice(index, 1);
+    
+    // ২. 🟢 ম্যাজিক ফিক্স: যদি কার্ট একদম ফাঁকা হয়ে যায়, তবে Amount Paid বক্সটিও জিরো/ফাঁকা করে দেওয়া
+    if (window.saleCart.length === 0) {
+        const paidInput = document.getElementById('amountPaid');
+        if (paidInput) paidInput.value = '';
+    }
+    
+    // ৩. কার্ট ও ডিউ আপডেট করা
     window.renderCart();
 };
 
