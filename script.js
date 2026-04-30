@@ -205,7 +205,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
                             docRef.collection('students').doc(studentViewId).get(),
                             docRef.get(),
-                            docRef.collection('practice_logs').doc(String(currentYear)).get(),
+                            // 🟢 FIX: ম্যানেজার নয়, স্টুডেন্টের নির্দিষ্ট লগ ফেচ করতে হবে
+docRef.collection('students').doc(studentViewId).collection('practice_logs').doc(String(currentYear)).get(),
                             docRef.collection('attendance').get(),
                             docRef.collection('fees').get()
                         ]);
