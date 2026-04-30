@@ -10799,96 +10799,51 @@ window.sendProductQuery = function(itemName) {
     // WhatsApp ওপেন করবে
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
-// 🟢 NEW: Send Product to Slider or Store (With specific control)
+// 🟢 NEW: Send/Remove Product to Student Slider
 window.sendProductToPortal = async function(stockId) {
     const item = window.stockInventory.find(i => String(i.id) === String(stockId));
     if(!item) return;
 
     let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    let studentOptions = `<option value="ALL">📢 All Active Students</option>`;
+    let studentOptions = `<option value="ALL" selected>📢 Add to All Students' Slider</option>`;
     activeSt.forEach(s => {
-        studentOptions += `<option value="${s.id}">👤 Only for ${s.name} (${s.class || ''})</option>`;
+        studentOptions += `<option value="${s.id}">👤 Add only for ${s.name} (${s.class || ''})</option>`;
     });
 
-    const { value: formValues, isConfirmed } = await Swal.fire({
-        title: 'Publish Product',
+    const { value: targetVal, isConfirmed } = await Swal.fire({
+        title: 'Manage Home Slider',
         html: `
             <div style="text-align:center; margin-bottom: 15px;">
                 <img src="${item.photo || 'https://via.placeholder.com/100?text=📦'}" style="width: 80px; height: 80px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
                 <h3 style="margin:0; font-size: 16px; color: var(--text-main);">${item.name}</h3>
                 <p style="margin:5px 0 0 0; color: var(--success); font-weight: bold; font-size: 18px;">₹${item.price}</p>
             </div>
-            
-            <div style="text-align: left; margin-bottom: 12px;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Where to show?</label>
-                <select id="promo-location" class="swal2-select" style="width: 100%; margin: 5px 0; font-size: 14px;">
-                    <option value="both" selected>✨ Both (Slider & Product Button)</option>
-                    <option value="slider">🖼️ Home Slider Only</option>
-                    <option value="store">🛍️ Product Button (Store) Only</option>
-                    <option value="remove_slider" style="color:red;">🚫 Remove from Slider</option>
-                    <option value="remove_store" style="color:red;">🚫 Remove from Store</option>
-                    <option value="remove_both" style="color:red;">🚫 Hide from Everywhere</option>
-                </select>
-            </div>
-
-            <div style="text-align: left;">
-                <label style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Who can see it?</label>
-                <select id="promo-target" class="swal2-select" style="width: 100%; margin: 5px 0; font-size: 14px;">
-                    ${studentOptions}
-                </select>
-            </div>
+            <select id="promo-target" class="swal2-select" style="width: 100%; margin: 0; font-size: 14px;">
+                ${studentOptions}
+                <option value="REMOVE" style="color:red; font-weight:bold;">🚫 Remove from Slider</option>
+            </select>
         `,
         showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-check"></i> Update',
+        confirmButtonText: 'Update Slider',
         confirmButtonColor: 'var(--primary)',
-        cancelButtonColor: '#64748b',
-        preConfirm: () => {
-            return {
-                loc: document.getElementById('promo-location').value,
-                tgt: document.getElementById('promo-target').value === 'ALL' ? 'ALL' : parseInt(document.getElementById('promo-target').value)
-            }
-        }
+        cancelButtonColor: '#64748b'
     });
 
-    if(isConfirmed && formValues) {
-        // ডেটাবেসের জন্য প্রপার্টি তৈরি করা
-        if(item.sliderVis === undefined) item.sliderVis = item.promoted || null; // পুরানো ডেটা রিকভার করার জন্য
-        if(item.storeVis === undefined) item.storeVis = 'ALL'; // বাই-ডিফল্ট স্টোরে সবাইকে দেখাবে
-
-        const updateVis = (current, action, target) => {
-            if (action === 'remove') {
-                if (target === 'ALL' || current === 'ALL') return null;
-                if (Array.isArray(current)) return current.filter(id => id !== target);
-                return current;
-            } else if (action === 'add') {
-                if (target === 'ALL' || current === 'ALL') return 'ALL';
-                let arr = Array.isArray(current) ? current : [];
-                if (!arr.includes(target)) arr.push(target);
-                return arr;
+    if(isConfirmed && targetVal) {
+        if(targetVal === 'REMOVE') {
+            item.promoted = null; // স্লাইডার থেকে মুছে যাবে
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Removed from slider!', showConfirmButton:false, timer:2000});
+        } else if(targetVal === 'ALL') {
+            item.promoted = 'ALL'; // সবার স্লাইডারে দেখাবে
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to ALL sliders!', showConfirmButton:false, timer:2000});
+        } else {
+            if(!Array.isArray(item.promoted)) item.promoted = [];
+            if(!item.promoted.includes(parseInt(targetVal))) {
+                item.promoted.push(parseInt(targetVal));
             }
-            return current;
-        };
-
-        const { loc, tgt } = formValues;
-
-        if (loc === 'remove_slider') {
-            item.sliderVis = updateVis(item.sliderVis, 'remove', tgt);
-        } else if (loc === 'remove_store') {
-            item.storeVis = updateVis(item.storeVis, 'remove', tgt);
-        } else if (loc === 'remove_both') {
-            item.sliderVis = updateVis(item.sliderVis, 'remove', tgt);
-            item.storeVis = updateVis(item.storeVis, 'remove', tgt);
-        } else if (loc === 'slider') {
-            item.sliderVis = updateVis(item.sliderVis, 'add', tgt);
-        } else if (loc === 'store') {
-            item.storeVis = updateVis(item.storeVis, 'add', tgt);
-        } else if (loc === 'both') {
-            item.sliderVis = updateVis(item.sliderVis, 'add', tgt);
-            item.storeVis = updateVis(item.storeVis, 'add', tgt);
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to specific student!', showConfirmButton:false, timer:2000});
         }
-
         await dbSet('stockData', window.stockInventory);
-        Swal.fire({toast:true, position:'top-end', icon:'success', title:'Product Visibility Updated!', showConfirmButton:false, timer:2000});
     }
 };
