@@ -347,7 +347,7 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                     }).join('');
 
                     hallOfFameHtml = `
-                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 30px 5px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
+                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 20px 5px 15px 5px; margin-bottom: 10px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
                             <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
                             <h4 style="margin: 0 0 20px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
                                 ✨ HALL OF FAME ✨
@@ -372,12 +372,19 @@ if (portalProducts.length > 0) {
     // যতবার পোর্টাল ওপেন হবে, ততবার প্রোডাক্টগুলো রেন্ডমলি (এলোমেলোভাবে) সাজানো হবে
     portalProducts = portalProducts.sort(() => Math.random() - 0.5);
 
-    let slidesHtml = portalProducts.map((p, index) => {
-        let img = p.photo && p.photo !== 'undefined' ? p.photo : 'https://via.placeholder.com/150?text=📦';
-        let displayStyle = index === 0 ? 'flex' : 'none'; 
-        return `
+    let slidesHtml = portalSliderProducts.map((p, index) => {
+       let displayStyle = index === 0 ? 'flex' : 'none'; 
+        
+        let imageHtml = '';
+        if (p.photo && p.photo !== 'undefined' && p.photo.trim() !== '') {
+            imageHtml = `<img src="${p.photo}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1); flex-shrink: 0;" onclick="event.stopPropagation(); window.zoomProductImage('${p.photo}', '${p.name.replace(/'/g, "\\'")}')">`;
+        } else {
+            imageHtml = `<div style="width: 70px; height: 70px; border-radius: 12px; border: 2px solid var(--primary); background: var(--bg-body); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"><i class="fas fa-box-open" style="font-size: 26px; color: var(--primary);"></i></div>`;
+        }
+
+         return `
         <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out;">
-            <img src="${img}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${img}', '${p.name.replace(/'/g, "\\'")}')">
+        ${imageHtml}
             <div style="flex: 1; text-align: left;">
                 <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
                 <div style="font-size: 14px; font-weight: bold; color: var(--text-main); line-height: 1.2; margin-bottom: 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.name}</div>
@@ -393,7 +400,7 @@ if (portalProducts.length > 0) {
     <style>
         @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
     </style>
-    <div style="background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.04); position: relative; overflow: hidden; cursor:pointer;" onclick="window.showStudentProducts()">
+    <div style="background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 10px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.04); position: relative; overflow: hidden; cursor:pointer;" onclick="window.showStudentProducts()">
         ${slidesHtml}
     </div>`;
 }
@@ -869,10 +876,10 @@ document.body.innerHTML = `
     </button>
 </div>
 <div id="jitsi-container-student" style="height: 500px; width: 100%; border-radius: 12px; overflow: hidden; display: none; margin: 20px 0; border: 2px solid var(--primary); box-shadow: 0 10px 25px rgba(0,0,0,0.1);"></div>
-            <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
-                <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
-                    <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
-                </h4>
+            <div style="margin-top: 10px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
+    <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
+        <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
+    </h4>
                 
                 ${practiceLogFormHtml}
                 
