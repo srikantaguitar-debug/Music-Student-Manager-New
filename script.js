@@ -359,6 +359,44 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                         </div>
                     `;
                 }
+                // 🟢 NEW: Product Slider Logic for Student Portal
+let portalProducts = window.stockInventory.filter(item => item.qty > 0 && (item.promoted === 'ALL' || (Array.isArray(item.promoted) && item.promoted.includes(s.id))));
+
+// যদি ম্যানেজার স্পেসিফিক কোনো প্রোডাক্ট প্রোমোট না করে থাকে, তবে স্টকে থাকা সব প্রোডাক্টই রেন্ডমলি দেখাবে
+if(portalProducts.length === 0) {
+    portalProducts = window.stockInventory.filter(item => item.qty > 0);
+}
+
+let productSliderHtml = '';
+if (portalProducts.length > 0) {
+    // যতবার পোর্টাল ওপেন হবে, ততবার প্রোডাক্টগুলো রেন্ডমলি (এলোমেলোভাবে) সাজানো হবে
+    portalProducts = portalProducts.sort(() => Math.random() - 0.5);
+
+    let slidesHtml = portalProducts.map((p, index) => {
+        let img = p.photo && p.photo !== 'undefined' ? p.photo : 'https://via.placeholder.com/150?text=📦';
+        let displayStyle = index === 0 ? 'flex' : 'none'; 
+        return `
+        <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out;">
+            <img src="${img}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${img}', '${p.name.replace(/'/g, "\\'")}')">
+            <div style="flex: 1; text-align: left;">
+                <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
+                <div style="font-size: 14px; font-weight: bold; color: var(--text-main); line-height: 1.2; margin-bottom: 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.name}</div>
+                <div style="font-size: 16px; font-weight: 900; color: var(--success);">₹${p.price}</div>
+            </div>
+            <div>
+                <button onclick="window.sendProductQuery('${p.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    productSliderHtml = `
+    <style>
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+    <div style="background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.04); position: relative; overflow: hidden; cursor:pointer;" onclick="window.showStudentProducts()">
+        ${slidesHtml}
+    </div>`;
+}
                                 // ১. Personal Notice
                                 let noticeHtml = '';
                                 if (s.personal_notice && s.personal_notice.trim() !== '') {
@@ -368,6 +406,42 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                                         <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
                                     </div>`;
                                 }
+// 🟢 STRICT SLIDER LOGIC: শুধুমাত্র স্লাইডারের জন্য পাঠানো প্রোডাক্ট আসবে
+let portalSliderProducts = window.stockInventory.filter(item => {
+    let sVis = item.sliderVis !== undefined ? item.sliderVis : item.promoted; // পুরানো ডেটা সাপোর্ট
+    return item.qty > 0 && (sVis === 'ALL' || (Array.isArray(sVis) && sVis.includes(s.id)));
+});
+
+let productSliderHtml = '';
+
+if (portalSliderProducts.length > 0) {
+    portalSliderProducts = portalSliderProducts.sort(() => Math.random() - 0.5);
+
+    let slidesHtml = portalSliderProducts.map((p, index) => {
+        let img = p.photo && p.photo !== 'undefined' ? p.photo : 'https://via.placeholder.com/150?text=📦';
+        let displayStyle = index === 0 ? 'flex' : 'none'; 
+        return `
+        <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out;">
+            <img src="${img}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${img}', '${p.name.replace(/'/g, "\\'")}')">
+            <div style="flex: 1; text-align: left;">
+                <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
+                <div style="font-size: 14px; font-weight: bold; color: var(--text-main); line-height: 1.2; margin-bottom: 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.name}</div>
+                <div style="font-size: 16px; font-weight: 900; color: var(--success);">₹${p.price}</div>
+            </div>
+            <div>
+                <button onclick="window.sendProductQuery('${p.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    productSliderHtml = `
+    <style>
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+    </style>
+    <div style="background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.04); position: relative; overflow: hidden; cursor:pointer;" onclick="window.showStudentProducts()">
+        ${slidesHtml}
+    </div>`;
+}
 
 // ২. Attendance Data (ফাঁকা এন্ট্রি হাইড করার লজিক)
                                 let attRecords = [];
@@ -820,7 +894,7 @@ document.body.innerHTML = `
                         </div>
 
             ${hallOfFameHtml}
-            
+            ${productSliderHtml}
             ${noticeHtml}
             <div id="studentJoinArea" style="display:none; background: #ecfdf5; border: 2px dashed #10b981; padding: 20px; border-radius: 16px; margin: 20px 0; text-align:center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
     <h3 style="color:#047857; margin:0 0 10px 0;"><i class="fas fa-satellite-dish fa-fade" style="color: red;"></i> Live Class Started!</h3>
@@ -1022,6 +1096,23 @@ document.body.innerHTML = `
 `;
 
 setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+// 🟢 Auto Slider Logic (4 seconds)
+setTimeout(() => {
+    let currentSlide = 0;
+    const slides = document.querySelectorAll('.portal-product-slide');
+    if(slides.length > 1) {
+        setInterval(() => {
+            slides[currentSlide].style.display = 'none';
+            currentSlide = (currentSlide + 1) % slides.length;
+            slides[currentSlide].style.display = 'flex';
+            
+            // রিস্টার্ট অ্যানিমেশন
+            slides[currentSlide].style.animation = 'none';
+            void slides[currentSlide].offsetWidth; 
+            slides[currentSlide].style.animation = 'slideInRight 0.5s ease-out';
+        }, 4000); // 4 সেকেন্ড পর পর ঘুরবে
+    }
+}, 600);
 listenForLiveClassesStudent(managerUid, studentViewId);
 
         // 🟢 NEW: Security - Disable Copy, Selection, and Right-Click in Student Portal
@@ -10639,9 +10730,17 @@ window.zoomProductImage = function(photoUrl, name) {
     document.body.appendChild(overlay);
 };
 
-// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Compact & Mobile Fit)
+// 🟢 NEW: Product Button Logic (Store Visibility Check)
 window.showStudentProducts = function() {
-    let stockList = window.stockInventory || [];
+    // বর্তমান স্টুডেন্টের আইডি বের করা
+    const urlParams = new URLSearchParams(window.location.search);
+    const currStudentId = parseInt(urlParams.get('student'));
+
+    // স্টোরের জন্য ফিল্টার
+    let stockList = (window.stockInventory || []).filter(item => {
+        let stVis = item.storeVis !== undefined ? item.storeVis : 'ALL'; // ডিফল্ট সবাইকে দেখাবে
+        return stVis === 'ALL' || (Array.isArray(stVis) && stVis.includes(currStudentId));
+    });
     
     let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
@@ -10652,7 +10751,6 @@ window.showStudentProducts = function() {
                  </div>`;
     } else {
         stockList.forEach(item => {
-            // 🟢 ম্যাজিক ফিক্স: এখানে viewStockImage এর বদলে zoomProductImage কল করা হয়েছে
             let imageHtml = '';
             if (item.photo && item.photo !== 'undefined') {
                 imageHtml = `<img src="${item.photo}" onclick="window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
@@ -10664,9 +10762,7 @@ window.showStudentProducts = function() {
             
             html += `
                 <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
-                    
                     ${imageHtml}
-                    
                     <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
                         <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -10674,7 +10770,6 @@ window.showStudentProducts = function() {
                             ${stockStatus}
                         </div>
                     </div>
-                    
                     <div style="flex-shrink: 0;">
                         <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
                             <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
@@ -10708,50 +10803,96 @@ window.sendProductQuery = function(itemName) {
     // WhatsApp ওপেন করবে
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
-// 🟢 NEW: Send Product to Student Portals
+// 🟢 NEW: Send Product to Slider or Store (With specific control)
 window.sendProductToPortal = async function(stockId) {
     const item = window.stockInventory.find(i => String(i.id) === String(stockId));
     if(!item) return;
 
     let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    
     let studentOptions = `<option value="ALL">📢 All Active Students</option>`;
     activeSt.forEach(s => {
-        studentOptions += `<option value="${s.id}">👤 ${s.name} (${s.class || ''})</option>`;
+        studentOptions += `<option value="${s.id}">👤 Only for ${s.name} (${s.class || ''})</option>`;
     });
 
-    const { value: targetVal, isConfirmed } = await Swal.fire({
-        title: 'Publish to Portal',
+    const { value: formValues, isConfirmed } = await Swal.fire({
+        title: 'Publish Product',
         html: `
             <div style="text-align:center; margin-bottom: 15px;">
                 <img src="${item.photo || 'https://via.placeholder.com/100?text=📦'}" style="width: 80px; height: 80px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
                 <h3 style="margin:0; font-size: 16px; color: var(--text-main);">${item.name}</h3>
                 <p style="margin:5px 0 0 0; color: var(--success); font-weight: bold; font-size: 18px;">₹${item.price}</p>
             </div>
-            <label style="font-size: 13px; font-weight: bold; color: var(--text-muted); display: block; text-align: left; margin-bottom: 5px;">Select Target Audience:</label>
-            <select id="promo-target" class="swal2-select" style="width: 100%; margin: 0; font-size: 14px;">
-                ${studentOptions}
-            </select>
+            
+            <div style="text-align: left; margin-bottom: 12px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Where to show?</label>
+                <select id="promo-location" class="swal2-select" style="width: 100%; margin: 5px 0; font-size: 14px;">
+                    <option value="both" selected>✨ Both (Slider & Product Button)</option>
+                    <option value="slider">🖼️ Home Slider Only</option>
+                    <option value="store">🛍️ Product Button (Store) Only</option>
+                    <option value="remove_slider" style="color:red;">🚫 Remove from Slider</option>
+                    <option value="remove_store" style="color:red;">🚫 Remove from Store</option>
+                    <option value="remove_both" style="color:red;">🚫 Hide from Everywhere</option>
+                </select>
+            </div>
+
+            <div style="text-align: left;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-muted);">Who can see it?</label>
+                <select id="promo-target" class="swal2-select" style="width: 100%; margin: 5px 0; font-size: 14px;">
+                    ${studentOptions}
+                </select>
+            </div>
         `,
         showCancelButton: true,
-        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send Now',
+        confirmButtonText: '<i class="fas fa-check"></i> Update',
         confirmButtonColor: 'var(--primary)',
-        cancelButtonColor: '#ef4444'
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            return {
+                loc: document.getElementById('promo-location').value,
+                tgt: document.getElementById('promo-target').value === 'ALL' ? 'ALL' : parseInt(document.getElementById('promo-target').value)
+            }
+        }
     });
 
-    if(isConfirmed && targetVal) {
-        // Init promoted array
-        if(!item.promoted) item.promoted = [];
+    if(isConfirmed && formValues) {
+        // ডেটাবেসের জন্য প্রপার্টি তৈরি করা
+        if(item.sliderVis === undefined) item.sliderVis = item.promoted || null; // পুরানো ডেটা রিকভার করার জন্য
+        if(item.storeVis === undefined) item.storeVis = 'ALL'; // বাই-ডিফল্ট স্টোরে সবাইকে দেখাবে
 
-        if(targetVal === 'ALL') {
-            item.promoted = 'ALL';
-        } else {
-            if(item.promoted === 'ALL') item.promoted = []; // Reset if previously ALL
-            if(!item.promoted.includes(parseInt(targetVal))) {
-                item.promoted.push(parseInt(targetVal));
+        const updateVis = (current, action, target) => {
+            if (action === 'remove') {
+                if (target === 'ALL' || current === 'ALL') return null;
+                if (Array.isArray(current)) return current.filter(id => id !== target);
+                return current;
+            } else if (action === 'add') {
+                if (target === 'ALL' || current === 'ALL') return 'ALL';
+                let arr = Array.isArray(current) ? current : [];
+                if (!arr.includes(target)) arr.push(target);
+                return arr;
             }
+            return current;
+        };
+
+        const { loc, tgt } = formValues;
+
+        if (loc === 'remove_slider') {
+            item.sliderVis = updateVis(item.sliderVis, 'remove', tgt);
+        } else if (loc === 'remove_store') {
+            item.storeVis = updateVis(item.storeVis, 'remove', tgt);
+        } else if (loc === 'remove_both') {
+            item.sliderVis = updateVis(item.sliderVis, 'remove', tgt);
+            item.storeVis = updateVis(item.storeVis, 'remove', tgt);
+        } else if (loc === 'slider') {
+            item.sliderVis = updateVis(item.sliderVis, 'add', tgt);
+        } else if (loc === 'store') {
+            item.storeVis = updateVis(item.storeVis, 'add', tgt);
+        } else if (loc === 'both') {
+            item.sliderVis = updateVis(item.sliderVis, 'add', tgt);
+            item.storeVis = updateVis(item.storeVis, 'add', tgt);
         }
 
         await dbSet('stockData', window.stockInventory);
-        Swal.fire({toast:true, position:'top-end', icon:'success', title:'Product live on portal!', showConfirmButton:false, timer:2000});
+        Swal.fire({toast:true, position:'top-end', icon:'success', title:'Product Visibility Updated!', showConfirmButton:false, timer:2000});
     }
 };
