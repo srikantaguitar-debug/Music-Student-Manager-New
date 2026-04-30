@@ -11281,52 +11281,55 @@ window.removeProductFromPortals = async function(productId) {
         }
     });
 };
-// ==========================================
-// 🟢 STUDENT PORTAL: PRODUCT SLIDER & POPUP
-// ==========================================
 
-// 🟢 NEW: Product Auto Slider Function (Uses portalSliderList)
-let promoInterval;
-window.initProductPromoSlider = function() {
-    if (promoInterval) clearInterval(promoInterval); 
+// 🟢 NEW: Product Popup Function (Uses portalStoreList)
+window.showStudentProducts = function() {
+    let stockList = window.portalStoreList || []; // 🟢 শুধু প্রোডাক্ট লিস্টের ডেটা
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
-    const stockList = window.portalSliderList || []; // 🟢 শুধু স্লাইডারের ডেটা
-    const container = document.getElementById('productPromoSlider');
-    
-    if (!container || stockList.length === 0) {
-        if(container) container.style.display = 'none';
-        return;
-    }
-
-    let currentIndex = Math.floor(Math.random() * stockList.length);
-
-    const renderSlide = () => {
-        const item = stockList[currentIndex];
-        const photoSrc = item.photo && item.photo !== 'undefined' ? item.photo : 'https://via.placeholder.com/60?text=📦';
-        const safeName = item.name.replace(/'/g, "\\'");
-
-        container.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 12px; animation: slideInPromo 0.5s ease-out;">
-                <img src="${photoSrc}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo || ''}', '${safeName}')" style="width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-color); cursor:pointer;">
-                <div style="flex-grow: 1; text-align: left; min-width: 0;">
-                    <div style="font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 2px;">
-                        <i class="fas fa-star" style="color: #f59e0b;"></i> Store Highlight
+    if (stockList.length === 0) {
+        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
+                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
+                    No products are currently visible in the store.
+                 </div>`;
+    } else {
+        stockList.forEach(item => {
+            let imageHtml = '';
+            if (item.photo && item.photo !== 'undefined') {
+                imageHtml = `<img src="${item.photo}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+            }
+            const stockStatus = item.qty > 0 
+                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
+            
+            html += `
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+                    ${imageHtml}
+                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
+                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-size: 14px; font-weight: 900; color: var(--primary);">₹${item.price}</span>
+                            ${stockStatus}
+                        </div>
                     </div>
-                    <div style="font-size: 13.5px; font-weight: bold; color: var(--text-main); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        ${item.name}
+                    <div style="flex-shrink: 0;">
+                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
+                        </button>
                     </div>
-                    <div style="font-size: 14px; font-weight: 900; color: var(--text-main); margin-top: 2px;">₹${item.price}</div>
                 </div>
-                <button onclick="window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display:flex; align-items:center; gap:5px; flex-shrink: 0;">
-                    <i class="fab fa-whatsapp" style="font-size: 14px;"></i> Buy
-                </button>
-            </div>
-        `;
-        container.style.display = 'block';
-        currentIndex = (currentIndex + 1) % stockList.length;
-    };
+            `;
+        });
+    }
+    html += '</div>';
 
-    renderSlide();
-    promoInterval = setInterval(renderSlide, 4000);
+    Swal.fire({
+        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-input)',
+        width: '95%',
+        padding: '12px'
+    });
 };
-
