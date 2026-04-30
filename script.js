@@ -10730,17 +10730,9 @@ window.zoomProductImage = function(photoUrl, name) {
     document.body.appendChild(overlay);
 };
 
-// 🟢 NEW: Product Button Logic (Store Visibility Check)
+// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Compact & Mobile Fit)
 window.showStudentProducts = function() {
-    // বর্তমান স্টুডেন্টের আইডি বের করা
-    const urlParams = new URLSearchParams(window.location.search);
-    const currStudentId = parseInt(urlParams.get('student'));
-
-    // স্টোরের জন্য ফিল্টার
-    let stockList = (window.stockInventory || []).filter(item => {
-        let stVis = item.storeVis !== undefined ? item.storeVis : 'ALL'; // ডিফল্ট সবাইকে দেখাবে
-        return stVis === 'ALL' || (Array.isArray(stVis) && stVis.includes(currStudentId));
-    });
+    let stockList = window.stockInventory || [];
     
     let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
@@ -10751,6 +10743,7 @@ window.showStudentProducts = function() {
                  </div>`;
     } else {
         stockList.forEach(item => {
+            // 🟢 ম্যাজিক ফিক্স: এখানে viewStockImage এর বদলে zoomProductImage কল করা হয়েছে
             let imageHtml = '';
             if (item.photo && item.photo !== 'undefined') {
                 imageHtml = `<img src="${item.photo}" onclick="window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
@@ -10762,7 +10755,9 @@ window.showStudentProducts = function() {
             
             html += `
                 <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+                    
                     ${imageHtml}
+                    
                     <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
                         <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -10770,6 +10765,7 @@ window.showStudentProducts = function() {
                             ${stockStatus}
                         </div>
                     </div>
+                    
                     <div style="flex-shrink: 0;">
                         <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
                             <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
