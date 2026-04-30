@@ -7528,41 +7528,6 @@ window.calculateSaleDue = function() {
     }
 };
 
-window.renderCart = function() {
-    const container = document.getElementById('saleCartContainer');
-    const list = document.getElementById('saleCartList');
-    const totalSpan = document.getElementById('cartTotalPrice');
-
-    if (window.saleCart.length === 0) {
-        if(container) container.style.display = 'none';
-        if(totalSpan) totalSpan.textContent = '0';
-        window.calculateSaleDue();
-        return;
-    }
-
-    if(list) list.innerHTML = '';
-    let grandTotal = 0;
-
-    window.saleCart.forEach((item, index) => {
-        grandTotal += item.price;
-        if(list) {
-            list.innerHTML += `
-                <li style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--border-color);">
-                    <span><b>${item.name}</b> (x${item.qty})</span>
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-weight: 600;">₹${item.price}</span>
-                        <button onclick="window.removeFromCart(${index})" style="background: none; border: none; color: var(--danger); cursor: pointer;"><i class="fas fa-times"></i></button>
-                    </div>
-                </li>
-            `;
-        }
-    });
-
-    if(totalSpan) totalSpan.textContent = grandTotal;
-    if(container) container.style.display = 'block';
-    
-    window.calculateSaleDue(); // কার্ট আপডেট হলে ডিউ-ও আপডেট হবে
-};
 
 window.addAccessoryDueToStudent = function(studentId, saleId, item, due) {
     let student = students.find(s => s.id == studentId);
@@ -8425,19 +8390,6 @@ window.renderInventoryDropdown = function() {
 window.currentUnitPrice = 0; 
 window.saleCart = []; 
 
-window.autoFillItemPrice = function() {
-    const inputName = document.getElementById('itemName').value.trim();
-    const item = window.stockInventory.find(i => i.name.toLowerCase() === inputName.toLowerCase());
-    
-    if (item) {
-        window.currentUnitPrice = item.price; 
-        const qty = parseInt(document.getElementById('saleQty').value) || 1;
-        document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
-    } else {
-        // 🟢 ম্যাজিক ফিক্স: স্টক না মিললে দামের ঘর আর ফাঁকা (Clear) করবে না।
-        window.currentUnitPrice = 0;
-    }
-};
 
 window.updateSalePriceCalc = function() {
     const qty = parseInt(document.getElementById('saleQty').value) || 1;
@@ -8674,75 +8626,6 @@ window.cancelSaleEdit = function() {
     document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-check-circle"></i> Checkout & Send Receipt';
     document.getElementById('saleProcessBtn').className = 'btn-primary';
     document.getElementById('saleCancelEditBtn').style.display = 'none';
-};
-
-window.editSaleRecord = function(saleId) {
-    const sale = salesDataArray.find(s => String(s.id) === String(saleId));
-    if(!sale) return;
-    
-    const sIdInput = document.getElementById('saleStudentId');
-    const nameEl = document.getElementById('saleSelectedName');
-    const imgEl = document.getElementById('saleSelectedPhoto');
-
-    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
-
-    if (isGuest) {
-        if(sIdInput) sIdInput.value = 'guest';
-        
-        const gName = sale.studentName || 'Walk-in Customer';
-        if(nameEl) {
-            nameEl.dataset.guestData = JSON.stringify({name: gName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
-            nameEl.innerHTML = `<span style="color: var(--text-main); font-weight: bold;">${gName}</span> <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align: middle;">Guest</span>`;
-        }
-        
-        if(imgEl) {
-            imgEl.src = 'https://via.placeholder.com/40?text=G';
-            imgEl.style.display = 'block';
-        }
-    } else {
-        const student = students.find(st => String(st.id) === String(sale.studentId));
-        if(student) {
-            if(sIdInput) sIdInput.value = student.id;
-            if(nameEl) {
-                nameEl.textContent = student.name;
-                nameEl.style.color = "var(--text-main)";
-                nameEl.dataset.guestData = ''; 
-            }
-            if(imgEl) {
-                imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
-                imgEl.style.display = 'block';
-            }
-        }
-    }
-
-    if (sale.cart && Array.isArray(sale.cart)) {
-        window.saleCart = [...sale.cart];
-    } else {
-        let extractedName = sale.item; let extractedQty = 1;
-        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
-        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
-        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
-    }
-    
-    window.renderCart();
-    
-    const paidInput = document.getElementById('amountPaid');
-    if(paidInput) {
-        paidInput.value = sale.paid || 0; // 🟢 এডিট মোডে রিয়েল পেইড অ্যামাউন্ট দেখাবে
-    }
-    
-    const editIdInput = document.getElementById('editSaleId');
-    if(editIdInput) editIdInput.value = sale.id;
-
-    const btn = document.getElementById('saleProcessBtn');
-    if(btn) {
-        btn.innerHTML = '<i class="fas fa-save"></i> Update Sale';
-        btn.className = 'btn-warning';
-    }
-    const cancelBtn = document.getElementById('saleCancelEditBtn');
-    if(cancelBtn) cancelBtn.style.display = 'block';
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.generateSalePDF = async function(sale, student) {
@@ -9034,7 +8917,7 @@ window.showSalesDuesPopup = function() {
         padding: '15px'
     });
 };
-window.processSale = processSale;
+
 // 🟢 NEW: Smart Autocomplete for Cart Item Input
 document.addEventListener('DOMContentLoaded', () => {
     const itemNameInput = document.getElementById('itemName');
@@ -10858,6 +10741,226 @@ window.removeProductFromPortals = async function(productId) {
 
             if (hasUpdates && user) await batch.commit();
             Swal.fire('Hidden', 'Product is removed from all portals.', 'success');
+        }
+    });
+};
+// ==========================================
+// 🟢 MANAGER: BULK SHARE PRODUCTS TO PORTAL LOGIC
+// ==========================================
+
+window.toggleAllStockSelection = function(source) {
+    document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = source.checked);
+};
+
+window.checkIndividualStockSelection = function() {
+    const allCbs = document.querySelectorAll('.stock-item-cb');
+    const checkedCbs = document.querySelectorAll('.stock-item-cb:checked');
+    const selectAllCb = document.getElementById('selectAllStock');
+    if (selectAllCb) selectAllCb.checked = (allCbs.length === checkedCbs.length && allCbs.length > 0);
+};
+
+window.openBulkShareModal = async function() {
+    const checkedCbs = Array.from(document.querySelectorAll('.stock-item-cb:checked'));
+    if (checkedCbs.length === 0) {
+        Swal.fire('Info', 'Please select at least one product to share.', 'info');
+        return;
+    }
+    
+    const selectedIds = checkedCbs.map(cb => parseInt(cb.value));
+
+    Swal.fire({title: 'Loading...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    let activeSts = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    
+    let listHtml = '';
+    activeSts.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/35?text=S';
+        listHtml += `
+            <div class="prod-student-select-item" onclick="window.selectStudentForProd(${s.id}, this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer; background: var(--bg-card); text-align:left;">
+                <img src="${photoSrc}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    Swal.fire({
+        title: `Share ${selectedIds.length} Products`,
+        html: `
+            <div style="text-align:left; background:var(--bg-body); padding:12px; border-radius:8px; border:1px dashed var(--border-color); margin-bottom:15px;">
+                <div style="font-size:13px; font-weight:bold; color:var(--text-main); margin-bottom:10px;"><i class="fas fa-paper-plane" style="color:var(--primary);"></i> Where to send?</div>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+                    <input type="checkbox" id="bulk-send-to-store" style="width:18px; height:18px; accent-color:#10b981;" checked> 
+                    <span style="font-size:14px; font-weight:600; color:var(--text-main);">Store List (Product Button)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="bulk-send-to-slider" style="width:18px; height:18px; accent-color:#f59e0b;" checked> 
+                    <span style="font-size:14px; font-weight:600; color:var(--text-main);">Promo Slider (Dashboard)</span>
+                </label>
+            </div>
+            
+            <button onclick="window.publishBulkProductGlobal([${selectedIds.join(',')}])" style="width:100%; padding:12px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; border:none; border-radius:8px; margin-bottom:15px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 4px 8px rgba(99,102,241,0.25);">
+                <i class="fas fa-globe"></i> Send to ALL Students
+            </button>
+            
+            <div style="text-align:center; color:var(--text-muted); margin-bottom:10px; font-size:11px; font-weight:bold;">--- OR SELECT SPECIFIC STUDENT ---</div>
+            
+            <input type="text" id="swal-search-prod-student" class="swal2-input" placeholder="🔍 Search student..." style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="
+                const filter = this.value.toUpperCase();
+                document.querySelectorAll('.prod-student-select-item').forEach(el => {
+                    el.style.display = el.innerText.toUpperCase().indexOf(filter) > -1 ? 'flex' : 'none';
+                });
+            ">
+            <input type="hidden" id="selected-prod-student-id" value="">
+            
+            <div id="send-prod-student-list" style="width:100%; max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                ${listHtml || '<div style="padding:15px; font-size:13px; color:var(--text-muted); font-weight:bold;">No active students</div>'}
+            </div>
+            
+            <button onclick="window.removeBulkProductFromPortals([${selectedIds.join(',')}])" style="width:100%; padding:10px; background:var(--bg-body); color:var(--danger); border:1px dashed var(--danger); border-radius:8px; margin-top:15px; font-weight:bold; cursor:pointer; font-size:13px;">
+                <i class="fas fa-eye-slash"></i> Remove Selected (Hide)
+            </button>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send to Selected',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--success)',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const val = document.getElementById('selected-prod-student-id').value;
+            const toStore = document.getElementById('bulk-send-to-store').checked;
+            const toSlider = document.getElementById('bulk-send-to-slider').checked;
+            if (!val) { Swal.showValidationMessage('Please select a student or click "Send to ALL"'); return false; }
+            if (!toStore && !toSlider) { Swal.showValidationMessage('Select at least one destination (Store or Slider)'); return false; }
+            return { sId: parseInt(val), toStore, toSlider };
+        }
+    }).then((res) => {
+        if (res.isConfirmed && res.value) window.publishBulkProductToStudent(res.value.sId, [${selectedIds.join(',')}], res.value.toStore, res.value.toSlider);
+    });
+};
+
+window.publishBulkProductGlobal = async function(productIds) {
+    const toStore = document.getElementById('bulk-send-to-store').checked;
+    const toSlider = document.getElementById('bulk-send-to-slider').checked;
+    if (!toStore && !toSlider) return;
+
+    Swal.fire({title: 'Publishing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+    let globalStore = [], globalSlider = [];
+    if(gData.exists) {
+        globalStore = gData.data().store_products_global || [];
+        globalSlider = gData.data().slider_products_global || [];
+    }
+    
+    let updates = {};
+    
+    if (toStore) {
+        let updatedStore = [...globalStore];
+        productIds.forEach(id => { if(!updatedStore.includes(id)) updatedStore.push(id); });
+        updates.store_products_global = updatedStore;
+    }
+    if (toSlider) {
+        let updatedSlider = [...globalSlider];
+        productIds.forEach(id => { if(!updatedSlider.includes(id)) updatedSlider.push(id); });
+        updates.slider_products_global = updatedSlider;
+    }
+    
+    if(Object.keys(updates).length > 0) await db.collection(COLLECTION_NAME).doc(DOC_ID).update(updates);
+    
+    document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = false); 
+    window.checkIndividualStockSelection();
+    
+    Swal.fire('Success', 'Selected products published to ALL portals!', 'success');
+};
+
+window.publishBulkProductToStudent = async function(studentId, productIds, toStore, toSlider) {
+    Swal.fire({title: 'Sending...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if(studentIndex > -1) {
+        let sStore = students[studentIndex].store_products || [];
+        let sSlider = students[studentIndex].slider_products || [];
+        
+        let updated = false;
+        
+        if (toStore) {
+            productIds.forEach(id => { if(!sStore.includes(id)) { sStore.push(id); updated = true; } });
+            students[studentIndex].store_products = sStore;
+        }
+        if (toSlider) {
+            productIds.forEach(id => { if(!sSlider.includes(id)) { sSlider.push(id); updated = true; } });
+            students[studentIndex].slider_products = sSlider;
+        }
+        
+        if(updated) {
+            const user = firebase.auth().currentUser;
+            if(user) {
+                await db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(studentId)).update({ 
+                    store_products: sStore,
+                    slider_products: sSlider
+                });
+            }
+        }
+    }
+    
+    document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = false);
+    window.checkIndividualStockSelection();
+    
+    Swal.fire('Success', `Selected products added to student's portal!`, 'success');
+};
+
+window.removeBulkProductFromPortals = async function(productIds) {
+    Swal.fire({
+        title: 'Hide Selected Products?',
+        text: "This will remove them from ALL sliders and store lists.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Hide them!'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'Removing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            // 1. Remove from Global
+            const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+            if(gData.exists) {
+                let gStore = gData.data().store_products_global || [];
+                let gSlider = gData.data().slider_products_global || [];
+                gStore = gStore.filter(id => !productIds.includes(id));
+                gSlider = gSlider.filter(id => !productIds.includes(id));
+                await db.collection(COLLECTION_NAME).doc(DOC_ID).update({ store_products_global: gStore, slider_products_global: gSlider });
+            }
+
+            // 2. Remove from all students
+            const user = firebase.auth().currentUser;
+            let batch = db.batch();
+            let hasUpdates = false;
+
+            students.forEach(s => {
+                let sStore = s.store_products || [];
+                let sSlider = s.slider_products || [];
+                
+                const storeHasAny = productIds.some(id => sStore.includes(id));
+                const sliderHasAny = productIds.some(id => sSlider.includes(id));
+
+                if (storeHasAny || sliderHasAny) {
+                    s.store_products = sStore.filter(id => !productIds.includes(id));
+                    s.slider_products = sSlider.filter(id => !productIds.includes(id));
+                    hasUpdates = true;
+                    if(user) {
+                        const sRef = db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(s.id));
+                        batch.update(sRef, { store_products: s.store_products, slider_products: s.slider_products });
+                    }
+                }
+            });
+
+            if (hasUpdates && user) await batch.commit();
+            
+            document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = false);
+            window.checkIndividualStockSelection();
+            
+            Swal.fire('Hidden', 'Selected products removed from all portals.', 'success');
         }
     });
 };
