@@ -347,7 +347,7 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                     }).join('');
 
                     hallOfFameHtml = `
-                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 30px 5px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
+    <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 30px 5px; margin-bottom: 5px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
                             <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
                             <h4 style="margin: 0 0 20px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
                                 ✨ HALL OF FAME ✨
@@ -393,7 +393,7 @@ if (portalProducts.length > 0) {
     <style>
         @keyframes slideInRight { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
     </style>
-    <div style="background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 20px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.04); position: relative; overflow: hidden; cursor:pointer;" onclick="window.showStudentProducts()">
+    <div style="background: var(--bg-card); border-radius: 16px; padding: 15px; margin-bottom: 5px; border: 1px solid var(--border-color); box-shadow: 0 4px 15px rgba(0,0,0,0.04); position: relative; overflow: hidden; cursor:pointer;" onclick="window.showStudentProducts()">
         ${slidesHtml}
     </div>`;
 }
@@ -869,10 +869,10 @@ document.body.innerHTML = `
     </button>
 </div>
 <div id="jitsi-container-student" style="height: 500px; width: 100%; border-radius: 12px; overflow: hidden; display: none; margin: 20px 0; border: 2px solid var(--primary); box-shadow: 0 10px 25px rgba(0,0,0,0.1);"></div>
-            <div style="margin-top: 25px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
-                <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
-                    <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
-                </h4>
+            <div style="margin-top: 5px; background: var(--bg-card); border-radius: 16px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.04); border-top: 4px solid var(--success);">
+    <h4 style="margin:0 0 15px 0; color:var(--text-main); font-size:16px;">
+        <i class="fas fa-stopwatch" style="color:var(--success); margin-right:5px;"></i> Daily Practice Log
+    </h4>
                 
                 ${practiceLogFormHtml}
                 
