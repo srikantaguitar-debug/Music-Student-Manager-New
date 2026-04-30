@@ -406,7 +406,7 @@ if (portalProducts.length > 0) {
                                         <marquee scrollamount="4" style="color: #b45309; font-weight: 600;">${s.personal_notice}</marquee>
                                     </div>`;
                                 }
-// 🟢 STRICT SLIDER LOGIC: শুধুমাত্র স্লাইডারের জন্য পাঠানো প্রোডাক্ট আসবে
+                                // 🟢 STRICT SLIDER LOGIC: শুধুমাত্র স্লাইডারের জন্য পাঠানো প্রোডাক্ট আসবে
 let portalSliderProducts = window.stockInventory.filter(item => {
     let sVis = item.sliderVis !== undefined ? item.sliderVis : item.promoted; // পুরানো ডেটা সাপোর্ট
     return item.qty > 0 && (sVis === 'ALL' || (Array.isArray(sVis) && sVis.includes(s.id)));
@@ -422,14 +422,14 @@ if (portalSliderProducts.length > 0) {
         let displayStyle = index === 0 ? 'flex' : 'none'; 
         return `
         <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out;">
-            <img src="${img}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${img}', '${p.name.replace(/'/g, "\\'")}')">
+            <img src="${img}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="event.stopPropagation(); window.zoomProductImage('${img}', '${p.name.replace(/'/g, "\\'")}')">
             <div style="flex: 1; text-align: left;">
                 <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
                 <div style="font-size: 14px; font-weight: bold; color: var(--text-main); line-height: 1.2; margin-bottom: 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.name}</div>
                 <div style="font-size: 16px; font-weight: 900; color: var(--success);">₹${p.price}</div>
             </div>
             <div>
-                <button onclick="window.sendProductQuery('${p.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
+                <button onclick="event.stopPropagation(); window.sendProductQuery('${p.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
             </div>
         </div>`;
     }).join('');
