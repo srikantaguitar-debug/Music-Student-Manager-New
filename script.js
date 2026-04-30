@@ -7693,6 +7693,12 @@ window.renderSalesUI = function() {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
         const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         
+        // 🟢 নতুন: ডিউ থাকলে সবুজ রঙের Pay বাটন দেখাবে
+        let payDueBtnHtml = '';
+        if (s.due > 0) {
+            payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-rupee-sign"></i></button>`;
+        }
+        
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
                 <td style="padding: 2px 5px; vertical-align: middle;">
@@ -7710,6 +7716,7 @@ window.renderSalesUI = function() {
                 </td>
                 <td class="action-buttons" style="padding: 8px 5px 2px 5px; vertical-align: middle;">
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                       ${payDueBtnHtml}
                        <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-file-pdf"></i></button>
                        <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-edit"></i></button>
                        <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-trash"></i></button>
@@ -8627,7 +8634,9 @@ window.editSaleRecord = function(saleId) {
     window.renderCart();
     
     const paidInput = document.getElementById('amountPaid');
-    if(paidInput) paidInput.value = sale.paid || 0;
+    if(paidInput) {
+        paidInput.value = sale.paid || 0; // 🟢 এডিট মোডে রিয়েল পেইড অ্যামাউন্ট দেখাবে
+    }
     
     const editIdInput = document.getElementById('editSaleId');
     if(editIdInput) editIdInput.value = sale.id;
@@ -8913,7 +8922,7 @@ window.showSalesDuesPopup = function() {
                         <div style="font-size: 11px; color: #be123c; font-weight: bold; text-transform: uppercase;">Total Due</div>
                         <div style="font-weight: 900; font-size: 18px; color: #e11d48;">₹${sale.due}</div>
                     </div>
-                    <button onclick="Swal.close(); setTimeout(() => { window.editSaleRecord(${sale.id}); }, 300);" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
+                    <button onclick="Swal.close(); setTimeout(() => { window.paySaleDue(${sale.id}); }, 300);" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
                         Pay Now
                     </button>
                 </div>
@@ -10485,4 +10494,81 @@ window.showProfitBreakdown = function(year, month) {
         width: '95%',
         padding: '15px'
     });
+};
+window.paySaleDue = async function(saleId) {
+    const sale = salesDataArray.find(s => String(s.id) === String(saleId));
+    if(!sale || sale.due <= 0) return;
+
+    // 🟢 sale.due মানে হলো "বাকি থাকা টাকা"। যদি আগে কিছু পে না করে থাকে, তবে এটি ফুল অ্যামাউন্ট হবে।
+    const exactDueAmount = sale.due; 
+
+    const { value: payAmount } = await Swal.fire({
+        title: 'Pay Due Amount',
+        html: `
+            <div style="text-align:left; font-size:14px; margin-bottom:15px; background: var(--bg-input); padding: 15px; border-radius: 8px; border: 1px dashed var(--border-color);">
+                <div style="margin-bottom: 5px;"><strong>Customer:</strong> <span style="color:var(--primary); font-weight:bold;">${sale.studentName}</span></div>
+                <div style="margin-bottom: 5px;"><strong>Total Bill:</strong> ₹${sale.price}</div>
+                <div style="margin-bottom: 5px; color: var(--success);"><strong>Already Paid:</strong> ₹${sale.paid}</div>
+                <div style="color: var(--danger); font-size: 16px; font-weight: bold; margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                    Current Due: ₹${exactDueAmount}
+                </div>
+            </div>
+            <label style="font-size: 12px; font-weight: bold; color: var(--text-main); display: block; margin-bottom: 5px; text-align: left; padding-left: 5%;">Amount paying now (₹):</label>
+            
+            <!-- 🟢 ম্যাজিক ফিক্স: value এ exactDueAmount দেওয়া হলো, যাতে বাকি থাকা টাকাটাই বসে -->
+            <input type="number" id="swal-due-pay" class="swal2-input" value="${exactDueAmount}" style="font-size: 16px; font-weight: bold; text-align: center; max-width: 90%; margin-top: 0;">
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-plus-circle"></i> Add Payment',
+        confirmButtonColor: 'var(--success)',
+        cancelButtonColor: '#ef4444',
+        didOpen: () => {
+            const dueInput = document.getElementById('swal-due-pay');
+            if (dueInput) {
+                dueInput.value = exactDueAmount; // পপআপ খুললেই বাকি থাকা টাকাটা বসে যাবে
+                dueInput.select(); // টাকাটা অটোমেটিক সিলেক্ট হয়ে থাকবে
+            }
+        },
+        preConfirm: () => {
+            const amt = parseFloat(document.getElementById('swal-due-pay').value);
+            if (isNaN(amt) || amt <= 0) {
+                Swal.showValidationMessage('Please enter a valid amount!');
+                return false;
+            }
+            if (amt > exactDueAmount) {
+                Swal.showValidationMessage('Amount cannot be greater than the due (₹' + exactDueAmount + ')!');
+                return false;
+            }
+            return amt;
+        }
+    });
+
+    if (payAmount) {
+        sale.paid += payAmount;
+        sale.due = sale.price - sale.paid;
+        
+        const index = salesDataArray.findIndex(s => String(s.id) === String(saleId));
+        if(index > -1) salesDataArray[index] = sale;
+
+        if (sale.due <= 0 && sale.studentId !== 0 && sale.studentId !== 'guest') {
+            window.removeAccessoryDueFromStudent(sale.studentId, sale.id);
+        }
+
+        window.syncSalesToFirebase();
+        window.renderSalesUI();
+        
+        Swal.fire({
+            toast: true, position: 'top-end', icon: 'success', 
+            title: '₹' + payAmount + ' Added! Remaining Due: ₹' + sale.due, 
+            showConfirmButton: false, timer: 2000
+        });
+        
+        if (sale.due <= 0) {
+            setTimeout(() => {
+                const student = sale.studentId !== 'guest' && sale.studentId !== 0 ? students.find(st => st.id == sale.studentId) : { name: sale.studentName, phone: sale.guestPhone, class: 'Guest Customer' };
+                window.generateSalePDF(sale, student);
+            }, 1000);
+        }
+    }
 };
