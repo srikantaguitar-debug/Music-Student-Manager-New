@@ -359,13 +359,12 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                         </div>
                     `;
                 }
-                // 🟢 NEW: Product Slider Logic for Student Portal
-let portalProducts = window.stockInventory.filter(item => item.qty > 0 && (item.promoted === 'ALL' || (Array.isArray(item.promoted) && item.promoted.includes(s.id))));
-
-// যদি ম্যানেজার স্পেসিফিক কোনো প্রোডাক্ট প্রোমোট না করে থাকে, তবে স্টকে থাকা সব প্রোডাক্টই রেন্ডমলি দেখাবে
-if(portalProducts.length === 0) {
-    portalProducts = window.stockInventory.filter(item => item.qty > 0);
-}
+                // 🟢 NEW: Product Slider Logic for Student Portal (Updated)
+let portalProducts = window.stockInventory.filter(item => {
+    if (item.qty <= 0) return false;
+    let access = item.slider_access !== undefined ? item.slider_access : item.promoted;
+    return access === 'ALL' || (Array.isArray(access) && access.includes(s.id));
+});
 
 let productSliderHtml = '';
 if (portalProducts.length > 0) {
@@ -373,11 +372,15 @@ if (portalProducts.length > 0) {
     portalProducts = portalProducts.sort(() => Math.random() - 0.5);
 
     let slidesHtml = portalProducts.map((p, index) => {
-        let img = p.photo && p.photo !== 'undefined' ? p.photo : 'https://via.placeholder.com/150?text=📦';
+        let imageHtml = '';
+        if (p.photo && p.photo !== 'undefined' && p.photo.trim() !== '') {
+            imageHtml = `<img src="${p.photo}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${p.photo}', '${p.name.replace(/'/g, "\\'")}')">`;
+        }
+        
         let displayStyle = index === 0 ? 'flex' : 'none'; 
         return `
         <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out;">
-            <img src="${img}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${img}', '${p.name.replace(/'/g, "\\'")}')">
+            ${imageHtml}
             <div style="flex: 1; text-align: left;">
                 <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
                 <div style="font-size: 14px; font-weight: bold; color: var(--text-main); line-height: 1.2; margin-bottom: 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.name}</div>
@@ -10697,7 +10700,10 @@ window.zoomProductImage = function(photoUrl, name) {
 
 // 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Compact & Mobile Fit)
 window.showStudentProducts = function() {
-    let stockList = window.stockInventory || [];
+    let stockList = (window.stockInventory || []).filter(item => {
+        let access = item.store_access !== undefined ? item.store_access : 'ALL';
+        return access === 'ALL' || (Array.isArray(access) && access.includes(s.id));
+    });
     
     let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
@@ -10764,51 +10770,102 @@ window.sendProductQuery = function(itemName) {
     // WhatsApp ওপেন করবে
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
-// 🟢 NEW: Send/Remove Product to Student Slider
+// 🟢 NEW: Send/Remove Product to Student Slider & Store
 window.sendProductToPortal = async function(stockId) {
     const item = window.stockInventory.find(i => String(i.id) === String(stockId));
     if(!item) return;
 
     let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    let studentOptions = `<option value="ALL" selected>📢 Add to All Students' Slider</option>`;
+    let studentOptions = `<option value="ALL" selected>📢 All Students</option>`;
     activeSt.forEach(s => {
-        studentOptions += `<option value="${s.id}">👤 Add only for ${s.name} (${s.class || ''})</option>`;
+        studentOptions += `<option value="${s.id}">👤 Only ${s.name}</option>`;
     });
 
-    const { value: targetVal, isConfirmed } = await Swal.fire({
-        title: 'Manage Home Slider',
+    const { value: formValues, isConfirmed } = await Swal.fire({
+        title: 'Share Product to Portal',
         html: `
             <div style="text-align:center; margin-bottom: 15px;">
-                <img src="${item.photo || 'https://via.placeholder.com/100?text=📦'}" style="width: 80px; height: 80px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
-                <h3 style="margin:0; font-size: 16px; color: var(--text-main);">${item.name}</h3>
-                <p style="margin:5px 0 0 0; color: var(--success); font-weight: bold; font-size: 18px;">₹${item.price}</p>
+                <img src="${item.photo || 'https://via.placeholder.com/100?text=📦'}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 5px;">
+                <h3 style="margin:0; font-size: 15px; color: var(--text-main);">${item.name}</h3>
             </div>
-            <select id="promo-target" class="swal2-select" style="width: 100%; margin: 0; font-size: 14px;">
+            
+            <label style="font-size:12px; font-weight:bold; color:var(--text-main); display:block; text-align:left; margin-bottom:5px;">Select Target Student(s):</label>
+            <select id="promo-target" class="swal2-select" style="width: 100%; margin: 0 0 15px 0; font-size: 14px;">
                 ${studentOptions}
-                <option value="REMOVE" style="color:red; font-weight:bold;">🚫 Remove from Slider</option>
             </select>
+
+            <label style="font-size:12px; font-weight:bold; color:var(--text-main); display:block; text-align:left; margin-bottom:5px;">Where to show?</label>
+            <select id="promo-placement" class="swal2-select" style="width: 100%; margin: 0; font-size: 14px;">
+                <option value="BOTH">🛍️ Show in Both (Store & Slider)</option>
+                <option value="STORE">🛒 Show in Store Only</option>
+                <option value="SLIDER">🖼️ Show in Slider Only</option>
+                <option value="REMOVE" style="color:red; font-weight:bold;">🚫 Hide / Remove Product</option>
+            </select>
+            <div style="font-size:10px; color:var(--text-muted); margin-top:10px; text-align:left;">* By default, new items are visible in the Store to All Students.</div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Update Slider',
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Update Portal',
         confirmButtonColor: 'var(--primary)',
-        cancelButtonColor: '#64748b'
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            return {
+                target: document.getElementById('promo-target').value,
+                placement: document.getElementById('promo-placement').value
+            };
+        }
     });
 
-    if(isConfirmed && targetVal) {
-        if(targetVal === 'REMOVE') {
-            item.promoted = null; // স্লাইডার থেকে মুছে যাবে
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Removed from slider!', showConfirmButton:false, timer:2000});
-        } else if(targetVal === 'ALL') {
-            item.promoted = 'ALL'; // সবার স্লাইডারে দেখাবে
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to ALL sliders!', showConfirmButton:false, timer:2000});
-        } else {
-            if(!Array.isArray(item.promoted)) item.promoted = [];
-            if(!item.promoted.includes(parseInt(targetVal))) {
-                item.promoted.push(parseInt(targetVal));
+    if(isConfirmed && formValues) {
+        const target = formValues.target; 
+        const placement = formValues.placement; 
+
+        if(item.store_access === undefined) item.store_access = 'ALL';
+        if(item.slider_access === undefined) item.slider_access = (item.promoted || []);
+
+        const grantAccess = (accessProp) => {
+            if (target === 'ALL') {
+                item[accessProp] = 'ALL';
+            } else {
+                if (item[accessProp] === 'ALL') item[accessProp] = []; 
+                if (!Array.isArray(item[accessProp])) item[accessProp] = [];
+                if (!item[accessProp].includes(parseInt(target))) {
+                    item[accessProp].push(parseInt(target));
+                }
             }
-            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to specific student!', showConfirmButton:false, timer:2000});
+        };
+
+        const revokeAccess = (accessProp) => {
+            if (target === 'ALL') {
+                item[accessProp] = []; 
+            } else {
+                if (Array.isArray(item[accessProp])) {
+                    item[accessProp] = item[accessProp].filter(id => id !== parseInt(target));
+                } else if (item[accessProp] === 'ALL') {
+                    item[accessProp] = []; 
+                }
+            }
+        };
+
+        if (placement === 'BOTH') {
+            grantAccess('store_access');
+            grantAccess('slider_access');
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to Store & Slider!', showConfirmButton:false, timer:2000});
+        } else if (placement === 'STORE') {
+            grantAccess('store_access');
+            revokeAccess('slider_access');
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to Store Only!', showConfirmButton:false, timer:2000});
+        } else if (placement === 'SLIDER') {
+            revokeAccess('store_access');
+            grantAccess('slider_access');
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Added to Slider Only!', showConfirmButton:false, timer:2000});
+        } else if (placement === 'REMOVE') {
+            revokeAccess('store_access');
+            revokeAccess('slider_access');
+            Swal.fire({toast:true, position:'top-end', icon:'success', title:'Removed from portal!', showConfirmButton:false, timer:2000});
         }
+
+        item.promoted = item.slider_access; // Keep legacy sync
         await dbSet('stockData', window.stockInventory);
     }
 };
