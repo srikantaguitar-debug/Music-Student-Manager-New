@@ -8332,7 +8332,8 @@ window.renderStockTable = function() {
                             </button>
                             <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
                                 <i class="fas fa-trash"></i>
-                            </button><button onclick="window.sendProductToPortal(${item.id})" title="Send to Portal" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;">
+                            </button>
+                            <button onclick="window.sendProductToPortal(${item.id})" title="Send to Portal" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;">
     <i class="fas fa-bullhorn"></i>
 </button>
                         </div>
@@ -10706,4 +10707,51 @@ window.sendProductQuery = function(itemName) {
     
     // WhatsApp ওপেন করবে
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+};
+// 🟢 NEW: Send Product to Student Portals
+window.sendProductToPortal = async function(stockId) {
+    const item = window.stockInventory.find(i => String(i.id) === String(stockId));
+    if(!item) return;
+
+    let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    let studentOptions = `<option value="ALL">📢 All Active Students</option>`;
+    activeSt.forEach(s => {
+        studentOptions += `<option value="${s.id}">👤 ${s.name} (${s.class || ''})</option>`;
+    });
+
+    const { value: targetVal, isConfirmed } = await Swal.fire({
+        title: 'Publish to Portal',
+        html: `
+            <div style="text-align:center; margin-bottom: 15px;">
+                <img src="${item.photo || 'https://via.placeholder.com/100?text=📦'}" style="width: 80px; height: 80px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); margin-bottom: 10px;">
+                <h3 style="margin:0; font-size: 16px; color: var(--text-main);">${item.name}</h3>
+                <p style="margin:5px 0 0 0; color: var(--success); font-weight: bold; font-size: 18px;">₹${item.price}</p>
+            </div>
+            <label style="font-size: 13px; font-weight: bold; color: var(--text-muted); display: block; text-align: left; margin-bottom: 5px;">Select Target Audience:</label>
+            <select id="promo-target" class="swal2-select" style="width: 100%; margin: 0; font-size: 14px;">
+                ${studentOptions}
+            </select>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send Now',
+        confirmButtonColor: 'var(--primary)',
+        cancelButtonColor: '#ef4444'
+    });
+
+    if(isConfirmed && targetVal) {
+        // Init promoted array
+        if(!item.promoted) item.promoted = [];
+
+        if(targetVal === 'ALL') {
+            item.promoted = 'ALL';
+        } else {
+            if(item.promoted === 'ALL') item.promoted = []; // Reset if previously ALL
+            if(!item.promoted.includes(parseInt(targetVal))) {
+                item.promoted.push(parseInt(targetVal));
+            }
+        }
+
+        await dbSet('stockData', window.stockInventory);
+        Swal.fire({toast:true, position:'top-end', icon:'success', title:'Product live on portal!', showConfirmButton:false, timer:2000});
+    }
 };
