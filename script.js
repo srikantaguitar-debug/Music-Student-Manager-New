@@ -240,20 +240,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             const globalData = mainDoc.data();
 
-// 🟢 ম্যাজিক ফিক্স: ম্যানেজার যে প্রোডাক্টগুলো সেন্ড করেছে, শুধুমাত্র সেগুলো ফিল্টার করা
-window.stockInventory = globalData.stockData || [];
-window.currentStudentName = s.name; // WhatsApp মেসেজের জন্য
-
-const globalProds = globalData.published_products || [];
-const studentProds = s.published_products || [];
-const allowedProdIds = [...new Set([...globalProds, ...studentProds])]; // ডুপ্লিকেট বাদ দেওয়া
-
-// 🟢 পোর্টালে শুধুমাত্র অ্যালাউড প্রোডাক্টগুলো যাবে
-window.portalStockList = window.stockInventory.filter(item => allowedProdIds.includes(item.id));
-
 // 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা লোড করা হচ্ছে
-window.stockInventory = globalData.stockData || [];
-window.currentStudentName = s.name; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
+        window.stockInventory = globalData.stockData || [];
+        window.currentStudentName = s.name; // WhatsApp মেসেজের জন্য
+
+        // 🟢 NEW: Separate Logic for Store List & Slider
+        // ১. Store List (Product Button) Filter
+        const globalStore = globalData.store_products_global || [];
+        const studentStore = s.store_products || [];
+        const allowedStoreIds = [...new Set([...globalStore, ...studentStore])];
+        window.portalStoreList = window.stockInventory.filter(item => allowedStoreIds.includes(item.id));
+
+        // ২. Slider (Dashboard) Filter
+        const globalSlider = globalData.slider_products_global || [];
+        const studentSlider = s.slider_products || [];
+        const allowedSliderIds = [...new Set([...globalSlider, ...studentSlider])];
+        window.portalSliderList = window.stockInventory.filter(item => allowedSliderIds.includes(item.id));
+
+        // 🟢 NEW: Slider HTML (With reduced margin: 12px)
+        let promoProductHtml = `
+            <style> @keyframes slideInPromo { 0% { opacity: 0; transform: translateX(30px); } 100% { opacity: 1; transform: translateX(0); } } </style>
+            <div id="productPromoSlider" style="display:none; margin: 0 0 12px 0; background: var(--bg-card); border: 1.5px dashed var(--primary); border-radius: 16px; padding: 12px; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"></div>
+        `;
                             
                             // 🟢 FIX: Merging proper data from the new sub-collections
                             const globalAtt = globalData.attendance || {};
@@ -358,7 +366,7 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                     }).join('');
 
                     hallOfFameHtml = `
-                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 30px 5px; margin-bottom: 25px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
+                        <div style="background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-body) 100%); border-radius: 20px; padding: 25px 5px 30px 5px; margin-bottom: 12px; border: 2px solid var(--primary); box-shadow: 0 8px 25px rgba(0,0,0,0.1); text-align: center; position: relative; overflow: hidden;">
                             <div style="position: absolute; top: -10px; right: -10px; font-size: 120px; color: var(--primary); opacity: 0.05;"><i class="fas fa-trophy"></i></div>
                             <h4 style="margin: 0 0 20px 0; color: var(--text-main); font-size: 18px; font-weight: 900; text-transform: uppercase; letter-spacing: 2px; position: relative; z-index: 2;">
                                 ✨ HALL OF FAME ✨
@@ -831,11 +839,7 @@ document.body.innerHTML = `
                         </div>
 
             ${hallOfFameHtml}
-            
-            <!-- 🟢 NEW: Product Promo Auto Slider -->
-            <style> @keyframes slideInPromo { 0% { opacity: 0; transform: translateX(30px); } 100% { opacity: 1; transform: translateX(0); } } </style>
-            <div id="productPromoSlider" style="display:none; margin: 0 0 25px 0; background: var(--bg-card); border: 1.5px dashed var(--primary); border-radius: 16px; padding: 12px; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"></div>
-            
+            ${promoProductHtml}
             ${noticeHtml}
             <div id="studentJoinArea" style="display:none; background: #ecfdf5; border: 2px dashed #10b981; padding: 20px; border-radius: 16px; margin: 20px 0; text-align:center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
     <h3 style="color:#047857; margin:0 0 10px 0;"><i class="fas fa-satellite-dish fa-fade" style="color: red;"></i> Live Class Started!</h3>
@@ -8302,6 +8306,18 @@ window.editStockItem = function(id) {
 window.renderStockTable = function() {
     const tbody = document.getElementById('stockTableBody');
     if(!tbody) return;
+    
+    // 🟢 NEW: Bulk Controls Container (Select All & Bulk Share)
+    let bulkControls = document.getElementById('stockBulkControls');
+    const tableEl = tbody.closest('table');
+    
+    if(!bulkControls && tableEl) {
+        bulkControls = document.createElement('div');
+        bulkControls.id = 'stockBulkControls';
+        bulkControls.style.cssText = "display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:12px 15px; background:var(--bg-input); border-radius:12px; border:1px solid var(--border-color); box-shadow: 0 2px 5px rgba(0,0,0,0.02);";
+        tableEl.parentNode.insertBefore(bulkControls, tableEl);
+    }
+
     tbody.innerHTML = '';
 
     const searchInput = document.getElementById('searchStockInput');
@@ -8312,44 +8328,58 @@ window.renderStockTable = function() {
         return item.name.toLowerCase().includes(filterText);
     });
 
+    // 🟢 Update Bulk Controls HTML
+    if (bulkControls) {
+        bulkControls.innerHTML = `
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-weight:bold; font-size:14px; color:var(--text-main);">
+                <input type="checkbox" id="selectAllStock" onchange="window.toggleAllStockSelection(this)" style="width:20px; height:20px; accent-color:var(--primary); cursor:pointer;">
+                Select All <span style="font-size:11px; color:var(--text-muted);">(${filteredStock.length} items)</span>
+            </label>
+            <button onclick="window.openBulkShareModal()" style="background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; border:none; padding:10px 16px; border-radius:8px; font-weight:bold; font-size:13px; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 10px rgba(99,102,241,0.25); transition: 0.2s;">
+                <i class="fas fa-share-all"></i> Share Selected
+            </button>
+        `;
+    }
+
     if (filteredStock.length === 0) {
-        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
+        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px; font-weight: bold;">No items found.</td></tr>';
         return;
     }
 
     filteredStock.forEach(item => {
         const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
-        // 🟢 ছবি না থাকলে একটি ডিফল্ট বক্স দেখাবে
-        const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/50?text=📦';
-        const safeName = item.name.replace(/'/g, "\\'"); // নামের ভেতর ' থাকলে যাতে কোড না ভাঙে
+        const photoSrc = item.photo && item.photo !== 'undefined' ? item.photo : 'https://via.placeholder.com/50?text=📦';
+        const safeName = item.name.replace(/'/g, "\\'"); 
         
         tbody.innerHTML += `
             <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
                 <td style="display: block; padding: 0; border: none; text-align: left;">
                     
                     <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <!-- 🟢 ম্যাজিক ফিক্স: ছবিতে ক্লিক করলে জুম হবে -->
-                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 35px; height: 35px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 10px; cursor: pointer; flex-shrink:0;" title="Click to view">
+                        <!-- 🟢 NEW: Checkbox for each item -->
+                        <input type="checkbox" class="stock-item-cb" value="${item.id}" onchange="window.checkIndividualStockSelection()" style="width:20px; height:20px; margin-right:12px; accent-color:var(--primary); cursor:pointer; flex-shrink:0;">
                         
-                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main); line-height: 1.3;">
+                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; cursor: pointer; flex-shrink:0;" title="Click to view">
+                        
+                        <div style="font-weight: 700; font-size: 14.5px; color: var(--text-main); line-height: 1.3;">
                             ${item.name}
                         </div>
                     </div>
                     
                     <div style="display: flex; justify-content: space-between; align-items: center;">
                         <div style="display: flex; gap: 8px; font-size: 12px; font-weight: bold; align-items: center;">
-                            <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
+                            <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 3px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
                             <span style="color: var(--text-muted);">Sell: ₹${item.price}</span>
-                            <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
+                            <span style="${stockColor} background: var(--bg-body); padding: 3px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
                         </div>
                         <div style="display: flex; gap: 6px;">
-                            <button onclick="window.openShareProductModal(${item.id})" style="background: #3b82f6; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Publish to Portal">
+                            <button onclick="window.openShareProductModal(${item.id})" style="background: #3b82f6; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Publish to Portal">
                                 <i class="fas fa-share-square"></i>
                             </button>
-                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Edit">
+                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Delete">
+                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -10666,103 +10696,7 @@ window.sendProductQuery = function(itemName) {
     // WhatsApp ওপেন করবে
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
-// 🟢 NEW: Product Auto Slider Function (Filtered)
-let promoInterval;
-window.initProductPromoSlider = function() {
-    if (promoInterval) clearInterval(promoInterval); 
-    
-    const stockList = window.portalStockList || [];
-    const container = document.getElementById('productPromoSlider');
-    
-    // যদি অ্যালাউড প্রোডাক্ট না থাকে, তবে স্লাইডার লুকানো থাকবে
-    if (!container || stockList.length === 0) {
-        if(container) container.style.display = 'none';
-        return;
-    }
 
-    let currentIndex = Math.floor(Math.random() * stockList.length);
-
-    const renderSlide = () => {
-        const item = stockList[currentIndex];
-        const photoSrc = item.photo && item.photo !== 'undefined' ? item.photo : 'https://via.placeholder.com/60?text=📦';
-        const safeName = item.name.replace(/'/g, "\\'");
-
-        container.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 12px; animation: slideInPromo 0.5s ease-out;">
-                <img src="${photoSrc}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo || ''}', '${safeName}')" style="width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-color); cursor:pointer;">
-                <div style="flex-grow: 1; text-align: left; min-width: 0;">
-                    <div style="font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 2px;">
-                        <i class="fas fa-star" style="color: #f59e0b;"></i> Store Highlight
-                    </div>
-                    <div style="font-size: 13.5px; font-weight: bold; color: var(--text-main); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                        ${item.name}
-                    </div>
-                    <div style="font-size: 14px; font-weight: 900; color: var(--text-main); margin-top: 2px;">₹${item.price}</div>
-                </div>
-                <button onclick="window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display:flex; align-items:center; gap:5px; flex-shrink: 0;">
-                    <i class="fab fa-whatsapp" style="font-size: 14px;"></i> Buy
-                </button>
-            </div>
-        `;
-        container.style.display = 'block';
-        currentIndex = (currentIndex + 1) % stockList.length;
-    };
-
-    renderSlide();
-    promoInterval = setInterval(renderSlide, 4000);
-};
-
-// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট পপআপ ফাংশন (Filtered)
-window.showStudentProducts = function() {
-    let stockList = window.portalStockList || [];
-    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
-    
-    if (stockList.length === 0) {
-        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
-                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
-                    No products are currently visible.
-                 </div>`;
-    } else {
-        stockList.forEach(item => {
-            let imageHtml = '';
-            if (item.photo && item.photo !== 'undefined') {
-                imageHtml = `<img src="${item.photo}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
-            }
-            const stockStatus = item.qty > 0 
-                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
-                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
-            
-            html += `
-                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
-                    ${imageHtml}
-                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
-                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span style="font-size: 14px; font-weight: 900; color: var(--primary);">₹${item.price}</span>
-                            ${stockStatus}
-                        </div>
-                    </div>
-                    <div style="flex-shrink: 0;">
-                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
-                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    html += '</div>';
-
-    Swal.fire({
-        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
-        html: html,
-        showConfirmButton: false,
-        showCloseButton: true,
-        background: 'var(--bg-input)',
-        width: '95%',
-        padding: '12px'
-    });
-};
 // ==========================================
 // 🟢 MANAGER: SHARE PRODUCT TO PORTAL LOGIC
 // ==========================================
@@ -10925,5 +10859,525 @@ window.removeProductFromPortals = async function(productId) {
             if (hasUpdates && user) await batch.commit();
             Swal.fire('Hidden', 'Product is removed from all portals.', 'success');
         }
+    });
+};
+// ==========================================
+// 🟢 MANAGER: BULK SHARE PRODUCTS TO PORTAL LOGIC
+// ==========================================
+
+window.toggleAllStockSelection = function(source) {
+    document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = source.checked);
+};
+
+window.checkIndividualStockSelection = function() {
+    const allCbs = document.querySelectorAll('.stock-item-cb');
+    const checkedCbs = document.querySelectorAll('.stock-item-cb:checked');
+    const selectAllCb = document.getElementById('selectAllStock');
+    if (selectAllCb) selectAllCb.checked = (allCbs.length === checkedCbs.length && allCbs.length > 0);
+};
+
+window.openBulkShareModal = async function() {
+    const checkedCbs = Array.from(document.querySelectorAll('.stock-item-cb:checked'));
+    if (checkedCbs.length === 0) {
+        Swal.fire('Info', 'Please select at least one product to share.', 'info');
+        return;
+    }
+    
+    const selectedIds = checkedCbs.map(cb => parseInt(cb.value));
+
+    Swal.fire({title: 'Loading...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    let activeSts = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    
+    let listHtml = '';
+    activeSts.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/35?text=S';
+        listHtml += `
+            <div class="prod-student-select-item" onclick="window.selectStudentForProd(${s.id}, this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer; background: var(--bg-card); text-align:left;">
+                <img src="${photoSrc}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    Swal.fire({
+        title: `Share ${selectedIds.length} Products`,
+        html: `
+            <div style="text-align:left; background:var(--bg-body); padding:12px; border-radius:8px; border:1px dashed var(--border-color); margin-bottom:15px;">
+                <div style="font-size:13px; font-weight:bold; color:var(--text-main); margin-bottom:10px;"><i class="fas fa-paper-plane" style="color:var(--primary);"></i> Where to send?</div>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+                    <input type="checkbox" id="bulk-send-to-store" style="width:18px; height:18px; accent-color:#10b981;" checked> 
+                    <span style="font-size:14px; font-weight:600; color:var(--text-main);">Store List (Product Button)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="bulk-send-to-slider" style="width:18px; height:18px; accent-color:#f59e0b;" checked> 
+                    <span style="font-size:14px; font-weight:600; color:var(--text-main);">Promo Slider (Dashboard)</span>
+                </label>
+            </div>
+            
+            <button onclick="window.publishBulkProductGlobal([${selectedIds.join(',')}])" style="width:100%; padding:12px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; border:none; border-radius:8px; margin-bottom:15px; font-weight:bold; cursor:pointer; font-size:14px; box-shadow: 0 4px 8px rgba(99,102,241,0.25);">
+                <i class="fas fa-globe"></i> Send to ALL Students
+            </button>
+            
+            <div style="text-align:center; color:var(--text-muted); margin-bottom:10px; font-size:11px; font-weight:bold;">--- OR SELECT SPECIFIC STUDENT ---</div>
+            
+            <input type="text" id="swal-search-prod-student" class="swal2-input" placeholder="🔍 Search student..." style="width: 100%; margin: 0 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="
+                const filter = this.value.toUpperCase();
+                document.querySelectorAll('.prod-student-select-item').forEach(el => {
+                    el.style.display = el.innerText.toUpperCase().indexOf(filter) > -1 ? 'flex' : 'none';
+                });
+            ">
+            <input type="hidden" id="selected-prod-student-id" value="">
+            
+            <div id="send-prod-student-list" style="width:100%; max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                ${listHtml || '<div style="padding:15px; font-size:13px; color:var(--text-muted); font-weight:bold;">No active students</div>'}
+            </div>
+            
+            <button onclick="window.removeBulkProductFromPortals([${selectedIds.join(',')}])" style="width:100%; padding:10px; background:var(--bg-body); color:var(--danger); border:1px dashed var(--danger); border-radius:8px; margin-top:15px; font-weight:bold; cursor:pointer; font-size:13px;">
+                <i class="fas fa-eye-slash"></i> Remove Selected (Hide)
+            </button>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send to Selected',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--success)',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const val = document.getElementById('selected-prod-student-id').value;
+            const toStore = document.getElementById('bulk-send-to-store').checked;
+            const toSlider = document.getElementById('bulk-send-to-slider').checked;
+            if (!val) { Swal.showValidationMessage('Please select a student or click "Send to ALL"'); return false; }
+            if (!toStore && !toSlider) { Swal.showValidationMessage('Select at least one destination (Store or Slider)'); return false; }
+            return { sId: parseInt(val), toStore, toSlider };
+        }
+    }).then((res) => {
+        if (res.isConfirmed && res.value) window.publishBulkProductToStudent(res.value.sId, [${selectedIds.join(',')}], res.value.toStore, res.value.toSlider);
+    });
+};
+
+window.publishBulkProductGlobal = async function(productIds) {
+    const toStore = document.getElementById('bulk-send-to-store').checked;
+    const toSlider = document.getElementById('bulk-send-to-slider').checked;
+    if (!toStore && !toSlider) return;
+
+    Swal.fire({title: 'Publishing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+    let globalStore = [], globalSlider = [];
+    if(gData.exists) {
+        globalStore = gData.data().store_products_global || [];
+        globalSlider = gData.data().slider_products_global || [];
+    }
+    
+    let updates = {};
+    
+    if (toStore) {
+        let updatedStore = [...globalStore];
+        productIds.forEach(id => { if(!updatedStore.includes(id)) updatedStore.push(id); });
+        updates.store_products_global = updatedStore;
+    }
+    if (toSlider) {
+        let updatedSlider = [...globalSlider];
+        productIds.forEach(id => { if(!updatedSlider.includes(id)) updatedSlider.push(id); });
+        updates.slider_products_global = updatedSlider;
+    }
+    
+    if(Object.keys(updates).length > 0) await db.collection(COLLECTION_NAME).doc(DOC_ID).update(updates);
+    
+    document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = false); 
+    window.checkIndividualStockSelection();
+    
+    Swal.fire('Success', 'Selected products published to ALL portals!', 'success');
+};
+
+window.publishBulkProductToStudent = async function(studentId, productIds, toStore, toSlider) {
+    Swal.fire({title: 'Sending...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if(studentIndex > -1) {
+        let sStore = students[studentIndex].store_products || [];
+        let sSlider = students[studentIndex].slider_products || [];
+        
+        let updated = false;
+        
+        if (toStore) {
+            productIds.forEach(id => { if(!sStore.includes(id)) { sStore.push(id); updated = true; } });
+            students[studentIndex].store_products = sStore;
+        }
+        if (toSlider) {
+            productIds.forEach(id => { if(!sSlider.includes(id)) { sSlider.push(id); updated = true; } });
+            students[studentIndex].slider_products = sSlider;
+        }
+        
+        if(updated) {
+            const user = firebase.auth().currentUser;
+            if(user) {
+                await db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(studentId)).update({ 
+                    store_products: sStore,
+                    slider_products: sSlider
+                });
+            }
+        }
+    }
+    
+    document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = false);
+    window.checkIndividualStockSelection();
+    
+    Swal.fire('Success', `Selected products added to student's portal!`, 'success');
+};
+
+window.removeBulkProductFromPortals = async function(productIds) {
+    Swal.fire({
+        title: 'Hide Selected Products?',
+        text: "This will remove them from ALL sliders and store lists.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Hide them!'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'Removing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            // 1. Remove from Global
+            const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+            if(gData.exists) {
+                let gStore = gData.data().store_products_global || [];
+                let gSlider = gData.data().slider_products_global || [];
+                gStore = gStore.filter(id => !productIds.includes(id));
+                gSlider = gSlider.filter(id => !productIds.includes(id));
+                await db.collection(COLLECTION_NAME).doc(DOC_ID).update({ store_products_global: gStore, slider_products_global: gSlider });
+            }
+
+            // 2. Remove from all students
+            const user = firebase.auth().currentUser;
+            let batch = db.batch();
+            let hasUpdates = false;
+
+            students.forEach(s => {
+                let sStore = s.store_products || [];
+                let sSlider = s.slider_products || [];
+                
+                const storeHasAny = productIds.some(id => sStore.includes(id));
+                const sliderHasAny = productIds.some(id => sSlider.includes(id));
+
+                if (storeHasAny || sliderHasAny) {
+                    s.store_products = sStore.filter(id => !productIds.includes(id));
+                    s.slider_products = sSlider.filter(id => !productIds.includes(id));
+                    hasUpdates = true;
+                    if(user) {
+                        const sRef = db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(s.id));
+                        batch.update(sRef, { store_products: s.store_products, slider_products: s.slider_products });
+                    }
+                }
+            });
+
+            if (hasUpdates && user) await batch.commit();
+            
+            document.querySelectorAll('.stock-item-cb').forEach(cb => cb.checked = false);
+            window.checkIndividualStockSelection();
+            
+            Swal.fire('Hidden', 'Selected products removed from all portals.', 'success');
+        }
+    });
+};
+// ==========================================
+// 🟢 MANAGER: SHARE PRODUCT TO PORTAL LOGIC (SEPARATE)
+// ==========================================
+
+window.openShareProductModal = async function(productId) {
+    const item = window.stockInventory.find(i => i.id === productId);
+    if (!item) return;
+
+    Swal.fire({title: 'Loading...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    
+    const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+    let globalStore = [], globalSlider = [];
+    if(gData.exists) {
+        globalStore = gData.data().store_products_global || [];
+        globalSlider = gData.data().slider_products_global || [];
+    }
+
+    let activeSts = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    
+    let listHtml = '';
+    activeSts.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/35?text=S';
+        const inStore = (s.store_products || []).includes(item.id);
+        const inSlider = (s.slider_products || []).includes(item.id);
+        
+        let badges = '';
+        if(inStore) badges += '<span style="background:#10b981; color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:3px;">Store</span>';
+        if(inSlider) badges += '<span style="background:#f59e0b; color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:3px;">Slider</span>';
+        
+        listHtml += `
+            <div class="prod-student-select-item" onclick="window.selectStudentForProd(${s.id}, this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer; background: var(--bg-card); text-align:left;">
+                <img src="${photoSrc}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">${s.name} ${badges}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    Swal.fire({
+        title: 'Share Product',
+        html: `
+            <div style="display:flex; align-items:center; background:var(--bg-input); padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid var(--border-color); text-align:left;">
+                <img src="${item.photo || 'https://via.placeholder.com/50?text=📦'}" style="width:40px; height:40px; border-radius:6px; object-fit:cover; margin-right:10px;">
+                <div>
+                    <div style="font-weight:bold; font-size:14px; color:var(--text-main);">${item.name}</div>
+                    <div style="font-size:13px; color:var(--primary); font-weight:bold;">₹${item.price}</div>
+                </div>
+            </div>
+
+            <div style="text-align:left; background:var(--bg-body); padding:10px; border-radius:8px; border:1px dashed var(--border-color); margin-bottom:15px;">
+                <div style="font-size:12px; font-weight:bold; color:var(--text-main); margin-bottom:8px;">Where to send?</div>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:6px;">
+                    <input type="checkbox" id="send-to-store" style="width:16px; height:16px; accent-color:#10b981;" checked> 
+                    <span style="font-size:13px; color:var(--text-main);">Store List (Product Button)</span>
+                </label>
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="send-to-slider" style="width:16px; height:16px; accent-color:#f59e0b;" checked> 
+                    <span style="font-size:13px; color:var(--text-main);">Promo Slider (Dashboard)</span>
+                </label>
+            </div>
+            
+            <button onclick="window.publishProductGlobal(${item.id})" style="width:100%; padding:10px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; border:none; border-radius:8px; margin-bottom:15px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                <i class="fas fa-globe"></i> Send to ALL Students
+            </button>
+            
+            <div style="text-align:center; color:var(--text-muted); margin-bottom:10px; font-size:11px; font-weight:bold;">--- OR SELECT SPECIFIC STUDENT ---</div>
+            
+            <input type="text" id="swal-search-prod-student" class="swal2-input" placeholder="🔍 Search student..." style="width: 100%; margin: 0 0 10px 0; font-size: 13px; box-sizing: border-box;" onkeyup="
+                const filter = this.value.toUpperCase();
+                document.querySelectorAll('.prod-student-select-item').forEach(el => {
+                    el.style.display = el.innerText.toUpperCase().indexOf(filter) > -1 ? 'flex' : 'none';
+                });
+            ">
+            <input type="hidden" id="selected-prod-student-id" value="">
+            
+            <div id="send-prod-student-list" style="width:100%; max-height: 140px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                ${listHtml || '<div style="padding:15px; font-size:12px;">No active students</div>'}
+            </div>
+            
+            <button onclick="window.removeProductFromPortals(${item.id})" style="width:100%; padding:10px; background:var(--bg-body); color:var(--danger); border:1px dashed var(--danger); border-radius:8px; margin-top:15px; font-weight:bold; cursor:pointer; font-size:13px;">
+                <i class="fas fa-eye-slash"></i> Remove from Everywhere (Hide)
+            </button>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send to Selected',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--success)',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const val = document.getElementById('selected-prod-student-id').value;
+            const toStore = document.getElementById('send-to-store').checked;
+            const toSlider = document.getElementById('send-to-slider').checked;
+            if (!val) { Swal.showValidationMessage('Please select a student'); return false; }
+            if (!toStore && !toSlider) { Swal.showValidationMessage('Select at least one destination (Store or Slider)'); return false; }
+            return { sId: parseInt(val), toStore, toSlider };
+        }
+    }).then((res) => {
+        if (res.isConfirmed && res.value) window.publishProductToStudent(res.value.sId, item.id, res.value.toStore, res.value.toSlider);
+    });
+};
+
+window.selectStudentForProd = function(studentId, divElement) {
+    document.getElementById('selected-prod-student-id').value = studentId;
+    document.querySelectorAll('.prod-student-select-item').forEach(item => { item.style.backgroundColor = 'var(--bg-card)'; });
+    divElement.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+};
+
+window.publishProductGlobal = async function(productId) {
+    const toStore = document.getElementById('send-to-store').checked;
+    const toSlider = document.getElementById('send-to-slider').checked;
+    if (!toStore && !toSlider) { Swal.fire('Error', 'Select at least one destination (Store or Slider)', 'error'); return; }
+
+    Swal.fire({title: 'Publishing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+    let globalStore = [], globalSlider = [];
+    if(gData.exists) {
+        globalStore = gData.data().store_products_global || [];
+        globalSlider = gData.data().slider_products_global || [];
+    }
+    
+    let updates = {};
+    if (toStore && !globalStore.includes(productId)) { globalStore.push(productId); updates.store_products_global = globalStore; }
+    if (toSlider && !globalSlider.includes(productId)) { globalSlider.push(productId); updates.slider_products_global = globalSlider; }
+    
+    if(Object.keys(updates).length > 0) await db.collection(COLLECTION_NAME).doc(DOC_ID).update(updates);
+    Swal.fire('Success', 'Product published to ALL portals!', 'success');
+};
+
+window.publishProductToStudent = async function(studentId, productId, toStore, toSlider) {
+    Swal.fire({title: 'Sending...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if(studentIndex > -1) {
+        let sStore = students[studentIndex].store_products || [];
+        let sSlider = students[studentIndex].slider_products || [];
+        
+        let updated = false;
+        if (toStore && !sStore.includes(productId)) { sStore.push(productId); students[studentIndex].store_products = sStore; updated = true; }
+        if (toSlider && !sSlider.includes(productId)) { sSlider.push(productId); students[studentIndex].slider_products = sSlider; updated = true; }
+        
+        if(updated) {
+            const user = firebase.auth().currentUser;
+            if(user) {
+                await db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(studentId)).update({ 
+                    store_products: sStore,
+                    slider_products: sSlider
+                });
+            }
+        }
+    }
+    Swal.fire('Success', `Product added to student's portal!`, 'success');
+};
+
+window.removeProductFromPortals = async function(productId) {
+    Swal.fire({
+        title: 'Hide Product?',
+        text: "This will remove the product from ALL sliders and store lists.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Hide it!'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'Removing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            // 1. Remove from Global
+            const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+            if(gData.exists) {
+                let gStore = gData.data().store_products_global || [];
+                let gSlider = gData.data().slider_products_global || [];
+                gStore = gStore.filter(id => id !== productId);
+                gSlider = gSlider.filter(id => id !== productId);
+                await db.collection(COLLECTION_NAME).doc(DOC_ID).update({ store_products_global: gStore, slider_products_global: gSlider });
+            }
+
+            // 2. Remove from all students
+            const user = firebase.auth().currentUser;
+            let batch = db.batch();
+            let hasUpdates = false;
+
+            students.forEach(s => {
+                let sStore = s.store_products || [];
+                let sSlider = s.slider_products || [];
+                if (sStore.includes(productId) || sSlider.includes(productId)) {
+                    s.store_products = sStore.filter(id => id !== productId);
+                    s.slider_products = sSlider.filter(id => id !== productId);
+                    hasUpdates = true;
+                    if(user) {
+                        const sRef = db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(s.id));
+                        batch.update(sRef, { store_products: s.store_products, slider_products: s.slider_products });
+                    }
+                }
+            });
+
+            if (hasUpdates && user) await batch.commit();
+            Swal.fire('Hidden', 'Product is removed from all portals.', 'success');
+        }
+    });
+};
+// ==========================================
+// 🟢 STUDENT PORTAL: PRODUCT SLIDER & POPUP
+// ==========================================
+
+// 🟢 NEW: Product Auto Slider Function (Uses portalSliderList)
+let promoInterval;
+window.initProductPromoSlider = function() {
+    if (promoInterval) clearInterval(promoInterval); 
+    
+    const stockList = window.portalSliderList || []; // 🟢 শুধু স্লাইডারের ডেটা
+    const container = document.getElementById('productPromoSlider');
+    
+    if (!container || stockList.length === 0) {
+        if(container) container.style.display = 'none';
+        return;
+    }
+
+    let currentIndex = Math.floor(Math.random() * stockList.length);
+
+    const renderSlide = () => {
+        const item = stockList[currentIndex];
+        const photoSrc = item.photo && item.photo !== 'undefined' ? item.photo : 'https://via.placeholder.com/60?text=📦';
+        const safeName = item.name.replace(/'/g, "\\'");
+
+        container.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px; animation: slideInPromo 0.5s ease-out;">
+                <img src="${photoSrc}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo || ''}', '${safeName}')" style="width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-color); cursor:pointer;">
+                <div style="flex-grow: 1; text-align: left; min-width: 0;">
+                    <div style="font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 2px;">
+                        <i class="fas fa-star" style="color: #f59e0b;"></i> Store Highlight
+                    </div>
+                    <div style="font-size: 13.5px; font-weight: bold; color: var(--text-main); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${item.name}
+                    </div>
+                    <div style="font-size: 14px; font-weight: 900; color: var(--text-main); margin-top: 2px;">₹${item.price}</div>
+                </div>
+                <button onclick="window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display:flex; align-items:center; gap:5px; flex-shrink: 0;">
+                    <i class="fab fa-whatsapp" style="font-size: 14px;"></i> Buy
+                </button>
+            </div>
+        `;
+        container.style.display = 'block';
+        currentIndex = (currentIndex + 1) % stockList.length;
+    };
+
+    renderSlide();
+    promoInterval = setInterval(renderSlide, 4000);
+};
+
+// 🟢 NEW: Product Popup Function (Uses portalStoreList)
+window.showStudentProducts = function() {
+    let stockList = window.portalStoreList || []; // 🟢 শুধু প্রোডাক্ট লিস্টের ডেটা
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
+    
+    if (stockList.length === 0) {
+        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
+                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
+                    No products are currently visible in the store.
+                 </div>`;
+    } else {
+        stockList.forEach(item => {
+            let imageHtml = '';
+            if (item.photo && item.photo !== 'undefined') {
+                imageHtml = `<img src="${item.photo}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+            }
+            const stockStatus = item.qty > 0 
+                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
+            
+            html += `
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+                    ${imageHtml}
+                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
+                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-size: 14px; font-weight: 900; color: var(--primary);">₹${item.price}</span>
+                            ${stockStatus}
+                        </div>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+
+    Swal.fire({
+        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-input)',
+        width: '95%',
+        padding: '12px'
     });
 };
