@@ -240,6 +240,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             const globalData = mainDoc.data();
 
+// 🟢 ম্যাজিক ফিক্স: ম্যানেজার যে প্রোডাক্টগুলো সেন্ড করেছে, শুধুমাত্র সেগুলো ফিল্টার করা
+window.stockInventory = globalData.stockData || [];
+window.currentStudentName = s.name; // WhatsApp মেসেজের জন্য
+
+const globalProds = globalData.published_products || [];
+const studentProds = s.published_products || [];
+const allowedProdIds = [...new Set([...globalProds, ...studentProds])]; // ডুপ্লিকেট বাদ দেওয়া
+
+// 🟢 পোর্টালে শুধুমাত্র অ্যালাউড প্রোডাক্টগুলো যাবে
+window.portalStockList = window.stockInventory.filter(item => allowedProdIds.includes(item.id));
+
 // 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা লোড করা হচ্ছে
 window.stockInventory = globalData.stockData || [];
 window.currentStudentName = s.name; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
@@ -821,6 +832,10 @@ document.body.innerHTML = `
 
             ${hallOfFameHtml}
             
+            <!-- 🟢 NEW: Product Promo Auto Slider -->
+            <style> @keyframes slideInPromo { 0% { opacity: 0; transform: translateX(30px); } 100% { opacity: 1; transform: translateX(0); } } </style>
+            <div id="productPromoSlider" style="display:none; margin: 0 0 25px 0; background: var(--bg-card); border: 1.5px dashed var(--primary); border-radius: 16px; padding: 12px; position: relative; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.05);"></div>
+            
             ${noticeHtml}
             <div id="studentJoinArea" style="display:none; background: #ecfdf5; border: 2px dashed #10b981; padding: 20px; border-radius: 16px; margin: 20px 0; text-align:center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
     <h3 style="color:#047857; margin:0 0 10px 0;"><i class="fas fa-satellite-dish fa-fade" style="color: red;"></i> Live Class Started!</h3>
@@ -1023,6 +1038,7 @@ document.body.innerHTML = `
 
 setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
 listenForLiveClassesStudent(managerUid, studentViewId);
+window.initProductPromoSlider(); // স্লাইডার চালু করার কমান্ড
 
         // 🟢 NEW: Security - Disable Copy, Selection, and Right-Click in Student Portal
         document.body.style.userSelect = 'none';
@@ -8327,10 +8343,13 @@ window.renderStockTable = function() {
                             <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
                         </div>
                         <div style="display: flex; gap: 6px;">
-                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
+                            <button onclick="window.openShareProductModal(${item.id})" style="background: #3b82f6; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Publish to Portal">
+                                <i class="fas fa-share-square"></i>
+                            </button>
+                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
+                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;" title="Delete">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -10636,34 +10655,86 @@ window.zoomProductImage = function(photoUrl, name) {
     document.body.appendChild(overlay);
 };
 
-// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Compact & Mobile Fit)
-window.showStudentProducts = function() {
-    let stockList = window.stockInventory || [];
+// 🟢 WhatsApp মেসেজ পাঠানোর ফাংশন (স্টুডেন্টের নাম সহ)
+window.sendProductQuery = function(itemName) {
+    const teacherPhone = "917001471235"; // আপনার নম্বর
+    const studentName = window.currentStudentName || "Student"; // স্টুডেন্টের নাম অটোমেটিক নিয়ে নেবে
     
+    // মেসেজ টেমপ্লেট
+    const msg = `Hello Sir,\n\nI am *${studentName}*.\nI want to buy the following product from the store:\n*${itemName}*\n\nPlease let me know the details.`;
+    
+    // WhatsApp ওপেন করবে
+    window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+};
+// 🟢 NEW: Product Auto Slider Function (Filtered)
+let promoInterval;
+window.initProductPromoSlider = function() {
+    if (promoInterval) clearInterval(promoInterval); 
+    
+    const stockList = window.portalStockList || [];
+    const container = document.getElementById('productPromoSlider');
+    
+    // যদি অ্যালাউড প্রোডাক্ট না থাকে, তবে স্লাইডার লুকানো থাকবে
+    if (!container || stockList.length === 0) {
+        if(container) container.style.display = 'none';
+        return;
+    }
+
+    let currentIndex = Math.floor(Math.random() * stockList.length);
+
+    const renderSlide = () => {
+        const item = stockList[currentIndex];
+        const photoSrc = item.photo && item.photo !== 'undefined' ? item.photo : 'https://via.placeholder.com/60?text=📦';
+        const safeName = item.name.replace(/'/g, "\\'");
+
+        container.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 12px; animation: slideInPromo 0.5s ease-out;">
+                <img src="${photoSrc}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo || ''}', '${safeName}')" style="width: 55px; height: 55px; border-radius: 10px; object-fit: cover; border: 1px solid var(--border-color); cursor:pointer;">
+                <div style="flex-grow: 1; text-align: left; min-width: 0;">
+                    <div style="font-size: 10px; font-weight: 800; color: var(--primary); text-transform: uppercase; margin-bottom: 2px;">
+                        <i class="fas fa-star" style="color: #f59e0b;"></i> Store Highlight
+                    </div>
+                    <div style="font-size: 13.5px; font-weight: bold; color: var(--text-main); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        ${item.name}
+                    </div>
+                    <div style="font-size: 14px; font-weight: 900; color: var(--text-main); margin-top: 2px;">₹${item.price}</div>
+                </div>
+                <button onclick="window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display:flex; align-items:center; gap:5px; flex-shrink: 0;">
+                    <i class="fab fa-whatsapp" style="font-size: 14px;"></i> Buy
+                </button>
+            </div>
+        `;
+        container.style.display = 'block';
+        currentIndex = (currentIndex + 1) % stockList.length;
+    };
+
+    renderSlide();
+    promoInterval = setInterval(renderSlide, 4000);
+};
+
+// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট পপআপ ফাংশন (Filtered)
+window.showStudentProducts = function() {
+    let stockList = window.portalStockList || [];
     let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
     if (stockList.length === 0) {
         html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
                     <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
-                    No products are currently available in the store.
+                    No products are currently visible.
                  </div>`;
     } else {
         stockList.forEach(item => {
-            // 🟢 ম্যাজিক ফিক্স: এখানে viewStockImage এর বদলে zoomProductImage কল করা হয়েছে
             let imageHtml = '';
             if (item.photo && item.photo !== 'undefined') {
-                imageHtml = `<img src="${item.photo}" onclick="window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+                imageHtml = `<img src="${item.photo}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
             }
-
             const stockStatus = item.qty > 0 
                 ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
                 : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
             
             html += `
                 <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
-                    
                     ${imageHtml}
-                    
                     <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
                         <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
                         <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -10671,7 +10742,6 @@ window.showStudentProducts = function() {
                             ${stockStatus}
                         </div>
                     </div>
-                    
                     <div style="flex-shrink: 0;">
                         <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
                             <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
@@ -10693,15 +10763,167 @@ window.showStudentProducts = function() {
         padding: '12px'
     });
 };
+// ==========================================
+// 🟢 MANAGER: SHARE PRODUCT TO PORTAL LOGIC
+// ==========================================
 
-// 🟢 WhatsApp মেসেজ পাঠানোর ফাংশন (স্টুডেন্টের নাম সহ)
-window.sendProductQuery = function(itemName) {
-    const teacherPhone = "917001471235"; // আপনার নম্বর
-    const studentName = window.currentStudentName || "Student"; // স্টুডেন্টের নাম অটোমেটিক নিয়ে নেবে
+window.openShareProductModal = async function(productId) {
+    const item = window.stockInventory.find(i => i.id === productId);
+    if (!item) return;
+
+    Swal.fire({title: 'Loading...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
     
-    // মেসেজ টেমপ্লেট
-    const msg = `Hello Sir,\n\nI am *${studentName}*.\nI want to buy the following product from the store:\n*${itemName}*\n\nPlease let me know the details.`;
+    // ডেটাবেস থেকে বর্তমান পাবলিশ স্ট্যাটাস চেক করা
+    const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+    let globalPublished = [];
+    if(gData.exists) globalPublished = gData.data().published_products || [];
+
+    let activeSts = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    // WhatsApp ওপেন করবে
-    window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+    let listHtml = '';
+    activeSts.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/35?text=S';
+        const hasAccess = (s.published_products || []).includes(item.id);
+        const badge = hasAccess ? '<span style="background:var(--success); color:white; font-size:9px; padding:2px 4px; border-radius:3px; margin-left:5px;">Added</span>' : '';
+        
+        listHtml += `
+            <div class="prod-student-select-item" onclick="window.selectStudentForProd(${s.id}, this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer; background: var(--bg-card); text-align:left;">
+                <img src="${photoSrc}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 2px solid #e2e8f0; margin-right: 12px; flex-shrink: 0;">
+                <div style="flex-grow: 1;">
+                    <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">${s.name} ${badge}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'}</div>
+                </div>
+            </div>
+        `;
+    });
+
+    const isGloballyPublished = globalPublished.includes(item.id);
+    const globalBtnText = isGloballyPublished ? "✅ Already in All Portals" : "<i class='fas fa-globe'></i> Publish to ALL Portals";
+    const globalBtnColor = isGloballyPublished ? "var(--success)" : "linear-gradient(135deg, #8b5cf6, #6366f1)";
+
+    Swal.fire({
+        title: 'Share to Portals',
+        html: `
+            <div style="display:flex; align-items:center; background:var(--bg-input); padding:10px; border-radius:10px; margin-bottom:15px; border:1px solid var(--border-color); text-align:left;">
+                <img src="${item.photo || 'https://via.placeholder.com/50?text=📦'}" style="width:40px; height:40px; border-radius:6px; object-fit:cover; margin-right:10px;">
+                <div>
+                    <div style="font-weight:bold; font-size:14px; color:var(--text-main);">${item.name}</div>
+                    <div style="font-size:13px; color:var(--primary); font-weight:bold;">₹${item.price}</div>
+                </div>
+            </div>
+            
+            <button onclick="window.publishProductGlobal(${item.id})" style="width:100%; padding:12px; background:${globalBtnColor}; color:white; border:none; border-radius:8px; margin-bottom:15px; font-weight:bold; cursor:pointer; font-size:13px; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+                ${globalBtnText}
+            </button>
+            
+            <div style="text-align:center; color:var(--text-muted); margin-bottom:10px; font-size:11px; font-weight:bold;">--- OR SELECT SPECIFIC STUDENT ---</div>
+            
+            <input type="text" id="swal-search-prod-student" class="swal2-input" placeholder="🔍 Search student..." style="width: 100%; margin: 0 0 10px 0; font-size: 13px; box-sizing: border-box;" onkeyup="
+                const filter = this.value.toUpperCase();
+                document.querySelectorAll('.prod-student-select-item').forEach(el => {
+                    el.style.display = el.innerText.toUpperCase().indexOf(filter) > -1 ? 'flex' : 'none';
+                });
+            ">
+            <input type="hidden" id="selected-prod-student-id" value="">
+            
+            <div id="send-prod-student-list" style="width:100%; max-height: 160px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                ${listHtml || '<div style="padding:15px; font-size:12px;">No active students</div>'}
+            </div>
+            
+            <button onclick="window.removeProductFromPortals(${item.id})" style="width:100%; padding:10px; background:var(--bg-body); color:var(--danger); border:1px dashed var(--danger); border-radius:8px; margin-top:15px; font-weight:bold; cursor:pointer; font-size:13px;">
+                <i class="fas fa-eye-slash"></i> Remove from Portals (Hide)
+            </button>
+        `,
+        showConfirmButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send to Selected',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--success)',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const val = document.getElementById('selected-prod-student-id').value;
+            if (!val) { Swal.showValidationMessage('Please select a student or click "Publish to ALL"'); return false; }
+            return parseInt(val);
+        }
+    }).then((res) => {
+        if (res.isConfirmed && res.value) window.publishProductToStudent(res.value, item.id);
+    });
+};
+
+window.selectStudentForProd = function(studentId, divElement) {
+    document.getElementById('selected-prod-student-id').value = studentId;
+    document.querySelectorAll('.prod-student-select-item').forEach(item => { item.style.backgroundColor = 'var(--bg-card)'; });
+    divElement.style.backgroundColor = 'rgba(16, 185, 129, 0.1)';
+};
+
+window.publishProductGlobal = async function(productId) {
+    Swal.fire({title: 'Publishing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+    let globalPublished = [];
+    if(gData.exists) globalPublished = gData.data().published_products || [];
+    
+    if (!globalPublished.includes(productId)) {
+        globalPublished.push(productId);
+        await dbSet('published_products', globalPublished);
+    }
+    Swal.fire('Success', 'Product is now visible in ALL portals!', 'success');
+};
+
+window.publishProductToStudent = async function(studentId, productId) {
+    Swal.fire({title: 'Sending...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+    const studentIndex = students.findIndex(s => s.id === studentId);
+    if(studentIndex > -1) {
+        let sProds = students[studentIndex].published_products || [];
+        if (!sProds.includes(productId)) {
+            sProds.push(productId);
+            students[studentIndex].published_products = sProds;
+            
+            const user = firebase.auth().currentUser;
+            if(user) {
+                await db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(studentId)).update({ published_products: sProds });
+            }
+        }
+    }
+    Swal.fire('Success', `Product added to student's portal!`, 'success');
+};
+
+window.removeProductFromPortals = async function(productId) {
+    Swal.fire({
+        title: 'Hide Product?',
+        text: "This will remove the product from ALL sliders and portals.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Hide it!'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({title: 'Removing...', allowOutsideClick: false, didOpen: () => Swal.showLoading()});
+            
+            // 1. Remove from Global
+            const gData = await db.collection(COLLECTION_NAME).doc(DOC_ID).get();
+            if(gData.exists) {
+                let globalPublished = gData.data().published_products || [];
+                globalPublished = globalPublished.filter(id => id !== productId);
+                await dbSet('published_products', globalPublished);
+            }
+
+            // 2. Remove from all students
+            const user = firebase.auth().currentUser;
+            let batch = db.batch();
+            let hasUpdates = false;
+
+            students.forEach(s => {
+                if (s.published_products && s.published_products.includes(productId)) {
+                    s.published_products = s.published_products.filter(id => id !== productId);
+                    hasUpdates = true;
+                    if(user) {
+                        const sRef = db.collection(COLLECTION_NAME).doc(user.uid).collection('students').doc(String(s.id));
+                        batch.update(sRef, { published_products: s.published_products });
+                    }
+                }
+            });
+
+            if (hasUpdates && user) await batch.commit();
+            Swal.fire('Hidden', 'Product is removed from all portals.', 'success');
+        }
+    });
 };
