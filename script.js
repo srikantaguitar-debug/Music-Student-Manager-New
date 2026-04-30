@@ -10837,7 +10837,7 @@ window.openBulkShareModal = async function() {
             return { sId: parseInt(val), toStore, toSlider };
         }
     }).then((res) => {
-        if (res.isConfirmed && res.value) window.publishBulkProductToStudent(res.value.sId, [${selectedIds.join(',')}], res.value.toStore, res.value.toSlider);
+        if (res.isConfirmed && res.value) window.publishBulkProductToStudent(res.value.sId, selectedIds, res.value.toStore, res.value.toSlider);
     });
 };
 
