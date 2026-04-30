@@ -373,13 +373,15 @@ if (portalProducts.length > 0) {
 
     let slidesHtml = portalProducts.map((p, index) => {
         let imageHtml = '';
+        const safeName = p.name.replace(/'/g, "\\'");
+        
         if (p.photo && p.photo !== 'undefined' && p.photo.trim() !== '') {
-            imageHtml = `<img src="${p.photo}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1);" onclick="window.zoomProductImage('${p.photo}', '${p.name.replace(/'/g, "\\'")}')">`;
+            imageHtml = `<img src="${p.photo}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1); cursor: zoom-in;" onclick="event.stopPropagation(); window.zoomProductImage('${p.photo}', '${safeName}')">`;
         }
         
         let displayStyle = index === 0 ? 'flex' : 'none'; 
         return `
-        <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out;">
+        <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out; cursor: pointer;" onclick="event.stopPropagation(); window.openProductDetailsPopup('${safeName}', '${p.price}', '${p.photo}')">
             ${imageHtml}
             <div style="flex: 1; text-align: left;">
                 <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
@@ -387,7 +389,7 @@ if (portalProducts.length > 0) {
                 <div style="font-size: 16px; font-weight: 900; color: var(--success);">₹${p.price}</div>
             </div>
             <div>
-                <button onclick="window.sendProductQuery('${p.name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
+                <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
             </div>
         </div>`;
     }).join('');
@@ -10679,28 +10681,37 @@ window.paySaleDue = async function(saleId) {
     }
 };
 
-// 🟢 NEW: কাস্টম ইমেজ জুম ফাংশন (যাতে পেছনের পপআপ বন্ধ না হয়)
+// 🟢 NEW: কাস্টম ইমেজ জুম ফাংশন (যাতে পেছনের পপআপ বন্ধ না হয় এবং স্ক্রিনে ফিট হয়)
 window.zoomProductImage = function(photoUrl, name) {
     if (!photoUrl || photoUrl === 'undefined') return;
     
-    // একটি নতুন ওভারলে (Overlay) তৈরি করা হচ্ছে যা পেছনের পপআপকে ডিস্টার্ব করবে না
+    // আগে থেকে কোনো জুম উইন্ডো খোলা থাকলে সেটি মুছে দেওয়া
+    let existingOverlay = document.getElementById('customImageZoomOverlay');
+    if (existingOverlay) document.body.removeChild(existingOverlay);
+    
+    // নতুন ফুল-স্ক্রিন ওভারলে তৈরি
     const overlay = document.createElement('div');
     overlay.id = 'customImageZoomOverlay';
-    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.9); z-index:2000000; display:flex; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease;';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0, 0, 0, 0.85); z-index:9999999; display:flex; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(8px); animation: fadeIn 0.3s ease; cursor: zoom-out; padding: 20px; box-sizing: border-box;';
     
-    // ছবিতে এবং ক্রসে ক্লিক করার অপশন
+    // স্ক্রিনের যেকোনো জায়গায় ক্লিক করলে পপআপটি বন্ধ হয়ে যাবে
+    overlay.onclick = function() {
+        document.body.removeChild(this);
+    };
+
     overlay.innerHTML = `
-        <div style="position:absolute; top:20px; right:25px; color:#fff; font-size:35px; font-weight:bold; cursor:pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%;" onclick="document.body.removeChild(this.parentElement)">&times;</div>
-        <img src="${photoUrl}" style="max-width:90%; max-height:75vh; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5); object-fit: contain;">
-        <div style="color:#fff; margin-top:15px; font-size:18px; font-weight:800; text-align:center; padding: 0 20px;">${name}</div>
+        <div style="position:absolute; top:20px; right:20px; color:#fff; font-size:30px; font-weight:bold; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%; z-index: 10;">&times;</div>
+        
+        <img src="${photoUrl}" style="max-width:100%; max-height:70vh; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.5); object-fit: contain;">
+        
+        <div style="color:#fff; margin-top:20px; font-size:20px; font-weight:800; text-align:center; text-shadow: 0 2px 4px rgba(0,0,0,0.5);">${name}</div>
     `;
     
     document.body.appendChild(overlay);
 };
 
-// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Product Button Fix)
+// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Product Button Fix & Detail Popup)
 window.showStudentProducts = function() {
-    // 🟢 ম্যাজিক ফিক্স: URL থেকে অটোমেটিকভাবে Student ID তুলে নেবে
     const urlParams = new URLSearchParams(window.location.search);
     let sId = urlParams.get('student') || localStorage.getItem('saved_student_id');
     sId = parseInt(sId);
@@ -10719,17 +10730,20 @@ window.showStudentProducts = function() {
                  </div>`;
     } else {
         stockList.forEach(item => {
+            const safeName = item.name.replace(/'/g, "\\'");
             let imageHtml = '';
             if (item.photo && item.photo !== 'undefined' && item.photo.trim() !== '') {
-                imageHtml = `<img src="${item.photo}" onclick="window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+                // ছবিতে ক্লিক করলে শুধু জুম হবে, event.stopPropagation() পেছনের ক্লিক আটকাবে
+                imageHtml = `<img src="${item.photo}" onclick="event.stopPropagation(); window.zoomProductImage('${item.photo}', '${safeName}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:zoom-in;" title="Tap to zoom">`;
             }
 
             const stockStatus = item.qty > 0 
                 ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
                 : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
             
+            // কার্ডের ওপর ক্লিক করলে ডিটেইলস পপআপ খুলবে
             html += `
-                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; cursor:pointer;" onclick="window.openProductDetailsPopup('${safeName}', '${item.price}', '${item.photo}')">
                     
                     ${imageHtml}
                     
@@ -10742,7 +10756,7 @@ window.showStudentProducts = function() {
                     </div>
                     
                     <div style="flex-shrink: 0;">
-                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                        <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
                             <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
                         </button>
                     </div>
@@ -10923,4 +10937,43 @@ window.selectPromoTarget = function(targetId, divElement) {
     });
     divElement.style.backgroundColor = 'rgba(99, 102, 241, 0.1)'; // Highlight color
     divElement.style.borderColor = 'var(--primary)';
+};
+// 🟢 NEW: Product Details Popup (যাতে পেছনের উইন্ডো বন্ধ না হয়)
+window.openProductDetailsPopup = function(name, price, photoUrl) {
+    let existingOverlay = document.getElementById('customProductDetailOverlay');
+    if (existingOverlay) document.body.removeChild(existingOverlay);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'customProductDetailOverlay';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.85); z-index:2000005; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease; padding: 20px; box-sizing: border-box;';
+
+    let imageHtml = '';
+    if (photoUrl && photoUrl !== 'undefined' && photoUrl.trim() !== '') {
+        imageHtml = `<img src="${photoUrl}" style="width: 100%; height: auto; max-height: 250px; object-fit: contain; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color); background: var(--bg-body);">`;
+    } else {
+        imageHtml = `<div style="width: 100%; height: 200px; background: #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;"><i class="fas fa-box-open" style="font-size: 50px; color: #94a3b8;"></i></div>`;
+    }
+
+    const safeName = name.replace(/'/g, "\\'");
+
+    overlay.innerHTML = `
+        <div style="background: var(--bg-card); width: 100%; max-width: 400px; border-radius: 20px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; text-align: center;">
+            
+            ${imageHtml}
+            
+            <div style="font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1.3; margin-bottom: 8px;">${name}</div>
+            <div style="font-size: 26px; font-weight: 900; color: var(--primary); margin-bottom: 25px;">₹${price}</div>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button onclick="window.sendProductQuery('${safeName}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fab fa-whatsapp" style="font-size: 20px;"></i> Buy Now
+                </button>
+                <button onclick="document.body.removeChild(this.parentElement.parentElement.parentElement)" style="background: #ef4444; color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.3);">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
 };
