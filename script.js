@@ -10617,14 +10617,31 @@ window.paySaleDue = async function(saleId) {
     }
 };
 
+// 🟢 NEW: কাস্টম ইমেজ জুম ফাংশন (যাতে পেছনের পপআপ বন্ধ না হয়)
+window.zoomProductImage = function(photoUrl, name) {
+    if (!photoUrl || photoUrl === 'undefined') return;
+    
+    // একটি নতুন ওভারলে (Overlay) তৈরি করা হচ্ছে যা পেছনের পপআপকে ডিস্টার্ব করবে না
+    const overlay = document.createElement('div');
+    overlay.id = 'customImageZoomOverlay';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.9); z-index:2000000; display:flex; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease;';
+    
+    // ছবিতে এবং ক্রসে ক্লিক করার অপশন
+    overlay.innerHTML = `
+        <div style="position:absolute; top:20px; right:25px; color:#fff; font-size:35px; font-weight:bold; cursor:pointer; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.2); border-radius: 50%;" onclick="document.body.removeChild(this.parentElement)">&times;</div>
+        <img src="${photoUrl}" style="max-width:90%; max-height:75vh; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.5); object-fit: contain;">
+        <div style="color:#fff; margin-top:15px; font-size:18px; font-weight:800; text-align:center; padding: 0 20px;">${name}</div>
+    `;
+    
+    document.body.appendChild(overlay);
+};
+
 // 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Compact & Mobile Fit)
 window.showStudentProducts = function() {
     let stockList = window.stockInventory || [];
     
-    // overflow-x: hidden দেওয়া হয়েছে যাতে ডানে-বাঁয়ে স্ক্রল না হয়ে যায়
     let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
-    // যদি স্টকে কোনো প্রোডাক্ট না থাকে
     if (stockList.length === 0) {
         html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
                     <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
@@ -10632,17 +10649,16 @@ window.showStudentProducts = function() {
                  </div>`;
     } else {
         stockList.forEach(item => {
-            // 🟢 ম্যাজিক ফিক্স: ছবি থাকলে দেখাবে, না থাকলে কোডটাই বসবে না (সিম্পল লিস্টের মতো হবে)
+            // 🟢 ম্যাজিক ফিক্স: এখানে viewStockImage এর বদলে zoomProductImage কল করা হয়েছে
             let imageHtml = '';
             if (item.photo && item.photo !== 'undefined') {
-                imageHtml = `<img src="${item.photo}" onclick="if(window.viewStockImage) window.viewStockImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+                imageHtml = `<img src="${item.photo}" onclick="window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
             }
 
             const stockStatus = item.qty > 0 
                 ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
                 : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
             
-            // Buy বাটনের ফাংশন (Compact Design)
             html += `
                 <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
                     
