@@ -7528,6 +7528,41 @@ window.calculateSaleDue = function() {
     }
 };
 
+window.renderCart = function() {
+    const container = document.getElementById('saleCartContainer');
+    const list = document.getElementById('saleCartList');
+    const totalSpan = document.getElementById('cartTotalPrice');
+
+    if (window.saleCart.length === 0) {
+        if(container) container.style.display = 'none';
+        if(totalSpan) totalSpan.textContent = '0';
+        window.calculateSaleDue();
+        return;
+    }
+
+    if(list) list.innerHTML = '';
+    let grandTotal = 0;
+
+    window.saleCart.forEach((item, index) => {
+        grandTotal += item.price;
+        if(list) {
+            list.innerHTML += `
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--border-color);">
+                    <span><b>${item.name}</b> (x${item.qty})</span>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-weight: 600;">₹${item.price}</span>
+                        <button onclick="window.removeFromCart(${index})" style="background: none; border: none; color: var(--danger); cursor: pointer;"><i class="fas fa-times"></i></button>
+                    </div>
+                </li>
+            `;
+        }
+    });
+
+    if(totalSpan) totalSpan.textContent = grandTotal;
+    if(container) container.style.display = 'block';
+    
+    window.calculateSaleDue(); // কার্ট আপডেট হলে ডিউ-ও আপডেট হবে
+};
 
 window.addAccessoryDueToStudent = function(studentId, saleId, item, due) {
     let student = students.find(s => s.id == studentId);
@@ -8390,6 +8425,19 @@ window.renderInventoryDropdown = function() {
 window.currentUnitPrice = 0; 
 window.saleCart = []; 
 
+window.autoFillItemPrice = function() {
+    const inputName = document.getElementById('itemName').value.trim();
+    const item = window.stockInventory.find(i => i.name.toLowerCase() === inputName.toLowerCase());
+    
+    if (item) {
+        window.currentUnitPrice = item.price; 
+        const qty = parseInt(document.getElementById('saleQty').value) || 1;
+        document.getElementById('itemPrice').value = window.currentUnitPrice * qty;
+    } else {
+        // 🟢 ম্যাজিক ফিক্স: স্টক না মিললে দামের ঘর আর ফাঁকা (Clear) করবে না।
+        window.currentUnitPrice = 0;
+    }
+};
 
 window.updateSalePriceCalc = function() {
     const qty = parseInt(document.getElementById('saleQty').value) || 1;
@@ -8626,6 +8674,75 @@ window.cancelSaleEdit = function() {
     document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-check-circle"></i> Checkout & Send Receipt';
     document.getElementById('saleProcessBtn').className = 'btn-primary';
     document.getElementById('saleCancelEditBtn').style.display = 'none';
+};
+
+window.editSaleRecord = function(saleId) {
+    const sale = salesDataArray.find(s => String(s.id) === String(saleId));
+    if(!sale) return;
+    
+    const sIdInput = document.getElementById('saleStudentId');
+    const nameEl = document.getElementById('saleSelectedName');
+    const imgEl = document.getElementById('saleSelectedPhoto');
+
+    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
+
+    if (isGuest) {
+        if(sIdInput) sIdInput.value = 'guest';
+        
+        const gName = sale.studentName || 'Walk-in Customer';
+        if(nameEl) {
+            nameEl.dataset.guestData = JSON.stringify({name: gName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
+            nameEl.innerHTML = `<span style="color: var(--text-main); font-weight: bold;">${gName}</span> <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align: middle;">Guest</span>`;
+        }
+        
+        if(imgEl) {
+            imgEl.src = 'https://via.placeholder.com/40?text=G';
+            imgEl.style.display = 'block';
+        }
+    } else {
+        const student = students.find(st => String(st.id) === String(sale.studentId));
+        if(student) {
+            if(sIdInput) sIdInput.value = student.id;
+            if(nameEl) {
+                nameEl.textContent = student.name;
+                nameEl.style.color = "var(--text-main)";
+                nameEl.dataset.guestData = ''; 
+            }
+            if(imgEl) {
+                imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
+                imgEl.style.display = 'block';
+            }
+        }
+    }
+
+    if (sale.cart && Array.isArray(sale.cart)) {
+        window.saleCart = [...sale.cart];
+    } else {
+        let extractedName = sale.item; let extractedQty = 1;
+        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
+        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
+        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
+    }
+    
+    window.renderCart();
+    
+    const paidInput = document.getElementById('amountPaid');
+    if(paidInput) {
+        paidInput.value = sale.paid || 0; // 🟢 এডিট মোডে রিয়েল পেইড অ্যামাউন্ট দেখাবে
+    }
+    
+    const editIdInput = document.getElementById('editSaleId');
+    if(editIdInput) editIdInput.value = sale.id;
+
+    const btn = document.getElementById('saleProcessBtn');
+    if(btn) {
+        btn.innerHTML = '<i class="fas fa-save"></i> Update Sale';
+        btn.className = 'btn-warning';
+    }
+    const cancelBtn = document.getElementById('saleCancelEditBtn');
+    if(cancelBtn) cancelBtn.style.display = 'block';
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 };
 
 window.generateSalePDF = async function(sale, student) {
@@ -8917,7 +9034,7 @@ window.showSalesDuesPopup = function() {
         padding: '15px'
     });
 };
-
+window.processSale = processSale;
 // 🟢 NEW: Smart Autocomplete for Cart Item Input
 document.addEventListener('DOMContentLoaded', () => {
     const itemNameInput = document.getElementById('itemName');
@@ -10837,7 +10954,7 @@ window.openBulkShareModal = async function() {
             return { sId: parseInt(val), toStore, toSlider };
         }
     }).then((res) => {
-        if (res.isConfirmed && res.value) window.publishBulkProductToStudent(res.value.sId, selectedIds, res.value.toStore, res.value.toSlider);
+        if (res.isConfirmed && res.value) window.publishBulkProductToStudent(res.value.sId, [${selectedIds.join(',')}], res.value.toStore, res.value.toSlider);
     });
 };
 
@@ -11213,3 +11330,54 @@ window.initProductPromoSlider = function() {
     promoInterval = setInterval(renderSlide, 4000);
 };
 
+// 🟢 NEW: Product Popup Function (Uses portalStoreList)
+window.showStudentProducts = function() {
+    let stockList = window.portalStoreList || []; // 🟢 শুধু প্রোডাক্ট লিস্টের ডেটা
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
+    
+    if (stockList.length === 0) {
+        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
+                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
+                    No products are currently visible in the store.
+                 </div>`;
+    } else {
+        stockList.forEach(item => {
+            let imageHtml = '';
+            if (item.photo && item.photo !== 'undefined') {
+                imageHtml = `<img src="${item.photo}" onclick="if(window.zoomProductImage) window.zoomProductImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+            }
+            const stockStatus = item.qty > 0 
+                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
+            
+            html += `
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+                    ${imageHtml}
+                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
+                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-size: 14px; font-weight: 900; color: var(--primary);">₹${item.price}</span>
+                            ${stockStatus}
+                        </div>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+
+    Swal.fire({
+        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-input)',
+        width: '95%',
+        padding: '12px'
+    });
+};
