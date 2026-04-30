@@ -239,6 +239,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             }
                             
                             const globalData = mainDoc.data();
+
+// 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা লোড করা হচ্ছে
+window.stockInventory = globalData.stockData || [];
+window.currentStudentName = s.name; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
                             
                             // 🟢 FIX: Merging proper data from the new sub-collections
                             const globalAtt = globalData.attendance || {};
@@ -961,31 +965,37 @@ document.body.innerHTML = `
         </div></div>
 
         <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:10px 0; display:flex; justify-content: space-evenly; align-items: center; box-shadow:0 -5px 20px rgba(0,0,0,0.08); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
-            <!-- Profile -->
+            
+            <!-- Profile (Default Primary Color) -->
             <div onclick="document.getElementById('m-profile').style.display='flex'" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--primary); flex: 1;">
                 <i class="fas fa-user" style="font-size:22px;"></i>
                 <span style="font-size:12px; font-weight:700;">Profile</span>
             </div>
-            <!-- QR Code -->
-            <div onclick="showStudentPortalQR('${studentViewId}')" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--text-main); flex: 1;">
+            
+            <!-- QR Code (Deep Blue) -->
+            <div onclick="showStudentPortalQR('${studentViewId}')" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: #1e40af; flex: 1;">
                 <i class="fas fa-qrcode" style="font-size:22px;"></i>
                 <span style="font-size:12px; font-weight:700;">QR Code</span>
             </div>
-            <!-- Product (NEW) -->
-            <div onclick="window.showStudentProducts()" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--text-main); flex: 1;">
+            
+            <!-- Product (Green) -->
+            <div onclick="window.showStudentProducts()" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: #10b981; flex: 1;">
                 <i class="fas fa-shopping-bag" style="font-size:22px;"></i>
                 <span style="font-size:12px; font-weight:700;">Product</span>
             </div>
-            <!-- Help -->
-            <div onclick="showHelpOptions()" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--text-main); flex: 1;">
+            
+            <!-- Help (Yellow) -->
+            <div onclick="showHelpOptions()" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: #f59e0b; flex: 1;">
                 <i class="fas fa-question-circle" style="font-size:22px;"></i>
                 <span style="font-size:12px; font-weight:700;">Help</span>
             </div>
-            <!-- Log Out -->
+            
+            <!-- Log Out (Red) -->
             <div onclick="studentPortalLogout('${studentViewId}')" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--danger); flex: 1;">
                 <i class="fas fa-sign-out-alt" style="font-size:22px;"></i>
                 <span style="font-size:12px; font-weight:700;">Log Out</span>
             </div>
+            
         </div>
     </div>
 `;
@@ -10585,14 +10595,19 @@ window.paySaleDue = async function(saleId) {
         }
     }
 };
+
 // 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন
 window.showStudentProducts = function() {
     let stockList = window.stockInventory || [];
     
     let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left;">';
     
+    // যদি স্টকে কোনো প্রোডাক্ট না থাকে
     if (stockList.length === 0) {
-        html += '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No products are currently available in the store.</div>';
+        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
+                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
+                    No products are currently available in the store.
+                 </div>`;
     } else {
         stockList.forEach(item => {
             const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/60?text=📦';
@@ -10603,7 +10618,7 @@ window.showStudentProducts = function() {
             // Buy বাটনের ফাংশন (WhatsApp এ মেসেজ যাবে)
             html += `
                 <div style="display:flex; align-items:center; background:var(--bg-input); border:1px solid var(--border-color); padding:12px; border-radius:12px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                    <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${item.name.replace(/'/g, "\\'")}')" style="width: 65px; height: 65px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 15px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">
+                    <img src="${photoSrc}" onclick="if(window.viewStockImage) window.viewStockImage('${item.photo || ''}', '${item.name.replace(/'/g, "\\'")}')" style="width: 65px; height: 65px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 15px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">
                     <div style="flex-grow: 1;">
                         <div style="font-weight: 800; font-size: 15px; color: var(--text-main); line-height: 1.2; margin-bottom: 4px;">${item.name}</div>
                         <div style="font-size: 16px; font-weight: 900; color: var(--primary); margin-bottom: 5px;">₹${item.price}</div>
@@ -10631,9 +10646,14 @@ window.showStudentProducts = function() {
     });
 };
 
-// WhatsApp মেসেজ পাঠানোর ফাংশন
+// 🟢 WhatsApp মেসেজ পাঠানোর ফাংশন (স্টুডেন্টের নাম সহ)
 window.sendProductQuery = function(itemName) {
     const teacherPhone = "917001471235"; // আপনার নম্বর
-    const msg = `Hello Sir,\n\nI want to buy the following product from the store:\n*${itemName}*\n\nPlease let me know the details.`;
+    const studentName = window.currentStudentName || "Student"; // স্টুডেন্টের নাম অটোমেটিক নিয়ে নেবে
+    
+    // মেসেজ টেমপ্লেট
+    const msg = `Hello Sir,\n\nI am *${studentName}*.\nI want to buy the following product from the store:\n*${itemName}*\n\nPlease let me know the details.`;
+    
+    // WhatsApp ওপেন করবে
     window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
