@@ -960,19 +960,32 @@ document.body.innerHTML = `
             <div class="scroller-box">${paidHtml}</div>
         </div></div>
 
-        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:12px 15px; display:flex; justify-content: space-between; gap:8px; box-shadow:0 -10px 30px rgba(0,0,0,0.1); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
-            <button onclick="document.getElementById('m-teacher').style.display='flex'" style="flex:1; height: 45px; background: var(--bg-input); border: 1px solid var(--border-color); border-radius: 12px; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-                <i class="fas fa-user-tie" style="font-size: 24px; color: var(--text-main);"></i>
-            </button>
-            <button onclick="showStudentPortalQR('${studentViewId}')" style="flex: 1.2; height: 45px; background: var(--primary); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(99,102,241,0.3); cursor: pointer;">
-                QR Code
-            </button>
-            <button onclick="showHelpOptions()" style="flex: 1.2; height: 45px; background: var(--info); color: #fff; border: none; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; box-shadow: 0 4px 10px rgba(59,130,246,0.3); cursor: pointer;">
-                Help
-            </button>
-            <button onclick="studentPortalLogout('${studentViewId}')" style="flex:1; height: 45px; background: var(--bg-card); color: var(--danger); border: 2px solid var(--danger); display: flex; align-items: center; justify-content: center; border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;">
-                Log Out
-            </button>
+        <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:10px 0; display:flex; justify-content: space-evenly; align-items: center; box-shadow:0 -5px 20px rgba(0,0,0,0.08); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
+            <!-- Profile -->
+            <div onclick="document.getElementById('m-profile').style.display='flex'" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--primary); flex: 1;">
+                <i class="fas fa-user" style="font-size:22px;"></i>
+                <span style="font-size:12px; font-weight:700;">Profile</span>
+            </div>
+            <!-- QR Code -->
+            <div onclick="showStudentPortalQR('${studentViewId}')" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--text-main); flex: 1;">
+                <i class="fas fa-qrcode" style="font-size:22px;"></i>
+                <span style="font-size:12px; font-weight:700;">QR Code</span>
+            </div>
+            <!-- Product (NEW) -->
+            <div onclick="window.showStudentProducts()" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--text-main); flex: 1;">
+                <i class="fas fa-shopping-bag" style="font-size:22px;"></i>
+                <span style="font-size:12px; font-weight:700;">Product</span>
+            </div>
+            <!-- Help -->
+            <div onclick="showHelpOptions()" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--text-main); flex: 1;">
+                <i class="fas fa-question-circle" style="font-size:22px;"></i>
+                <span style="font-size:12px; font-weight:700;">Help</span>
+            </div>
+            <!-- Log Out -->
+            <div onclick="studentPortalLogout('${studentViewId}')" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--danger); flex: 1;">
+                <i class="fas fa-sign-out-alt" style="font-size:22px;"></i>
+                <span style="font-size:12px; font-weight:700;">Log Out</span>
+            </div>
         </div>
     </div>
 `;
@@ -10571,4 +10584,56 @@ window.paySaleDue = async function(saleId) {
             }, 1000);
         }
     }
+};
+// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন
+window.showStudentProducts = function() {
+    let stockList = window.stockInventory || [];
+    
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left;">';
+    
+    if (stockList.length === 0) {
+        html += '<div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">No products are currently available in the store.</div>';
+    } else {
+        stockList.forEach(item => {
+            const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/60?text=📦';
+            const stockStatus = item.qty > 0 
+                ? `<span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #bbf7d0;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #fecaca;">Out of Stock</span>`;
+            
+            // Buy বাটনের ফাংশন (WhatsApp এ মেসেজ যাবে)
+            html += `
+                <div style="display:flex; align-items:center; background:var(--bg-input); border:1px solid var(--border-color); padding:12px; border-radius:12px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
+                    <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${item.name.replace(/'/g, "\\'")}')" style="width: 65px; height: 65px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 15px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">
+                    <div style="flex-grow: 1;">
+                        <div style="font-weight: 800; font-size: 15px; color: var(--text-main); line-height: 1.2; margin-bottom: 4px;">${item.name}</div>
+                        <div style="font-size: 16px; font-weight: 900; color: var(--primary); margin-bottom: 5px;">₹${item.price}</div>
+                        ${stockStatus}
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 3px 6px rgba(37,211,102,0.3); display: flex; align-items: center; gap: 5px;">
+                            <i class="fab fa-whatsapp" style="font-size:16px;"></i> Buy
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+
+    Swal.fire({
+        title: '<i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-body)',
+        width: '95%',
+        padding: '15px'
+    });
+};
+
+// WhatsApp মেসেজ পাঠানোর ফাংশন
+window.sendProductQuery = function(itemName) {
+    const teacherPhone = "917001471235"; // আপনার নম্বর
+    const msg = `Hello Sir,\n\nI want to buy the following product from the store:\n*${itemName}*\n\nPlease let me know the details.`;
+    window.open(`https://wa.me/${teacherPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
