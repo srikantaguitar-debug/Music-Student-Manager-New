@@ -881,41 +881,62 @@ document.body.innerHTML = `
             </div>
         </div>
 
-        <div id="m-teacher" class="modal-portal"><div class="modal-content-portal">
-            <div class="close-btn" onclick="document.getElementById('m-teacher').style.display='none'">&times;</div>
-            <h3 style="margin-top:5px; color:var(--text-main); font-size:18px; border-bottom:2px solid var(--border-color); padding-bottom:10px;">Teacher Details</h3>
-            <div style="text-align: center; padding: 15px 0;">
-                <div style="background:rgba(59, 130, 246, 0.1); width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--primary); font-size:30px; margin: 0 auto 15px auto;">
-                    <i class="fas fa-user-tie"></i>
-                </div>
-                <h2 style="margin: 0 0 5px 0; color: var(--text-main);">Srikanta Banerjee</h2>
-                <p style="margin: 0; color: var(--text-muted); font-size: 13px; font-weight: 600;">Owner & Instructor</p>
+        <!-- 🟢 Teacher Modal (Theme Adaptive & Matches the Picture Layout) -->
+        <div id="m-teacher" class="modal-portal">
+            <div class="modal-content-portal" style="padding: 25px 20px; border-radius: 24px; background: var(--bg-card); width: 90%; max-width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); box-sizing: border-box; border: 1px solid var(--border-color);">
                 
-                <div style="margin-top: 20px; text-align: left; font-size: 14px; color: var(--text-main); background: var(--bg-input); padding: 15px; border-radius: 12px; border: 1px dashed var(--border-color); line-height: 1.6;">
-                    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                        <i class="fas fa-map-marker-alt" style="color: #ef4444; font-size: 16px; margin-top: 3px;"></i> 
+                <!-- Header -->
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0; color: var(--text-main); font-size: 20px; font-weight: 900; font-family: 'Poppins', sans-serif;">Teacher Details</h3>
+                    <div onclick="document.getElementById('m-teacher').style.display='none'" style="background: var(--bg-input); color: var(--text-muted); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; border: 1px solid var(--border-color);">
+                        <i class="fas fa-times"></i>
+                    </div>
+                </div>
+                <!-- Theme Colored Separator Line -->
+                <div style="height: 3px; background: var(--primary); width: 100%; margin-bottom: 25px; border-radius: 2px; opacity: 0.4;"></div>
+
+                <!-- Profile Image / Icon -->
+                <div style="text-align: center;">
+                    <div style="background: var(--bg-input); width: 85px; height: 85px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 38px; margin: 0 auto 15px auto; border: 2px solid var(--border-color);">
+                        <i class="fas fa-user-tie"></i>
+                    </div>
+                    <h2 style="margin: 0 0 5px 0; color: var(--text-main); font-size: 22px; font-weight: 900; font-family: 'Poppins', sans-serif; letter-spacing: 0.5px;">Srikanta Banerjee</h2>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 14px; font-weight: 700;">Owner & Instructor</p>
+                </div>
+
+                <!-- Details Card -->
+                <div style="margin-top: 25px; background: var(--bg-body); padding: 20px; border-radius: 16px; border: 1px dashed var(--primary); text-align: left;">
+                    
+                    <!-- Address -->
+                    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px;">
+                        <i class="fas fa-map-marker-alt" style="color: var(--danger); font-size: 18px; margin-top: 2px; width: 22px; text-align: center;"></i> 
                         <div>
-                            <strong>Address:</strong><br>
-                            <span style="color: var(--text-muted);">Moyna, Nabagram,<br>Purba Bardhaman</span>
+                            <div style="font-weight: 900; color: var(--text-main); font-size: 15px; margin-bottom: 2px;">Address:</div>
+                            <div style="color: var(--text-muted); font-size: 15px; line-height: 1.5; font-weight: 500;">Moyna, Nabagram,<br>Purba Bardhaman</div>
                         </div>
                     </div>
-                    <div style="margin-bottom: 12px; display: flex; align-items: flex-start; gap: 10px;">
-                        <i class="fas fa-phone-alt" style="color: #10b981; font-size: 16px; margin-top: 3px;"></i> 
+
+                    <!-- Contact -->
+                    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px;">
+                        <i class="fas fa-phone-alt" style="color: var(--success); font-size: 18px; margin-top: 2px; width: 22px; text-align: center;"></i> 
                         <div>
-                            <strong>Contact:</strong><br>
-                            <span style="color: var(--text-muted);">7001471235 / 9475311199</span>
+                            <div style="font-weight: 900; color: var(--text-main); font-size: 15px; margin-bottom: 2px;">Contact:</div>
+                            <div style="color: var(--text-muted); font-size: 15px; font-weight: 500;">7001471235 / 9475311199</div>
                         </div>
                     </div>
-                    <div style="display: flex; align-items: flex-start; gap: 10px;">
-                        <i class="fas fa-music" style="color: var(--primary); font-size: 16px; margin-top: 3px;"></i> 
+
+                    <!-- Classes -->
+                    <div style="display: flex; align-items: flex-start; gap: 12px;">
+                        <i class="fas fa-music" style="color: var(--primary); font-size: 18px; margin-top: 2px; width: 22px; text-align: center;"></i> 
                         <div>
-                            <strong>Classes:</strong><br>
-                            <span style="color: var(--text-muted);">Guitar, Bass Guitar, Piano, Keyboard, Mandolin</span>
+                            <div style="font-weight: 900; color: var(--text-main); font-size: 15px; margin-bottom: 2px;">Classes:</div>
+                            <div style="color: var(--text-muted); font-size: 15px; line-height: 1.5; font-weight: 500;">Guitar, Bass Guitar, Piano,<br>Keyboard, Mandolin</div>
                         </div>
                     </div>
+
                 </div>
             </div>
-        </div></div>                   
+        </div>                   
         
         <div id="m-profile" class="modal-portal"><div class="modal-content-portal">
             <div class="close-btn" onclick="document.getElementById('m-profile').style.display='none'">&times;</div>
@@ -966,10 +987,10 @@ document.body.innerHTML = `
 
         <div style="position:fixed; bottom:0; left:0; width:100%; background:var(--bg-card); padding:10px 0; display:flex; justify-content: space-evenly; align-items: center; box-shadow:0 -5px 20px rgba(0,0,0,0.08); border-radius:24px 24px 0 0; box-sizing:border-box; z-index: 99999;">
             
-            <!-- Profile (Default Primary Color) -->
-            <div onclick="document.getElementById('m-profile').style.display='flex'" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--primary); flex: 1;">
-                <i class="fas fa-user" style="font-size:22px;"></i>
-                <span style="font-size:12px; font-weight:700;">Profile</span>
+            <!-- Teacher (Default Primary Color) -->
+            <div onclick="document.getElementById('m-teacher').style.display='flex'" style="display:flex; flex-direction:column; align-items:center; gap:5px; cursor:pointer; color: var(--primary); flex: 1;">
+                <i class="fas fa-user-tie" style="font-size:22px;"></i>
+                <span style="font-size:12px; font-weight:700;">Teacher</span>
             </div>
             
             <!-- QR Code (Deep Blue) -->
@@ -10596,11 +10617,12 @@ window.paySaleDue = async function(saleId) {
     }
 };
 
-// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন
+// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Compact & Mobile Fit)
 window.showStudentProducts = function() {
     let stockList = window.stockInventory || [];
     
-    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left;">';
+    // overflow-x: hidden দেওয়া হয়েছে যাতে ডানে-বাঁয়ে স্ক্রল না হয়ে যায়
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
     
     // যদি স্টকে কোনো প্রোডাক্ট না থাকে
     if (stockList.length === 0) {
@@ -10610,23 +10632,33 @@ window.showStudentProducts = function() {
                  </div>`;
     } else {
         stockList.forEach(item => {
-            const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/60?text=📦';
+            // 🟢 ম্যাজিক ফিক্স: ছবি থাকলে দেখাবে, না থাকলে কোডটাই বসবে না (সিম্পল লিস্টের মতো হবে)
+            let imageHtml = '';
+            if (item.photo && item.photo !== 'undefined') {
+                imageHtml = `<img src="${item.photo}" onclick="if(window.viewStockImage) window.viewStockImage('${item.photo}', '${item.name.replace(/'/g, "\\'")}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">`;
+            }
+
             const stockStatus = item.qty > 0 
-                ? `<span style="background: #dcfce7; color: #166534; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #bbf7d0;">In Stock</span>` 
-                : `<span style="background: #fee2e2; color: #991b1b; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: bold; border: 1px solid #fecaca;">Out of Stock</span>`;
+                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
             
-            // Buy বাটনের ফাংশন (WhatsApp এ মেসেজ যাবে)
+            // Buy বাটনের ফাংশন (Compact Design)
             html += `
-                <div style="display:flex; align-items:center; background:var(--bg-input); border:1px solid var(--border-color); padding:12px; border-radius:12px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-                    <img src="${photoSrc}" onclick="if(window.viewStockImage) window.viewStockImage('${item.photo || ''}', '${item.name.replace(/'/g, "\\'")}')" style="width: 65px; height: 65px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 15px; flex-shrink: 0; cursor:pointer;" title="Tap to zoom">
-                    <div style="flex-grow: 1;">
-                        <div style="font-weight: 800; font-size: 15px; color: var(--text-main); line-height: 1.2; margin-bottom: 4px;">${item.name}</div>
-                        <div style="font-size: 16px; font-weight: 900; color: var(--primary); margin-bottom: 5px;">₹${item.price}</div>
-                        ${stockStatus}
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box;">
+                    
+                    ${imageHtml}
+                    
+                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
+                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span style="font-size: 14px; font-weight: 900; color: var(--primary);">₹${item.price}</span>
+                            ${stockStatus}
+                        </div>
                     </div>
+                    
                     <div style="flex-shrink: 0;">
-                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 3px 6px rgba(37,211,102,0.3); display: flex; align-items: center; gap: 5px;">
-                            <i class="fab fa-whatsapp" style="font-size:16px;"></i> Buy
+                        <button onclick="window.sendProductQuery('${item.name.replace(/'/g, "\\'")}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
                         </button>
                     </div>
                 </div>
@@ -10636,13 +10668,13 @@ window.showStudentProducts = function() {
     html += '</div>';
 
     Swal.fire({
-        title: '<i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store',
+        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
         html: html,
         showConfirmButton: false,
         showCloseButton: true,
-        background: 'var(--bg-body)',
+        background: 'var(--bg-input)',
         width: '95%',
-        padding: '15px'
+        padding: '12px'
     });
 };
 
