@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(studentDoc.exists && mainDoc.exists) {
                             const s = studentDoc.data();
                             
-                            const pLogs = pLogDoc.exists ? pLogDoc.data().records : [];
+                            const pLogs = pLogDoc.exists ? (pLogDoc.data().records || []) : [];
                             const legacyLogs = s.practice_log || [];
                             s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
                             s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
@@ -606,7 +606,7 @@ if(totalDueAmountPortal > 0) {
                                 }
 
 // 🟢 NEW: Active/Inactive & Practice Permission Check for Portal
-const isStudentActive = isStudentCurrentlyActive(s);
+const isStudentActive = window.isStudentCurrentlyActive(s);
 const canLogPractice = s.allow_practice_log !== false; 
 
 let badgeHtml = '';
@@ -10935,7 +10935,7 @@ window.sendProductToPortal = async function(stockId) {
         }
 
         item.promoted = item.slider_access; // Keep legacy sync intact
-        await window.syncFullStockToFirebase(); window.stockInventory);
+        await window.syncFullStockToFirebase(); 
     }
 };
 // 🟢 NEW: Helper functions for Product Share UI
