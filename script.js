@@ -1,4 +1,4 @@
-        // --- 2. Firebase Config ---
+        // --- 2. Firebase Config student ---
         const firebaseConfig = {
             apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
             authDomain: "student-management-syste-6a036.firebaseapp.com",
@@ -10885,7 +10885,7 @@ window.sendProductToPortal = async function(stockId) {
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'Removed from portal!', showConfirmButton:false, timer:2000});
         }
 
-        item.promoted = item.slider_access; // Keep legacy a sync intact
+        item.promoted = item.slider_access; // Keep legacy sync intact
         if(typeof dbSet === 'function') dbSet('stockData', window.stockInventory);
     }
 };
