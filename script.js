@@ -243,12 +243,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা সাব-কালেকশন থেকে লোড করা হচ্ছে
 window.stockInventory = [];
-if (stockSnap && !stockSnap.empty) {
+if (typeof stockSnap !== 'undefined' && stockSnap && !stockSnap.empty) {
     stockSnap.forEach(doc => window.stockInventory.push(doc.data()));
-} else if (globalData.stockData) {
-    window.stockInventory = globalData.stockData; // Fallback for old data
+} else if (globalData && globalData.stockData) {
+    window.stockInventory = globalData.stockData; 
 }
-window.currentStudentName = s.name; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
+window.currentStudentName = s ? s.name : "Student";
                             
                             // 🟢 FIX: Merging proper data from the new sub-collections
                             const globalAtt = globalData.attendance || {};
