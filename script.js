@@ -248,7 +248,7 @@ if (typeof stockSnap !== 'undefined' && stockSnap && !stockSnap.empty) {
 } else if (globalData && globalData.stockData) {
     window.stockInventory = globalData.stockData; 
 }
-window.currentStudentName = s ? s.name : "Student";
+window.currentStudentName = s ? s.name : "Student"; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
                             
                             // 🟢 FIX: Merging proper data from the new sub-collections
                             const globalAtt = globalData.attendance || {};
@@ -9099,7 +9099,7 @@ window.showSalesDuesPopup = function() {
         padding: '15px'
     });
 };
-window.processSale = processSale;
+
 // 🟢 NEW: Smart Autocomplete for Cart Item Input
 document.addEventListener('DOMContentLoaded', () => {
     const itemNameInput = document.getElementById('itemName');
@@ -11027,4 +11027,4 @@ window.openProductDetailsPopup = function(name, price, photoUrl) {
     `;
 
     document.body.appendChild(overlay);
-};
+}
