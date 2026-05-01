@@ -362,9 +362,10 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                 // 🟢 NEW: Product Slider Logic for Student Portal (Updated)
 let portalProducts = window.stockInventory.filter(item => {
     if (item.qty <= 0) return false;
-    let access = item.slider_access !== undefined ? item.slider_access : item.promoted;
+    let access = item.slider_access !== undefined ? item.slider_access : (item.promoted || []);
     return access === 'ALL' || (Array.isArray(access) && access.includes(s.id));
 });
+// 🟢 জোর করে সব প্রোডাক্ট দেখানোর লাইনটি (Fallback) রিমুভ করা হয়েছে। এখন শেয়ার না করলে স্লাইডার হাইড থাকবে।
 
 let productSliderHtml = '';
 if (portalProducts.length > 0) {
@@ -8395,7 +8396,7 @@ window.renderStockTable = function() {
                                 <i class="fas fa-trash"></i>
                             </button>
                             <button onclick="window.sendProductToPortal(${item.id})" title="Send to Portal" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;">
-    <i class="fas fa-bullhorn"></i>
+    <i class="fas fa-paper-plane"></i>
 </button>
                         </div>
                     </div>
@@ -10717,7 +10718,8 @@ window.showStudentProducts = function() {
     sId = parseInt(sId);
 
     let stockList = (window.stockInventory || []).filter(item => {
-        let access = item.store_access !== undefined ? item.store_access : 'ALL';
+        // 🟢 ম্যাজিক ফিক্স: ডিফল্টভাবে কিছুই দেখাবে না ([]), যতক্ষণ না আপনি শেয়ার করছেন
+        let access = item.store_access !== undefined ? item.store_access : [];
         return access === 'ALL' || (Array.isArray(access) && access.includes(sId));
     });
     
@@ -10823,7 +10825,7 @@ window.sendProductToPortal = async function(stockId) {
                 <option value="SLIDER">🖼️ Show in Slider Only</option>
                 <option value="REMOVE" style="color:red; font-weight:bold;">🚫 Hide / Remove Product</option>
             </select>
-            <div style="font-size:10px; color:var(--text-muted); margin-top:10px; text-align:left;">* By default, new items are visible in the Store to All Students.</div>
+            <div style="font-size:10px; color:var(--danger); font-weight:bold; margin-top:10px; text-align:left;">* By default, new items remain HIDDEN until you share them.</div>
         `,
         showCancelButton: true,
         confirmButtonText: '<i class="fas fa-paper-plane"></i> Update Portal',
