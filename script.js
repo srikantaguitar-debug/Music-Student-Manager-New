@@ -10885,7 +10885,7 @@ window.sendProductToPortal = async function(stockId) {
             Swal.fire({toast:true, position:'top-end', icon:'success', title:'Removed from portal!', showConfirmButton:false, timer:2000});
         }
 
-        item.promoted = item.slider_access; // Keep legacy sync intact
+        item.promoted = item.slider_access; // Keep legacy a sync intact
         if(typeof dbSet === 'function') dbSet('stockData', window.stockInventory);
     }
 };
