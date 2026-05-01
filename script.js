@@ -1,4 +1,4 @@
-        // --- 2. Firebase Config student ---
+        // --- 2. Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
             authDomain: "student-management-syste-6a036.firebaseapp.com",
@@ -12,7 +12,7 @@
         const db = firebase.firestore();
 
         // --- 3. ENABLE OFFLINE PERSISTENCE (Fast & Offline) ---
-        // 🟢 স্টুডেন্ট পোর্টাল সহ পুরো অ্যাপে অফলাইন সাপোর্ট চালু করা হলো
+        // 🟢 স্টুডেন্ট পোর্টাল সহ পুরো অ্যাপে অফলাইন সাপোর্ট চালু করা হলো ok 
         db.enablePersistence({ synchronizeTabs: true }).catch((err) => console.log("Offline Persistence Error:", err));
 
         const COLLECTION_NAME = 'music_classes';
