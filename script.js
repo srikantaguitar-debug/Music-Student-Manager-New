@@ -202,12 +202,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const currentYear = new Date().getFullYear();
                         
                         // 🟢 FIX: Fetching Data correctly from Sub-collections
-                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
+                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap, stockSnap] = await Promise.all([
                             docRef.collection('students').doc(studentViewId).get(),
                             docRef.get(),
                             docRef.collection('practice_logs').doc(String(currentYear)).get(),
                             docRef.collection('attendance').get(),
-                            docRef.collection('fees').get()
+                            docRef.collection('fees').get(),
+                            docRef.collection('stock_items').get() // 🟢 NEW: Stock সাব-কালেকশন
                         ]);
 
                         if(studentDoc.exists && mainDoc.exists) {
@@ -240,8 +241,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                             
                             const globalData = mainDoc.data();
 
-// 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা লোড করা হচ্ছে
-window.stockInventory = globalData.stockData || [];
+// 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা সাব-কালেকশন থেকে লোড করা হচ্ছে
+window.stockInventory = [];
+if (stockSnap && !stockSnap.empty) {
+    stockSnap.forEach(doc => window.stockInventory.push(doc.data()));
+} else if (globalData.stockData) {
+    window.stockInventory = globalData.stockData; // Fallback for old data
+}
 window.currentStudentName = s.name; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
                             
                             // 🟢 FIX: Merging proper data from the new sub-collections
@@ -1347,6 +1353,33 @@ window.fetchPracticeLogs = async function() {
     }
 };
 
+// 🟢 NEW: Stock Sub-collection Sync Function
+window.syncFullStockToFirebase = async function() {
+    const user = firebase.auth().currentUser;
+    const targetUid = new URLSearchParams(window.location.search).get('manager') || (user ? user.uid : DOC_ID);
+    if (!targetUid) return;
+
+    try {
+        const stockRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('stock_items');
+        const snap = await stockRef.get();
+        let batch = db.batch();
+        let count = 0;
+
+        // আগে সাব-কালেকশনে থাকা পুরনো আইটেম ডিলিট করা হচ্ছে
+        snap.forEach(doc => { batch.delete(doc.ref); count++; });
+
+        // এবার লোকাল মেমরি থেকে নতুন আইটেমগুলো সাব-কালেকশনে সেভ করা হচ্ছে
+        window.stockInventory.forEach(item => {
+            const ref = stockRef.doc(String(item.id));
+            batch.set(ref, item);
+            count++;
+        });
+
+        if(count > 0) await batch.commit();
+    } catch(e) {
+        console.log("Stock Sync Error:", e);
+    }
+};
 async function initApp() { 
     await window.fetchPracticeLogs();
     await window.fetchSalesData();
@@ -1389,16 +1422,32 @@ async function initApp() {
                 }
 
                 // প্রথমে পুরনো ডেটা ফেচ করা হচ্ছে মাইগ্রেশনের জন্য
-                const [aDataOld, fDataOld, rData, scData, gmData, sData] = await Promise.all([
+                const user = firebase.auth().currentUser;
+                const targetUidInit = new URLSearchParams(window.location.search).get('manager') || (user ? user.uid : DOC_ID);
+                
+                const [aDataOld, fDataOld, rData, scData, gmData, sDataOld, stockSnapInit] = await Promise.all([
                     dbGet('attendance'),
                     dbGet('fees'),
                     dbGet('reminders'),
                     dbGet('studentSerialCounter'),
                     dbGet('globalMaterials'),
-                    dbGet('stockData')
+                    dbGet('stockData'),
+                    db.collection(COLLECTION_NAME).doc(targetUidInit).collection('stock_items').get()
                 ]);
 
                 students = loadedStudents || []; 
+
+                // 🟢 Stock Migration Logic
+                window.stockInventory = [];
+                if (stockSnapInit && !stockSnapInit.empty) {
+                    stockSnapInit.forEach(doc => window.stockInventory.push(doc.data()));
+                } else if (sDataOld && sDataOld.length > 0) {
+                    window.stockInventory = sDataOld;
+                    if (user && !new URLSearchParams(window.location.search).get('manager')) {
+                        await window.syncFullStockToFirebase();
+                        await dbDelete('stockData'); // পুরনো মেইন ফিল্ড মুছে ফেলা হলো
+                    }
+                } 
                 
                 // 🟢 Manager-এর জন্য গ্লোবাল প্র্যাকটিস লগ সিঙ্ক (Two-way Sync for Leaderboard Fix)
                 let needsPlogSync = false;
@@ -2382,7 +2431,7 @@ async function importData(event) {
                 }).catch(e => console.log(e));
                 dbSet('reminders', reminders).catch(console.error);
                 dbSet('globalMaterials', globalMaterials).catch(console.error); 
-                dbSet('stockData', window.stockInventory).catch(console.error); // 🟢 Stock ফায়ারবেসে সেভ
+                await window.syncFullStockToFirebase(); // 🟢 Stock সাব-কালেকশনে সেভ
                 
                 const currentYear = document.getElementById('salesYearFilter')?.value || new Date().getFullYear();
                 window.syncSalesToFirebase(currentYear); // 🟢 Sales ফায়ারবেসে সেভ
@@ -8302,7 +8351,7 @@ window.addStockItem = async function() {
     window.renderStockTable();
     window.renderInventoryDropdown();
     
-    await dbSet('stockData', window.stockInventory);
+    await window.syncFullStockToFirebase();
     Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
 };
 
@@ -8419,7 +8468,7 @@ window.deleteStockItem = async function(id) {
             window.stockInventory = window.stockInventory.filter(i => i.id !== id);
             window.renderStockTable();
             window.renderInventoryDropdown();
-            await dbSet('stockData', window.stockInventory);
+            await window.syncFullStockToFirebase();
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
         }
     });
@@ -8654,7 +8703,7 @@ window.processSale = function() {
         
         if (stockUpdated) {
             window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
-            dbSet('stockData', window.stockInventory).catch(e=>{}); 
+            window.syncFullStockToFirebase(); 
             window.renderStockTable(); 
             window.renderInventoryDropdown();
         }
@@ -10886,7 +10935,7 @@ window.sendProductToPortal = async function(stockId) {
         }
 
         item.promoted = item.slider_access; // Keep legacy sync intact
-        if(typeof dbSet === 'function') dbSet('stockData', window.stockInventory);
+        await window.syncFullStockToFirebase(); window.stockInventory);
     }
 };
 // 🟢 NEW: Helper functions for Product Share UI
