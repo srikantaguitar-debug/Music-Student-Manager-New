@@ -202,12 +202,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const currentYear = new Date().getFullYear();
                         
                         // 🟢 FIX: Fetching Data correctly from Sub-collections
-                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
+                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap, stockSnap] = await Promise.all([
                             docRef.collection('students').doc(studentViewId).get(),
                             docRef.get(),
                             docRef.collection('practice_logs').doc(String(currentYear)).get(),
                             docRef.collection('attendance').get(),
                             docRef.collection('fees').get()
+                            docRef.collection('stock_inventory').get()
                         ]);
 
                         if(studentDoc.exists && mainDoc.exists) {
@@ -241,7 +242,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                             const globalData = mainDoc.data();
 
 // 🟢 ম্যাজিক ফিক্স: স্টুডেন্ট পোর্টালে স্টোরের প্রোডাক্ট ডেটা লোড করা হচ্ছে
-window.stockInventory = globalData.stockData || [];
+window.stockInventory = [];
+if (stockSnap && !stockSnap.empty) {
+    stockSnap.forEach(doc => window.stockInventory.push(doc.data()));
+}
 window.currentStudentName = s.name; // WhatsApp মেসেজে স্টুডেন্টের নাম পাঠানোর জন্য
                             
                             // 🟢 FIX: Merging proper data from the new sub-collections
@@ -1388,6 +1392,14 @@ async function initApp() {
                     }
                 }
 
+                const user = firebase.auth().currentUser;
+                const targetUid = new URLSearchParams(window.location.search).get('manager') || (user ? user.uid : DOC_ID);
+
+                // 🟢 NEW: স্টক সাব-কালেকশন থেকে লোড করা
+                const stockSnap = await db.collection(COLLECTION_NAME).doc(targetUid).collection('stock_inventory').get();
+                let loadedStock = [];
+                stockSnap.forEach(doc => loadedStock.push(doc.data()));
+
                 // প্রথমে পুরনো ডেটা ফেচ করা হচ্ছে মাইগ্রেশনের জন্য
                 const [aDataOld, fDataOld, rData, scData, gmData, sData] = await Promise.all([
                     dbGet('attendance'),
@@ -1398,7 +1410,22 @@ async function initApp() {
                     dbGet('stockData')
                 ]);
 
-                students = loadedStudents || []; 
+                // 🟢 Auto-Migration: পুরানো Array থেকে Sub-collection এ পাঠানো
+                if (loadedStock.length === 0 && sData && sData.length > 0) {
+                    console.log("Migrating Stock to Sub-collection...");
+                    loadedStock = sData;
+                    let stockBatch = db.batch();
+                    loadedStock.forEach(item => {
+                        let ref = db.collection(COLLECTION_NAME).doc(targetUid).collection('stock_inventory').doc(String(item.id));
+                        stockBatch.set(ref, item);
+                    });
+                    await stockBatch.commit();
+                    if(user && !new URLSearchParams(window.location.search).get('manager')) {
+                        db.collection(COLLECTION_NAME).doc(user.uid).update({ stockData: firebase.firestore.FieldValue.delete() });
+                    }
+                }
+
+                students = loadedStudents || [];
                 
                 // 🟢 Manager-এর জন্য গ্লোবাল প্র্যাকটিস লগ সিঙ্ক (Two-way Sync for Leaderboard Fix)
                 let needsPlogSync = false;
@@ -1468,7 +1495,7 @@ async function initApp() {
                 }
 
                 reminders = rData || []; 
-                window.stockInventory = sData || [];
+                window.stockInventory = loadedStock || [];
                 window.renderInventoryDropdown();
                 globalMaterials = gmData || [];
                 studentSerialCounter = parseInt(scData) || (students.length > 0 ? students.length + 1 : 1); 
@@ -2382,7 +2409,16 @@ async function importData(event) {
                 }).catch(e => console.log(e));
                 dbSet('reminders', reminders).catch(console.error);
                 dbSet('globalMaterials', globalMaterials).catch(console.error); 
-                dbSet('stockData', window.stockInventory).catch(console.error); // 🟢 Stock ফায়ারবেসে সেভ
+                document.getElementById('restore-status').innerText = "Uploading stock inventory...";
+                let stockBatch = db.batch();
+                let stockCount = 0;
+                for (const item of window.stockInventory) {
+                    const ref = db.collection(COLLECTION_NAME).doc(user.uid).collection('stock_inventory').doc(String(item.id));
+                    stockBatch.set(ref, item);
+                    stockCount++;
+                    if(stockCount >= 400) { await stockBatch.commit(); stockBatch = db.batch(); stockCount = 0; }
+                }
+                if(stockCount > 0) await stockBatch.commit();
                 
                 const currentYear = document.getElementById('salesYearFilter')?.value || new Date().getFullYear();
                 window.syncSalesToFirebase(currentYear); // 🟢 Sales ফায়ারবেসে সেভ
@@ -8302,7 +8338,17 @@ window.addStockItem = async function() {
     window.renderStockTable();
     window.renderInventoryDropdown();
     
-    await dbSet('stockData', window.stockInventory);
+    // 🟢 নির্দিষ্ট আইডি ধরে সাব-কালেকশনে সেভ
+    const user = firebase.auth().currentUser;
+    if (user) {
+        let targetItem = editId 
+            ? window.stockInventory.find(i => String(i.id) === String(editId))
+            : window.stockInventory.find(i => i.name.toLowerCase() === name.toLowerCase());
+        
+        if (targetItem) {
+            db.collection(COLLECTION_NAME).doc(user.uid).collection('stock_inventory').doc(String(targetItem.id)).set(targetItem, { merge: true });
+        }
+    }
     Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
 };
 
@@ -8419,7 +8465,10 @@ window.deleteStockItem = async function(id) {
             window.stockInventory = window.stockInventory.filter(i => i.id !== id);
             window.renderStockTable();
             window.renderInventoryDropdown();
-            await dbSet('stockData', window.stockInventory);
+            const user = firebase.auth().currentUser;
+            if (user) {
+                db.collection(COLLECTION_NAME).doc(user.uid).collection('stock_inventory').doc(String(id)).delete().catch(e => console.error(e));
+            }
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
         }
     });
@@ -8654,7 +8703,22 @@ window.processSale = function() {
         
         if (stockUpdated) {
             window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
-            dbSet('stockData', window.stockInventory).catch(e=>{}); 
+            const user = firebase.auth().currentUser;
+            if (user) {
+                let batch = db.batch();
+                window.saleCart.forEach(cartItem => {
+                    const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === cartItem.name.toLowerCase());
+                    if (stockItem) {
+                        let ref = db.collection(COLLECTION_NAME).doc(user.uid).collection('stock_inventory').doc(String(stockItem.id));
+                        if (stockItem.qty <= 0) {
+                            batch.delete(ref);
+                        } else {
+                            batch.update(ref, { qty: stockItem.qty });
+                        }
+                    }
+                });
+                batch.commit().catch(e => console.log(e));
+            } 
             window.renderStockTable(); 
             window.renderInventoryDropdown();
         }
@@ -10886,7 +10950,14 @@ window.sendProductToPortal = async function(stockId) {
         }
 
         item.promoted = item.slider_access; // Keep legacy a sync intact
-        if(typeof dbSet === 'function') dbSet('stockData', window.stockInventory);
+        const user = firebase.auth().currentUser;
+        if (user) {
+            db.collection(COLLECTION_NAME).doc(user.uid).collection('stock_inventory').doc(String(item.id)).update({
+                store_access: item.store_access,
+                slider_access: item.slider_access,
+                promoted: item.promoted
+            }).catch(e => console.log("Background sync pending"));
+        }
     }
 };
 // 🟢 NEW: Helper functions for Product Share UI
