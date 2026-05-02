@@ -10774,57 +10774,70 @@ window.handleStockImageSelection = function(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
 
-    Swal.fire({ title: 'Processing Images...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    // 🟢 লিমিট চেক
+    const MAX_IMAGES = 5;
+    if (window.currentStockImages.length + files.length > MAX_IMAGES) {
+        Swal.fire('Warning', `Maximum ${MAX_IMAGES} images allowed.`, 'warning');
+        input.value = '';
+        return;
+    }
 
-    let processedCount = 0;
-    const totalFiles = files.length; // 🟢 Safe count
+    // 🟢 লোডিং শুরু
+    Swal.fire({ title: 'Processing...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-    const checkDone = () => {
-        processedCount++;
-        if (processedCount === totalFiles) {
+    let processed = 0;
+    
+    // 🟢 ম্যাজিক ফিক্স (FAILSAFE): ৫ সেকেন্ড পর অটোমেটিক লোডিং বন্ধ হয়ে যাবে! আর কখনোই স্ক্রিন আটকে থাকবে না।
+    let failSafeTimer = setTimeout(() => {
+        Swal.close();
+        window.renderTempStockImages();
+        input.value = '';
+    }, 5000);
+
+    const completeOne = () => {
+        processed++;
+        if (processed === files.length) {
+            clearTimeout(failSafeTimer); // কাজ সফল হলে ৫ সেকেন্ডের টাইমার বন্ধ করে দেবে
             window.renderTempStockImages();
             Swal.close();
-            input.value = ''; // 🟢 FIX: ছবি পুরোপুরি প্রসেস হওয়ার পরেই ইনপুট ক্লিন হবে
+            input.value = '';
         }
     };
 
-    for(let i=0; i<totalFiles; i++) {
-        let file = files[i];
-        let reader = new FileReader();
-        
-        reader.onload = function(e) {
-            let img = new Image();
-            
-            img.onload = function() {
-                let canvas = document.createElement('canvas');
-                let ctx = canvas.getContext('2d');
-                
-                let maxWidth = 300; 
-                let scaleSize = maxWidth / img.width;
-                if(scaleSize > 1) scaleSize = 1; 
-                
-                canvas.width = img.width * scaleSize;
-                canvas.height = img.height * scaleSize;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                window.currentStockImages.push(canvas.toDataURL('image/jpeg', 0.4));
-                checkDone();
+    for (let i = 0; i < files.length; i++) {
+        try {
+            let file = files[i];
+            let reader = new FileReader();
+            reader.onload = function(e) {
+                let img = new Image();
+                img.onload = function() {
+                    try {
+                        let canvas = document.createElement('canvas');
+                        let ctx = canvas.getContext('2d');
+                        
+                        let scale = 300 / img.width;
+                        if (scale > 1) scale = 1;
+                        
+                        canvas.width = img.width * scale;
+                        canvas.height = img.height * scale;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        window.currentStockImages.push(canvas.toDataURL('image/jpeg', 0.4));
+                        completeOne();
+                    } catch (err) {
+                        // 🟢 ক্যানভাস ক্র্যাশ করলে অরিজিনাল ছবিটাই নিয়ে নেবে
+                        window.currentStockImages.push(e.target.result);
+                        completeOne();
+                    }
+                };
+                img.onerror = completeOne; // ছবিতে সমস্যা থাকলে স্কিপ করবে
+                img.src = e.target.result;
             };
-            
-            // 🟢 FIX: কোনো কারণে ছবি সাপোর্ট না করলে বা এরর দিলে লোডিং আটকে থাকবে না
-            img.onerror = function() {
-                console.error("Error loading one of the images");
-                checkDone();
-            };
-            
-            img.src = e.target.result;
-        };
-        
-        reader.onerror = function() {
-            checkDone();
-        };
-        
-        reader.readAsDataURL(file);
+            reader.onerror = completeOne; // রিড করতে না পারলে স্কিপ করবে
+            reader.readAsDataURL(file);
+        } catch (err) {
+            completeOne();
+        }
     }
 };
 
