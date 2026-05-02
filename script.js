@@ -10777,12 +10777,24 @@ window.handleStockImageSelection = function(input) {
     Swal.fire({ title: 'Processing Images...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
     let processedCount = 0;
+    const totalFiles = files.length; // 🟢 Safe count
 
-    for(let i=0; i<files.length; i++) {
+    const checkDone = () => {
+        processedCount++;
+        if (processedCount === totalFiles) {
+            window.renderTempStockImages();
+            Swal.close();
+            input.value = ''; // 🟢 FIX: ছবি পুরোপুরি প্রসেস হওয়ার পরেই ইনপুট ক্লিন হবে
+        }
+    };
+
+    for(let i=0; i<totalFiles; i++) {
         let file = files[i];
         let reader = new FileReader();
+        
         reader.onload = function(e) {
             let img = new Image();
+            
             img.onload = function() {
                 let canvas = document.createElement('canvas');
                 let ctx = canvas.getContext('2d');
@@ -10796,18 +10808,24 @@ window.handleStockImageSelection = function(input) {
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
                 window.currentStockImages.push(canvas.toDataURL('image/jpeg', 0.4));
-                
-                processedCount++;
-                if (processedCount === files.length) {
-                    window.renderTempStockImages();
-                    Swal.close();
-                }
+                checkDone();
             };
+            
+            // 🟢 FIX: কোনো কারণে ছবি সাপোর্ট না করলে বা এরর দিলে লোডিং আটকে থাকবে না
+            img.onerror = function() {
+                console.error("Error loading one of the images");
+                checkDone();
+            };
+            
             img.src = e.target.result;
         };
+        
+        reader.onerror = function() {
+            checkDone();
+        };
+        
         reader.readAsDataURL(file);
     }
-    input.value = ''; 
 };
 
 window.renderTempStockImages = function() {
