@@ -10701,12 +10701,11 @@ window.selectPromoTarget = function(targetId, divElement) {
     divElement.style.borderColor = 'var(--primary)';
 };
 // =========================================================================
-// 🟢 MULTIPLE PRODUCT IMAGES UPDATE (JUST PASTE AT THE BOTTOM) 🟢
+// 🟢 UNLIMITED MULTIPLE PRODUCT IMAGES UPDATE 🟢
 // =========================================================================
 
-window.currentStockImages = []; // Array to hold multiple images
+window.currentStockImages = [];
 
-// 1. Updated Stock Modal UI for Multiple Images
 window.openStockModal = function() {
     const nameInput = document.getElementById('newStockName');
     if (!document.getElementById('stockImageInput')) {
@@ -10722,18 +10721,15 @@ window.openStockModal = function() {
             </div>
             
             <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); text-align: left;">Product Images (Add Multiple)</label>
+                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); text-align: left;">Product Images (Unlimited)</label>
                 
-                <!-- Horizontal scrollable container for images -->
-                <div id="stockImagesPreviewContainer" style="display:flex; overflow-x:auto; gap:10px; padding-bottom:5px;">
-                    <!-- Add Button -->
+                <div id="stockImagesPreviewContainer" style="display:flex; overflow-x:auto; gap:10px; padding-bottom:5px; align-items: center;">
                     <div style="position:relative; width:60px; height:60px; border:2px dashed #cbd5e1; border-radius:8px; display:flex; justify-content:center; align-items:center; cursor:pointer; flex-shrink:0; background: var(--bg-body);" onclick="document.getElementById('stockImageInput').click()" title="Add Photos">
                         <i class="fas fa-plus" style="color:var(--primary); font-size:20px;"></i>
                     </div>
                 </div>
             </div>
             
-            <!-- Hidden file input with 'multiple' attribute -->
             <input type="file" id="stockImageInput" accept="image/*" multiple style="display:none;" onchange="window.handleStockImageSelection(this)">
             
             <div style="display: flex; gap: 8px; width: 100%;">
@@ -10774,10 +10770,13 @@ window.openStockModal = function() {
     document.getElementById('stockModal').style.display = 'flex';
 };
 
-// 2. Handle Multiple Image Selection & Compression
 window.handleStockImageSelection = function(input) {
     const files = input.files;
     if (!files || files.length === 0) return;
+
+    Swal.fire({ title: 'Processing Images...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    let processedCount = 0;
 
     for(let i=0; i<files.length; i++) {
         let file = files[i];
@@ -10787,29 +10786,36 @@ window.handleStockImageSelection = function(input) {
             img.onload = function() {
                 let canvas = document.createElement('canvas');
                 let ctx = canvas.getContext('2d');
-                let maxWidth = 400; 
+                
+                let maxWidth = 300; 
                 let scaleSize = maxWidth / img.width;
-                if(scaleSize > 1) scaleSize = 1;
+                if(scaleSize > 1) scaleSize = 1; 
+                
                 canvas.width = img.width * scaleSize;
                 canvas.height = img.height * scaleSize;
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                window.currentStockImages.push(canvas.toDataURL('image/jpeg', 0.6));
-                window.renderTempStockImages();
+                
+                window.currentStockImages.push(canvas.toDataURL('image/jpeg', 0.4));
+                
+                processedCount++;
+                if (processedCount === files.length) {
+                    window.renderTempStockImages();
+                    Swal.close();
+                }
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
-    input.value = ''; // Reset input
+    input.value = ''; 
 };
 
-// 3. Render Image Previews inside Add/Edit Modal
 window.renderTempStockImages = function() {
     const container = document.getElementById('stockImagesPreviewContainer');
     if(!container) return;
     
     let html = `
-        <div style="position:relative; width:60px; height:60px; border:2px dashed #cbd5e1; border-radius:8px; display:flex; justify-content:center; align-items:center; cursor:pointer; flex-shrink:0; background: var(--bg-body);" onclick="document.getElementById('stockImageInput').click()" title="Add Photo">
+        <div style="position:relative; width:60px; height:60px; border:2px dashed #cbd5e1; border-radius:8px; display:flex; justify-content:center; align-items:center; cursor:pointer; flex-shrink:0; background: var(--bg-body);" onclick="document.getElementById('stockImageInput').click()" title="Add Photos">
             <i class="fas fa-plus" style="color:var(--primary); font-size:20px;"></i>
         </div>
     `;
@@ -10830,7 +10836,6 @@ window.removeTempStockImage = function(index) {
     window.renderTempStockImages();
 };
 
-// 4. Save Item with Array of Images
 window.addStockItem = async function() {
     const name = document.getElementById('newStockName').value.trim();
     const buyPrice = parseFloat(document.getElementById('newStockBuyPrice').value) || 0; 
@@ -10845,33 +10850,40 @@ window.addStockItem = async function() {
 
     if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
 
-    if (editId) {
-        const index = window.stockInventory.findIndex(i => String(i.id) === String(editId));
-        if (index > -1) {
-            window.stockInventory[index] = { ...window.stockInventory[index], name, price, buyPrice, qty, photos: photosArray, photo: primaryPhoto };
-        }
-    } else {
-        const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-        if (existingIndex > -1) {
-            window.stockInventory[existingIndex].price = price;
-            window.stockInventory[existingIndex].buyPrice = buyPrice;
-            window.stockInventory[existingIndex].qty += qty;
-            window.stockInventory[existingIndex].photos = photosArray;
-            window.stockInventory[existingIndex].photo = primaryPhoto;
-        } else {
-            window.stockInventory.push({ id: Date.now(), name, price, buyPrice, qty, photos: photosArray, photo: primaryPhoto });
-        }
-    }
+    Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-    document.getElementById('stockModal').style.display = 'none';
-    window.renderStockTable();
-    window.renderInventoryDropdown();
-    
-    await dbSet('stockData', window.stockInventory);
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
+    try {
+        if (editId) {
+            const index = window.stockInventory.findIndex(i => String(i.id) === String(editId));
+            if (index > -1) {
+                window.stockInventory[index] = { ...window.stockInventory[index], name, price, buyPrice, qty, photos: photosArray, photo: primaryPhoto };
+            }
+        } else {
+            const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+            if (existingIndex > -1) {
+                window.stockInventory[existingIndex].price = price;
+                window.stockInventory[existingIndex].buyPrice = buyPrice;
+                window.stockInventory[existingIndex].qty += qty;
+                window.stockInventory[existingIndex].photos = photosArray;
+                window.stockInventory[existingIndex].photo = primaryPhoto;
+            } else {
+                window.stockInventory.push({ id: Date.now(), name, price, buyPrice, qty, photos: photosArray, photo: primaryPhoto });
+            }
+        }
+
+        await dbSet('stockData', window.stockInventory);
+        
+        document.getElementById('stockModal').style.display = 'none';
+        window.renderStockTable();
+        window.renderInventoryDropdown();
+        
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
+    } catch(err) {
+        console.error(err);
+        Swal.fire('Error', 'Failed to save due to Firebase size limit. Please use fewer images next time.', 'error');
+    }
 };
 
-// 5. Edit Item Modal Loader
 window.editStockItem = function(id) {
     const item = window.stockInventory.find(i => String(i.id) === String(id));
     if (!item) return;
@@ -10886,7 +10898,6 @@ window.editStockItem = function(id) {
     document.getElementById('newStockPrice').value = item.price;
     document.getElementById('newStockQty').value = item.qty;
     
-    // Load existing images array
     if(item.photos && item.photos.length > 0) {
         window.currentStockImages = [...item.photos];
     } else if (item.photo) {
@@ -10908,7 +10919,6 @@ window.editStockItem = function(id) {
     document.getElementById('stockModal').style.display = 'flex';
 };
 
-// Helper: Build CSS Scroll Slider HTML
 window.buildPhotosSliderHtml = function(photos, height, objectFit) {
     if(!photos || photos.length === 0) return `<div style="width: 100%; height: ${height}; background: #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;"><i class="fas fa-box-open" style="font-size: 50px; color: #94a3b8;"></i></div>`;
     
@@ -10925,7 +10935,6 @@ window.buildPhotosSliderHtml = function(photos, height, objectFit) {
     return html;
 };
 
-// 6. Update Product Details Popup (For Student Portal)
 window.openProductDetailsPopup = function(name, price, photoUrl) {
     let existingOverlay = document.getElementById('customProductDetailOverlay');
     if (existingOverlay) document.body.removeChild(existingOverlay);
@@ -10934,7 +10943,7 @@ window.openProductDetailsPopup = function(name, price, photoUrl) {
     overlay.id = 'customProductDetailOverlay';
     overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.85); z-index:2000005; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease; padding: 20px; box-sizing: border-box;';
 
-    const safeName = name.replace(/\\'/g, "'"); // Unescape to find in inventory
+    const safeName = name.replace(/\\'/g, "'"); 
     const item = window.stockInventory.find(i => i.name === safeName);
     let photosToSlide = [];
     if(item && item.photos && item.photos.length > 0) photosToSlide = item.photos;
@@ -10960,7 +10969,6 @@ window.openProductDetailsPopup = function(name, price, photoUrl) {
     document.body.appendChild(overlay);
 };
 
-// 7. Update Zoom Product Image (Full Screen Slider)
 window.zoomProductImage = function(photoUrl, name) {
     if (!photoUrl || photoUrl === 'undefined') return;
     
@@ -10997,7 +11005,6 @@ window.zoomProductImage = function(photoUrl, name) {
     document.body.appendChild(overlay);
 };
 
-// 8. Update Admin Panel View Image
 window.viewStockImage = function(photoUrl, name) {
     window.zoomProductImage(photoUrl, name);
 };
