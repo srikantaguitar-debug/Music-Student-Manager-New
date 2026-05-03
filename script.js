@@ -359,13 +359,12 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                         </div>
                     `;
                 }
-                // 🟢 NEW: Product Slider Logic for Student Portal (Updated)
+// 🟢 NEW: Product Slider Logic for Student Portal (Updated)
 let portalProducts = window.stockInventory.filter(item => {
     if (item.qty <= 0) return false;
     let access = item.slider_access !== undefined ? item.slider_access : (item.promoted || []);
     return access === 'ALL' || (Array.isArray(access) && access.includes(s.id));
 });
-// 🟢 জোর করে সব প্রোডাক্ট দেখানোর লাইনটি (Fallback) রিমুভ করা হয়েছে। এখন শেয়ার না করলে স্লাইডার হাইড থাকবে।
 
 let productSliderHtml = '';
 if (portalProducts.length > 0) {
@@ -380,6 +379,24 @@ if (portalProducts.length > 0) {
             imageHtml = `<img src="${p.photo}" style="width: 70px; height: 70px; border-radius: 12px; object-fit: cover; border: 2px solid var(--primary); box-shadow: 0 4px 8px rgba(0,0,0,0.1); cursor: zoom-in;" onclick="event.stopPropagation(); window.zoomProductImage('${p.photo}', '${safeName}')">`;
         }
         
+        // 🟢 Discount Calculation for Slider (One Line)
+        let priceHtml = '';
+        let validMrp = parseFloat(p.mrp);
+        let validPrice = parseFloat(p.price);
+        
+        if (!validMrp || validMrp <= validPrice) {
+            priceHtml = `<div style="font-size: 16px; font-weight: 900; color: var(--success);">₹${validPrice}</div>`;
+        } else {
+            const discount = Math.round(((validMrp - validPrice) / validMrp) * 100);
+            priceHtml = `
+                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 4px;">
+                    <span style="color: #16a34a; font-weight: 900; font-size: 14px; display:flex; align-items:center; gap:2px;"><i class="fas fa-arrow-down"></i>${discount}%</span>
+                    <span style="color: #64748b; text-decoration: line-through; font-size: 14px; font-weight: 600;">₹${validMrp}</span>
+                    <span style="font-size: 16px; font-weight: 900; color: var(--text-main);">₹${validPrice}</span>
+                </div>
+            `;
+        }
+        
         let displayStyle = index === 0 ? 'flex' : 'none'; 
         return `
         <div class="portal-product-slide" id="prod-slide-${index}" style="display: ${displayStyle}; align-items: center; justify-content: space-between; gap: 15px; animation: slideInRight 0.5s ease-out; cursor: pointer;" onclick="event.stopPropagation(); window.openProductDetailsPopup('${safeName}', '${p.price}', '${p.photo}')">
@@ -387,7 +404,7 @@ if (portalProducts.length > 0) {
             <div style="flex: 1; text-align: left;">
                 <div style="font-size: 10px; color: var(--primary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2px;"><i class="fas fa-bolt fa-fade" style="color:#f59e0b;"></i> Recommended</div>
                 <div style="font-size: 14px; font-weight: bold; color: var(--text-main); line-height: 1.2; margin-bottom: 4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${p.name}</div>
-                <div style="font-size: 16px; font-weight: 900; color: var(--success);">₹${p.price}</div>
+                ${priceHtml}
             </div>
             <div>
                 <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 10px 15px; border-radius: 10px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(16,185,129,0.3);"><i class="fas fa-shopping-cart"></i> Buy</button>
@@ -403,6 +420,71 @@ if (portalProducts.length > 0) {
         ${slidesHtml}
     </div>`;
 }
+
+// 6. Display Store Products with Discounts
+window.showStudentProducts = function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let sId = urlParams.get('student') || localStorage.getItem('saved_student_id');
+    sId = parseInt(sId);
+
+    let stockList = (window.stockInventory || []).filter(item => {
+        let access = item.store_access !== undefined ? item.store_access : [];
+        return access === 'ALL' || (Array.isArray(access) && access.includes(sId));
+    });
+    
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
+    
+    if (stockList.length === 0) {
+        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
+                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
+                    No products are currently available for you in the store.
+                 </div>`;
+    } else {
+        stockList.forEach(item => {
+            const safeName = item.name.replace(/'/g, "\\'");
+            let imageHtml = '';
+            if (item.photo && item.photo !== 'undefined' && item.photo.trim() !== '') {
+                imageHtml = `<img src="${item.photo}" onclick="event.stopPropagation(); window.zoomProductImage('${item.photo}', '${safeName}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:zoom-in;" title="Tap to zoom">`;
+            }
+
+            const stockStatus = item.qty > 0 
+                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
+            
+            // 🟢 Get the formatted price display
+            let priceHtml = window.getPriceDisplayHtml(item.price, item.mrp, false);
+
+            html += `
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; cursor:pointer;" onclick="window.openProductDetailsPopup('${safeName}', '${item.price}', '${item.photo}')">
+                    ${imageHtml}
+                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
+                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            ${priceHtml}
+                            ${stockStatus}
+                        </div>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+
+    Swal.fire({
+        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-input)',
+        width: '95%',
+        padding: '12px'
+    });
+};
                                 // ১. Personal Notice
                                 let noticeHtml = '';
                                 if (s.personal_notice && s.personal_notice.trim() !== '') {
@@ -11004,70 +11086,7 @@ window.renderStockTable = function() {
     });
 };
 
-// 6. Display Store Products with Discounts
-window.showStudentProducts = function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let sId = urlParams.get('student') || localStorage.getItem('saved_student_id');
-    sId = parseInt(sId);
 
-    let stockList = (window.stockInventory || []).filter(item => {
-        let access = item.store_access !== undefined ? item.store_access : [];
-        return access === 'ALL' || (Array.isArray(access) && access.includes(sId));
-    });
-    
-    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
-    
-    if (stockList.length === 0) {
-        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
-                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
-                    No products are currently available for you in the store.
-                 </div>`;
-    } else {
-        stockList.forEach(item => {
-            const safeName = item.name.replace(/'/g, "\\'");
-            let imageHtml = '';
-            if (item.photo && item.photo !== 'undefined' && item.photo.trim() !== '') {
-                imageHtml = `<img src="${item.photo}" onclick="event.stopPropagation(); window.zoomProductImage('${item.photo}', '${safeName}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:zoom-in;" title="Tap to zoom">`;
-            }
-
-            const stockStatus = item.qty > 0 
-                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
-                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
-            
-            // 🟢 Get the formatted price display
-            let priceHtml = window.getPriceDisplayHtml(item.price, item.mrp, false);
-
-            html += `
-                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; cursor:pointer;" onclick="window.openProductDetailsPopup('${safeName}', '${item.price}', '${item.photo}')">
-                    ${imageHtml}
-                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
-                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            ${priceHtml}
-                            ${stockStatus}
-                        </div>
-                    </div>
-                    <div style="flex-shrink: 0;">
-                        <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
-                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    html += '</div>';
-
-    Swal.fire({
-        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
-        html: html,
-        showConfirmButton: false,
-        showCloseButton: true,
-        background: 'var(--bg-input)',
-        width: '95%',
-        padding: '12px'
-    });
-};
 
 // 7. Update Product Details Popup (For Student Portal)
 window.openProductDetailsPopup = function(name, price, photoUrl) {
