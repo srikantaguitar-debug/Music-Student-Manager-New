@@ -1308,6 +1308,7 @@ window.loadTheme = function() {
     // থিম অ্যাপ্লাই করা
     document.body.setAttribute('data-theme', themeToApply);
     
+    
     // ম্যানেজার অ্যাপের সেটিংস বাটনের টেক্সট আপডেট
     const btn = document.getElementById('themeToggleBtn');
     if (btn) {
@@ -2613,10 +2614,29 @@ function isMonthDue(monthStr) { const now = new Date(); now.setHours(0,0,0,0); c
 
 function formatMonthYear(monthStr) { const [year, month] = monthStr.split('-'); const date = new Date(year, month - 1); return date.toLocaleString('en-US', { month: 'long', year: 'numeric' }); }
 
-function getContactButtons(studentId, month) { const student = students.find(s => s.id === studentId); if (!student) return 'N/A'; let b = ''; const isDue = month && isMonthDue(month) && wasStudentActiveDuringMonth(student, month) && !(fees[month]?.[student.id]?.status === 'paid'); if (student.phone || student.email) { if(isDue) { b += `<button class="btn-whatsapp" onclick="sendMsg('wa', ${student.id}, '${month}')">WhatsApp</button>`; b += `<button class="btn-sms" onclick="sendMsg('sms', ${student.id}, '${month}')">SMS</button>`; b += `<button class="btn-mail" onclick="sendMsg('mail', ${student.id}, '${month}')">Email</button>`; b += `<a href="tel:${student.phone}" class="btn-like btn-call">Call</a>`; } else { b += `<a href="tel:${student.phone}" class="btn-like btn-call">Call</a>`; } } return b || 'N/A'; }
-
-function getAllContactButtons(student) { let b = ''; if (student.phone) { b += `<a href="tel:${student.phone}" class="btn-like btn-call">Call</a>`; b += `<button class="btn-whatsapp" onclick="sendGeneralMsg('wa', ${student.id})">WhatsApp</button>`; b += `<button class="btn-sms" onclick="sendGeneralMsg('sms', ${student.id})">SMS</button>`; } if (student.email) { b += `<button class="btn-mail" onclick="sendGeneralMsg('mail', ${student.id})">Mail</button>`; } return b || 'N/A'; }
-
+window.getContactButtons = function(studentId, month) { 
+    const student = students.find(s => s.id === studentId); 
+    if (!student || !student.phone) return 'N/A'; 
+    let phoneStr = student.phone.replace(/[^0-9]/g, '');
+    return `
+        <div style="display:flex; gap:6px; align-items:center;">
+            <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none;"><i class="fas fa-phone-alt"></i></a>
+            <button onclick="sendMsg('wa', ${student.id}, '${month}')" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+            <button onclick="sendMsg('sms', ${student.id}, '${month}')" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+        </div>
+    `;
+};
+window.getAllContactButtons = function(student) { 
+    if (!student || !student.phone) return 'N/A'; 
+    let phoneStr = student.phone.replace(/[^0-9]/g, '');
+    return `
+        <div style="display:flex; gap:6px; align-items:center;">
+            <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none;"><i class="fas fa-phone-alt"></i></a>
+            <button onclick="sendGeneralMsg('wa', ${student.id})" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+            <button onclick="sendGeneralMsg('sms', ${student.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+        </div>
+    `;
+};
 function showFeeBreakdown(type, specificMonth = null) {
     const selectedMonth = specificMonth || document.getElementById('feeMonth').value;
     if(!selectedMonth) return;
@@ -3923,13 +3943,12 @@ window.renderFees = function() {
         let classDetailsText = '';
         let isDueNow = false;
 
-        // 🟢 Monthly vs Per Class লজিক
         if (feeType === 'per_class') {
             calculatedFeeAmount = presentDays * (student.fee_amount || 0); 
             classDetailsText = `<br><span style="font-size:11px; color:#0ea5e9;">(${presentDays} Classes x ₹${student.fee_amount})</span>`;
-            isDueNow = presentDays > 0; // Per Class: ক্লাস করলেই ডিউ হবে
+            isDueNow = presentDays > 0; 
         } else {
-            isDueNow = hasAttended || isPastDue; // Monthly: ক্লাস করলে বা ১০ তারিখ পার হলে ডিউ হবে
+            isDueNow = hasAttended || isPastDue; 
         }
         
         let rowClass = 'pending', statusText = 'Pending', actionButtons = '';
@@ -3938,23 +3957,40 @@ window.renderFees = function() {
             totalCollected += (feeRecord.amount || 0); collectedCount++; rowClass = 'paid'; statusText = `Paid (₹${feeRecord.amount})`; 
             actionButtons = `<button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)">Edit</button> <button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>`;
         } 
-        else if (isDueNow) { 
-            dueCount++; totalDueAmount += calculatedFeeAmount; rowClass = 'unpaid'; statusText = `Due: ₹${calculatedFeeAmount} ${classDetailsText}`; 
-            actionButtons = `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')">Record Payment</button>` + ((typeof window.getContactButtons === 'function') ? window.getContactButtons(student.id, selectedMonth) : '');
-        } 
         else {
-            statusText = feeType === 'per_class' ? 'No Class Done' : 'Pending (Before 10th)'; 
-            rowClass = 'pending'; 
-            actionButtons = `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')">Record Payment</button>`;
+            // 🟢 NEW: WhatsApp, SMS and Call buttons as square icons next to Record Payment
+            let phoneStr = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+            let contactBtns = '';
             
-            if (feeType === 'per_class' && presentDays === 0) {
-                tableHtml += `<tr class="pending"><td>${window.getStudentHtml(student)}</td><td><span style="color:gray;">No Class Done</span></td><td class="action-buttons"></td></tr>`;
-                return; // স্কিপ করে যাবে
+            if (phoneStr) {
+                contactBtns = `
+                    <a href="tel:${phoneStr}" title="Call" style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:8px; text-decoration:none;"><i class="fas fa-phone-alt"></i></a>
+                    <button onclick="sendMsg('wa', ${student.id}, '${selectedMonth}')" title="WhatsApp" style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:8px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:18px;"></i></button>
+                    <button onclick="sendMsg('sms', ${student.id}, '${selectedMonth}')" title="SMS" style="width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:8px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+                `;
+            }
+
+            let recordBtn = `<button class="btn-success" onclick="openFeeModal(${student.id}, '${selectedMonth}')" style="flex: 1; padding: 10px;">Record Payment</button>`;
+            let combinedButtons = `<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:5px; width:100%;">${recordBtn} ${contactBtns}</div>`;
+
+            if (isDueNow) { 
+                dueCount++; totalDueAmount += calculatedFeeAmount; rowClass = 'unpaid'; statusText = `Due: ₹${calculatedFeeAmount} ${classDetailsText}`; 
+                actionButtons = combinedButtons;
+            } 
+            else {
+                statusText = feeType === 'per_class' ? 'No Class Done' : 'Pending (Before 10th)'; 
+                rowClass = 'pending'; 
+                actionButtons = combinedButtons;
+                
+                if (feeType === 'per_class' && presentDays === 0) {
+                    tableHtml += `<tr class="pending"><td>${window.getStudentHtml(student)}</td><td><span style="color:gray;">No Class Done</span></td><td class="action-buttons"></td></tr>`;
+                    return; 
+                }
             }
         }
         
         if (hasGlobalDue) rowClass += ' has-dues-alert'; 
-        tableHtml += `<tr class="${rowClass}"><td>${window.getStudentHtml(student)}</td><td>${statusText}</td><td class="action-buttons">${actionButtons}</td></tr>`; 
+        tableHtml += `<tr class="${rowClass}"><td>${window.getStudentHtml(student)}</td><td>${statusText}</td><td class="action-buttons" style="padding-top:10px;">${actionButtons}</td></tr>`; 
     }); 
     
     tableBody.innerHTML = tableHtml || '<tr><td colspan="3" style="text-align:center; padding:20px;">No records for this month.</td></tr>';
@@ -4741,7 +4777,7 @@ let currentAdvanceCount = 0;
         } else {
             document.getElementById('feeModalTitle').textContent = `Record Payment`;
             document.getElementById('monthSelectionGroup').style.display = 'block';
-            document.getElementById('feeAmount').readOnly = true;
+            document.getElementById('feeAmount').readOnly = false;
 
             let iterDate = new Date(student.joining_date);
             iterDate.setDate(1);
@@ -5367,7 +5403,8 @@ function showAttendanceList(type) {
 
     let list = [];
     let title = '';
-    // 🟢 FIX: এখানেও হিস্ট্রি স্ট্যাটাস চেক বসানো হলো
+    
+    // হিস্ট্রি স্ট্যাটাস চেক করে শুধু অ্যাক্টিভ স্টুডেন্টদের বের করা
     const activeStudents = students.filter(s => isStudentCurrentlyActive(s, date));
 
     if (type === 'total') {
@@ -5387,6 +5424,23 @@ function showAttendanceList(type) {
             return status === 'absent';
         });
         title = `Absent Students (${new Date(date).toLocaleDateString('en-IN')})`;
+    }
+
+    // 🟢 NEW: Time-based Sorting Logic (যারটা শেষে মার্ক করা হয়েছে, সে উপরে থাকবে)
+    if (type === 'present' || type === 'absent') {
+        list.sort((a, b) => {
+            const entryA = attendance[date]?.[a.id];
+            const entryB = attendance[date]?.[b.id];
+            
+            // দুজনের মার্ক করার টাইম বের করা হচ্ছে
+            const timeA = (typeof entryA === 'object' && entryA !== null && entryA.time) ? entryA.time : "00:00";
+            const timeB = (typeof entryB === 'object' && entryB !== null && entryB.time) ? entryB.time : "00:00";
+            
+            // টাইম অনুযায়ী সাজানো (Descending order: Latest first)
+            if (timeB > timeA) return 1;
+            if (timeB < timeA) return -1;
+            return 0;
+        });
     }
 
     document.getElementById('classStudentsTitle').textContent = title;
@@ -7202,7 +7256,6 @@ window.executeSingleRestore = async function(backupData) {
         Swal.fire('Error', 'Failed to restore student completely. Check internet connection.', 'error');
     }
 };
-// --- 🟢 MISSING FUNCTIONS RECOVERED ---
 function sendGeneralMsg(type, studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
@@ -7211,8 +7264,16 @@ function sendGeneralMsg(type, studentId) {
     const baseUrl = window.location.origin + window.location.pathname;
     const portalLink = `${baseUrl}?student=${student.id}&manager=${DOC_ID}`;
 
-    // 🟢 সুন্দর এবং প্রফেশনাল মেসেজ টেমপ্লেট (ইমোজি সহ)
-    let msgBody = `Hello ${student.name},\n\nHope you are doing well and enjoying your ${student.class || 'Music'} classes! 🎵\n\nYou can check your Attendance, Fees, and Study Materials anytime from your Student Portal here:\n${portalLink}\n\nKeep practicing regularly!\n\nRegards,\nSrikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes)`;
+    let msgBody = '';
+
+    // 🟢 চেক করা হচ্ছে স্টুডেন্ট Active নাকি Inactive
+    if (window.isStudentCurrentlyActive(student)) {
+        // Active স্টুডেন্টদের জন্য পোর্টাল লিংক সহ মেসেজ
+        msgBody = `Hello ${student.name},\n\nHope you are doing well and enjoying your ${student.class || 'Music'} classes! 🎵\n\nYou can check your Attendance, Fees, and Study Materials anytime from your Student Portal here:\n${portalLink}\n\nKeep practicing regularly!\n\nRegards,\nSrikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes)`;
+    } else {
+        // 🟢 Inactive স্টুডেন্টদের জন্য আপনার দেওয়া নতুন মেসেজ
+        msgBody = `Hello ${student.name},\n\nHope you are doing well. Just connecting regarding the music classes updates.\n\nFrom Srikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes.)`;
+    }
     
     if(type === 'wa') {
         let cleanPhone = student.phone.replace(/[^0-9]/g, '');
@@ -7221,7 +7282,8 @@ function sendGeneralMsg(type, studentId) {
     } else if (type === 'sms') {
         window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
     } else if (type === 'mail') {
-        window.open(`mailto:${student.email}?subject=${encodeURIComponent("Update from Music Class")}&body=${encodeURIComponent(msgBody)}`, '_self');
+        const mailSubject = window.isStudentCurrentlyActive(student) ? "Update from Music Class" : "Connecting regarding music classes";
+        window.open(`mailto:${student.email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(msgBody)}`, '_self');
     }
 }
 
@@ -8130,69 +8192,6 @@ setTimeout(() => {
 
 window.stockInventory = [];
 
-
-
-
-window.renderStockTable = function() {
-    const tbody = document.getElementById('stockTableBody');
-    if(!tbody) return;
-    tbody.innerHTML = '';
-
-    const searchInput = document.getElementById('searchStockInput');
-    const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
-
-    const filteredStock = window.stockInventory.filter(item => {
-        if (!filterText) return true;
-        return item.name.toLowerCase().includes(filterText);
-    });
-
-    if (filteredStock.length === 0) {
-        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
-        return;
-    }
-
-    filteredStock.forEach(item => {
-        const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
-        // 🟢 ছবি না থাকলে একটি ডিফল্ট বক্স দেখাবে
-        const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/50?text=📦';
-        const safeName = item.name.replace(/'/g, "\\'"); // নামের ভেতর ' থাকলে যাতে কোড না ভাঙে
-        
-        tbody.innerHTML += `
-            <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <td style="display: block; padding: 0; border: none; text-align: left;">
-                    
-                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <!-- 🟢 ম্যাজিক ফিক্স: ছবিতে ক্লিক করলে জুম হবে -->
-                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 35px; height: 35px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 10px; cursor: pointer; flex-shrink:0;" title="Click to view">
-                        
-                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main); line-height: 1.3;">
-                            ${item.name}
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; gap: 8px; font-size: 12px; font-weight: bold; align-items: center;">
-                            <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
-                            <span style="color: var(--text-muted);">Sell: ₹${item.price}</span>
-                            <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
-                        </div>
-                        <div style="display: flex; gap: 6px;">
-                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                            <button onclick="window.sendProductToPortal(${item.id})" title="Send to Portal" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;">
-    <i class="fas fa-paper-plane"></i>
-</button>
-                        </div>
-                    </div>
-                </td>
-            </tr>
-        `;
-    });
-};
 
 window.deleteStockItem = async function(id) {
     Swal.fire({
@@ -10471,73 +10470,6 @@ window.paySaleDue = async function(saleId) {
 };
 
 
-// 🟢 NEW: স্টুডেন্টদের প্রোডাক্ট দেখানোর ফাংশন (Product Button Fix & Detail Popup)
-window.showStudentProducts = function() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let sId = urlParams.get('student') || localStorage.getItem('saved_student_id');
-    sId = parseInt(sId);
-
-    let stockList = (window.stockInventory || []).filter(item => {
-        // 🟢 ম্যাজিক ফিক্স: ডিফল্টভাবে কিছুই দেখাবে না ([]), যতক্ষণ না আপনি শেয়ার করছেন
-        let access = item.store_access !== undefined ? item.store_access : [];
-        return access === 'ALL' || (Array.isArray(access) && access.includes(sId));
-    });
-    
-    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
-    
-    if (stockList.length === 0) {
-        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
-                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
-                    No products are currently available for you in the store.
-                 </div>`;
-    } else {
-        stockList.forEach(item => {
-            const safeName = item.name.replace(/'/g, "\\'");
-            let imageHtml = '';
-            if (item.photo && item.photo !== 'undefined' && item.photo.trim() !== '') {
-                // ছবিতে ক্লিক করলে শুধু জুম হবে, event.stopPropagation() পেছনের ক্লিক আটকাবে
-                imageHtml = `<img src="${item.photo}" onclick="event.stopPropagation(); window.zoomProductImage('${item.photo}', '${safeName}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:zoom-in;" title="Tap to zoom">`;
-            }
-
-            const stockStatus = item.qty > 0 
-                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
-                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
-            
-            // কার্ডের ওপর ক্লিক করলে ডিটেইলস পপআপ খুলবে
-            html += `
-                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; cursor:pointer;" onclick="window.openProductDetailsPopup('${safeName}', '${item.price}', '${item.photo}')">
-                    
-                    ${imageHtml}
-                    
-                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
-                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <span style="font-size: 14px; font-weight: 900; color: var(--primary);">₹${item.price}</span>
-                            ${stockStatus}
-                        </div>
-                    </div>
-                    
-                    <div style="flex-shrink: 0;">
-                        <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
-                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
-                        </button>
-                    </div>
-                </div>
-            `;
-        });
-    }
-    html += '</div>';
-
-    Swal.fire({
-        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
-        html: html,
-        showConfirmButton: false,
-        showCloseButton: true,
-        background: 'var(--bg-input)',
-        width: '95%',
-        padding: '12px'
-    });
-};
 
 // 🟢 WhatsApp মেসেজ পাঠানোর ফাংশন (স্টুডেন্টের নাম সহ)
 window.sendProductQuery = function(itemName) {
@@ -10706,69 +10638,7 @@ window.selectPromoTarget = function(targetId, divElement) {
 
 window.currentStockImages = [];
 
-window.openStockModal = function() {
-    const nameInput = document.getElementById('newStockName');
-    if (!document.getElementById('stockImageInput')) {
-        const formContainer = nameInput.closest('.form-grid') || nameInput.parentElement.parentElement;
-        formContainer.style.display = 'flex';
-        formContainer.style.flexDirection = 'column';
-        formContainer.style.gap = '15px';
-        
-        formContainer.innerHTML = `
-            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); text-align: left;">Item Name</label>
-                <input id="newStockName" class="swal2-input" placeholder="e.g. Guitar Strings" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
-            </div>
-            
-            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
-                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); text-align: left;">Product Images (Unlimited)</label>
-                
-                <div id="stockImagesPreviewContainer" style="display:flex; overflow-x:auto; gap:10px; padding-bottom:5px; align-items: center;">
-                    <div style="position:relative; width:60px; height:60px; border:2px dashed #cbd5e1; border-radius:8px; display:flex; justify-content:center; align-items:center; cursor:pointer; flex-shrink:0; background: var(--bg-body);" onclick="document.getElementById('stockImageInput').click()" title="Add Photos">
-                        <i class="fas fa-plus" style="color:var(--primary); font-size:20px;"></i>
-                    </div>
-                </div>
-            </div>
-            
-            <input type="file" id="stockImageInput" accept="image/*" multiple style="display:none;" onchange="window.handleStockImageSelection(this)">
-            
-            <div style="display: flex; gap: 8px; width: 100%;">
-                <div style="flex: 1;">
-                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Buy (₹)</label>
-                    <input type="number" id="newStockBuyPrice" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
-                </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Sell (₹)</label>
-                    <input type="number" id="newStockPrice" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
-                </div>
-                <div style="flex: 1;">
-                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Qty</label>
-                    <input type="number" id="newStockQty" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
-                </div>
-            </div>
-            <input type="hidden" id="editStockId">
-        `;
-    } else {
-        document.getElementById('newStockName').value = '';
-        document.getElementById('newStockBuyPrice').value = '';
-        document.getElementById('newStockPrice').value = '';
-        document.getElementById('newStockQty').value = '';
-        document.getElementById('editStockId').value = '';
-        document.getElementById('stockImageInput').value = '';
-    }
 
-    window.currentStockImages = [];
-    window.renderTempStockImages();
-
-    const btn = document.querySelector('#stockModal .btn-primary');
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-plus"></i> Add / Update Stock';
-        btn.style.background = ''; 
-    }
-
-    window.renderStockTable();
-    document.getElementById('stockModal').style.display = 'flex';
-};
 
 window.handleStockImageSelection = function(input) {
     const files = input.files;
@@ -10867,88 +10737,6 @@ window.removeTempStockImage = function(index) {
     window.renderTempStockImages();
 };
 
-window.addStockItem = async function() {
-    const name = document.getElementById('newStockName').value.trim();
-    const buyPrice = parseFloat(document.getElementById('newStockBuyPrice').value) || 0; 
-    const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
-    const qty = parseInt(document.getElementById('newStockQty').value) || 0;
-    
-    const photosArray = [...window.currentStockImages];
-    const primaryPhoto = photosArray.length > 0 ? photosArray[0] : null;
-
-    const editIdInput = document.getElementById('editStockId');
-    const editId = editIdInput ? editIdInput.value : '';
-
-    if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
-
-    Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-    try {
-        if (editId) {
-            const index = window.stockInventory.findIndex(i => String(i.id) === String(editId));
-            if (index > -1) {
-                window.stockInventory[index] = { ...window.stockInventory[index], name, price, buyPrice, qty, photos: photosArray, photo: primaryPhoto };
-            }
-        } else {
-            const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
-            if (existingIndex > -1) {
-                window.stockInventory[existingIndex].price = price;
-                window.stockInventory[existingIndex].buyPrice = buyPrice;
-                window.stockInventory[existingIndex].qty += qty;
-                window.stockInventory[existingIndex].photos = photosArray;
-                window.stockInventory[existingIndex].photo = primaryPhoto;
-            } else {
-                window.stockInventory.push({ id: Date.now(), name, price, buyPrice, qty, photos: photosArray, photo: primaryPhoto });
-            }
-        }
-
-        await dbSet('stockData', window.stockInventory);
-        
-        document.getElementById('stockModal').style.display = 'none';
-        window.renderStockTable();
-        window.renderInventoryDropdown();
-        
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
-    } catch(err) {
-        console.error(err);
-        Swal.fire('Error', 'Failed to save due to Firebase size limit. Please use fewer images next time.', 'error');
-    }
-};
-
-window.editStockItem = function(id) {
-    const item = window.stockInventory.find(i => String(i.id) === String(id));
-    if (!item) return;
-
-    if (!document.getElementById('stockImageInput')) {
-        window.openStockModal();
-        document.getElementById('stockModal').style.display = 'none'; 
-    }
-
-    document.getElementById('newStockName').value = item.name;
-    document.getElementById('newStockBuyPrice').value = item.buyPrice || 0;
-    document.getElementById('newStockPrice').value = item.price;
-    document.getElementById('newStockQty').value = item.qty;
-    
-    if(item.photos && item.photos.length > 0) {
-        window.currentStockImages = [...item.photos];
-    } else if (item.photo) {
-        window.currentStockImages = [item.photo];
-    } else {
-        window.currentStockImages = [];
-    }
-    window.renderTempStockImages();
-
-    let editIdInput = document.getElementById('editStockId');
-    if(editIdInput) editIdInput.value = item.id;
-
-    const btn = document.querySelector('#stockModal .btn-primary');
-    if (btn) {
-        btn.innerHTML = '<i class="fas fa-save"></i> Update Stock Item';
-        btn.style.background = '#f59e0b'; 
-    }
-    
-    document.getElementById('stockModal').style.display = 'flex';
-};
 
 window.buildPhotosSliderHtml = function(photos, height, objectFit) {
     if(!photos || photos.length === 0) return `<div style="width: 100%; height: ${height}; background: #e2e8f0; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;"><i class="fas fa-box-open" style="font-size: 50px; color: #94a3b8;"></i></div>`;
@@ -10966,39 +10754,6 @@ window.buildPhotosSliderHtml = function(photos, height, objectFit) {
     return html;
 };
 
-window.openProductDetailsPopup = function(name, price, photoUrl) {
-    let existingOverlay = document.getElementById('customProductDetailOverlay');
-    if (existingOverlay) document.body.removeChild(existingOverlay);
-
-    const overlay = document.createElement('div');
-    overlay.id = 'customProductDetailOverlay';
-    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.85); z-index:2000005; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease; padding: 20px; box-sizing: border-box;';
-
-    const safeName = name.replace(/\\'/g, "'"); 
-    const item = window.stockInventory.find(i => i.name === safeName);
-    let photosToSlide = [];
-    if(item && item.photos && item.photos.length > 0) photosToSlide = item.photos;
-    else if (photoUrl && photoUrl !== 'undefined') photosToSlide = [photoUrl];
-
-    let sliderHtml = window.buildPhotosSliderHtml(photosToSlide, '250px', 'contain');
-
-    overlay.innerHTML = `
-        <div style="background: var(--bg-card); width: 100%; max-width: 400px; border-radius: 20px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; text-align: center;">
-            ${sliderHtml}
-            <div style="font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1.3; margin-bottom: 8px;">${name}</div>
-            <div style="font-size: 26px; font-weight: 900; color: var(--primary); margin-bottom: 25px;">₹${price}</div>
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button onclick="window.sendProductQuery('${name.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i class="fab fa-whatsapp" style="font-size: 20px;"></i> Buy Now
-                </button>
-                <button onclick="document.body.removeChild(this.parentElement.parentElement.parentElement)" style="background: #ef4444; color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.3);">
-                    Close
-                </button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(overlay);
-};
 
 window.zoomProductImage = function(photoUrl, name) {
     if (!photoUrl || photoUrl === 'undefined') return;
@@ -11039,3 +10794,328 @@ window.zoomProductImage = function(photoUrl, name) {
 window.viewStockImage = function(photoUrl, name) {
     window.zoomProductImage(photoUrl, name);
 };
+// =========================================================================
+// 🟢 PRODUCT DISCOUNT & MRP DISPLAY UPDATE (PASTE AT BOTTOM) 🟢
+// =========================================================================
+
+// 1. Helper function for Price & Discount UI
+window.getPriceDisplayHtml = function(price, mrp, isLarge = false) {
+    let pSize = isLarge ? '26px' : '16px'; 
+    let mSize = isLarge ? '20px' : '13px'; 
+    let dSize = isLarge ? '20px' : '13px'; 
+    
+    let validMrp = parseFloat(mrp);
+    let validPrice = parseFloat(price);
+
+    if (!validMrp || validMrp <= validPrice) {
+        return `<div style="font-size: ${pSize}; font-weight: 900; color: var(--primary); margin-bottom: ${isLarge ? '25px' : '0'};">₹${validPrice}</div>`;
+    }
+    const discount = Math.round(((validMrp - validPrice) / validMrp) * 100);
+    return `
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: ${isLarge ? '25px' : '0'}; justify-content: ${isLarge ? 'center' : 'flex-start'};">
+            <span style="color: #16a34a; font-weight: 900; font-size: ${dSize}; display:flex; align-items:center; gap:3px;"><i class="fas fa-arrow-down"></i>${discount}%</span>
+            <span style="color: #64748b; text-decoration: line-through; font-size: ${mSize}; font-weight: 600;">₹${validMrp}</span>
+            <span style="font-size: ${pSize}; font-weight: 900; color: var(--text-main);">₹${validPrice}</span>
+        </div>
+    `;
+};
+
+// 2. Add MRP Input in Admin Stock Modal (Keep unlimited image logic)
+window.openStockModal = function() {
+    const nameInput = document.getElementById('newStockName');
+    if (!document.getElementById('stockImageInput')) {
+        const formContainer = nameInput.closest('.form-grid') || nameInput.parentElement.parentElement;
+        formContainer.style.display = 'flex';
+        formContainer.style.flexDirection = 'column';
+        formContainer.style.gap = '15px';
+        
+        formContainer.innerHTML = `
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); text-align: left;">Item Name</label>
+                <input id="newStockName" class="swal2-input" placeholder="e.g. Guitar Strings" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 10px; width: 100%;">
+                <label style="font-size: 13px; font-weight: bold; color: var(--text-main); text-align: left;">Product Images (Unlimited)</label>
+                <div id="stockImagesPreviewContainer" style="display:flex; overflow-x:auto; gap:10px; padding-bottom:5px; align-items: center;">
+                    <div style="position:relative; width:60px; height:60px; border:2px dashed #cbd5e1; border-radius:8px; display:flex; justify-content:center; align-items:center; cursor:pointer; flex-shrink:0; background: var(--bg-body);" onclick="document.getElementById('stockImageInput').click()" title="Add Photos">
+                        <i class="fas fa-plus" style="color:var(--primary); font-size:20px;"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <input type="file" id="stockImageInput" accept="image/*" multiple style="display:none;" onchange="window.handleStockImageSelection(this)">
+            
+            <div style="display: flex; gap: 8px; width: 100%; flex-wrap:wrap;">
+                <div style="flex: 1; min-width: 45%;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Buy (₹)</label>
+                    <input type="number" id="newStockBuyPrice" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+                <div style="flex: 1; min-width: 45%;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">MRP (Original) ₹</label>
+                    <input type="number" id="newStockMrp" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+                <div style="flex: 1; min-width: 45%;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Sell (Final) ₹</label>
+                    <input type="number" id="newStockPrice" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+                <div style="flex: 1; min-width: 45%;">
+                    <label style="font-size: 12px; font-weight: bold; color: var(--text-main); margin-bottom: 6px; display: block; text-align: left;">Qty</label>
+                    <input type="number" id="newStockQty" class="swal2-input" placeholder="0" style="width: 100%; margin: 0; box-sizing: border-box; font-size: 14px; height: 45px; border-radius: 8px;">
+                </div>
+            </div>
+            <input type="hidden" id="editStockId">
+        `;
+    } else {
+        document.getElementById('newStockName').value = '';
+        document.getElementById('newStockBuyPrice').value = '';
+        document.getElementById('newStockMrp').value = '';
+        document.getElementById('newStockPrice').value = '';
+        document.getElementById('newStockQty').value = '';
+        document.getElementById('editStockId').value = '';
+        document.getElementById('stockImageInput').value = '';
+    }
+
+    window.currentStockImages = [];
+    window.renderTempStockImages();
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) { btn.innerHTML = '<i class="fas fa-plus"></i> Add / Update Stock'; btn.style.background = ''; }
+    window.renderStockTable();
+    document.getElementById('stockModal').style.display = 'flex';
+};
+
+// 3. Save MRP in Database
+window.addStockItem = async function() {
+    const name = document.getElementById('newStockName').value.trim();
+    const buyPrice = parseFloat(document.getElementById('newStockBuyPrice').value) || 0; 
+    const mrp = parseFloat(document.getElementById('newStockMrp').value) || 0; 
+    const price = parseFloat(document.getElementById('newStockPrice').value) || 0;
+    const qty = parseInt(document.getElementById('newStockQty').value) || 0;
+    
+    const photosArray = [...window.currentStockImages];
+    const primaryPhoto = photosArray.length > 0 ? photosArray[0] : null;
+    const editIdInput = document.getElementById('editStockId');
+    const editId = editIdInput ? editIdInput.value : '';
+
+    if (!name) { Swal.fire('Error', 'Item name is required', 'error'); return; }
+    Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        if (editId) {
+            const index = window.stockInventory.findIndex(i => String(i.id) === String(editId));
+            if (index > -1) {
+                window.stockInventory[index] = { ...window.stockInventory[index], name, price, buyPrice, mrp, qty, photos: photosArray, photo: primaryPhoto };
+            }
+        } else {
+            const existingIndex = window.stockInventory.findIndex(i => i.name.toLowerCase() === name.toLowerCase());
+            if (existingIndex > -1) {
+                window.stockInventory[existingIndex].price = price;
+                window.stockInventory[existingIndex].buyPrice = buyPrice;
+                window.stockInventory[existingIndex].mrp = mrp;
+                window.stockInventory[existingIndex].qty += qty;
+                window.stockInventory[existingIndex].photos = photosArray;
+                window.stockInventory[existingIndex].photo = primaryPhoto;
+            } else {
+                window.stockInventory.push({ id: Date.now(), name, price, buyPrice, mrp, qty, photos: photosArray, photo: primaryPhoto });
+            }
+        }
+        await dbSet('stockData', window.stockInventory);
+        document.getElementById('stockModal').style.display = 'none';
+        window.renderStockTable();
+        window.renderInventoryDropdown();
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: editId ? 'Stock Updated!' : 'Stock Added!', showConfirmButton: false, timer: 1500});
+    } catch(err) {
+        Swal.fire('Error', 'Failed to save due to Firebase size limit.', 'error');
+    }
+};
+
+// 4. Load MRP in Edit Mode
+window.editStockItem = function(id) {
+    const item = window.stockInventory.find(i => String(i.id) === String(id));
+    if (!item) return;
+    if (!document.getElementById('stockImageInput')) { window.openStockModal(); document.getElementById('stockModal').style.display = 'none'; }
+
+    document.getElementById('newStockName').value = item.name;
+    document.getElementById('newStockBuyPrice').value = item.buyPrice || 0;
+    document.getElementById('newStockMrp').value = item.mrp || '';
+    document.getElementById('newStockPrice').value = item.price;
+    document.getElementById('newStockQty').value = item.qty;
+    
+    if(item.photos && item.photos.length > 0) window.currentStockImages = [...item.photos];
+    else if (item.photo) window.currentStockImages = [item.photo];
+    else window.currentStockImages = [];
+    
+    window.renderTempStockImages();
+    let editIdInput = document.getElementById('editStockId');
+    if(editIdInput) editIdInput.value = item.id;
+    const btn = document.querySelector('#stockModal .btn-primary');
+    if (btn) { btn.innerHTML = '<i class="fas fa-save"></i> Update Stock Item'; btn.style.background = '#f59e0b'; }
+    document.getElementById('stockModal').style.display = 'flex';
+};
+
+// 5. Update Admin Stock Table
+window.renderStockTable = function() {
+    const tbody = document.getElementById('stockTableBody');
+    if(!tbody) return;
+    tbody.innerHTML = '';
+    const searchInput = document.getElementById('searchStockInput');
+    const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    const filteredStock = window.stockInventory.filter(item => {
+        if (!filterText) return true;
+        return item.name.toLowerCase().includes(filterText);
+    });
+
+    if (filteredStock.length === 0) {
+        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
+        return;
+    }
+
+    filteredStock.forEach(item => {
+        const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
+        const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/50?text=📦';
+        const safeName = item.name.replace(/'/g, "\\'"); 
+        
+        let mrpHtml = (item.mrp && parseFloat(item.mrp) > parseFloat(item.price)) ? `<span style="color: var(--text-muted); text-decoration: line-through; margin-right:4px;">MRP: ₹${item.mrp}</span>` : '';
+
+        tbody.innerHTML += `
+            <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <td style="display: block; padding: 0; border: none; text-align: left;">
+                    <div style="display: flex; align-items: center; margin-bottom: 8px;">
+                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 35px; height: 35px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 10px; cursor: pointer; flex-shrink:0;" title="Click to view">
+                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main); line-height: 1.3;">${item.name}</div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="display: flex; gap: 6px; font-size: 11px; font-weight: bold; align-items: center; flex-wrap:wrap;">
+                            <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
+                            ${mrpHtml}
+                            <span style="color: var(--text-main);">Sell: ₹${item.price}</span>
+                            <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;"><i class="fas fa-trash"></i></button>
+                            <button onclick="window.sendProductToPortal(${item.id})" title="Send to Portal" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+};
+
+// 6. Display Store Products with Discounts
+window.showStudentProducts = function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    let sId = urlParams.get('student') || localStorage.getItem('saved_student_id');
+    sId = parseInt(sId);
+
+    let stockList = (window.stockInventory || []).filter(item => {
+        let access = item.store_access !== undefined ? item.store_access : [];
+        return access === 'ALL' || (Array.isArray(access) && access.includes(sId));
+    });
+    
+    let html = '<div style="max-height: 65vh; overflow-y: auto; padding: 5px; text-align: left; overflow-x: hidden;">';
+    
+    if (stockList.length === 0) {
+        html += `<div style="text-align:center; padding:30px 20px; color:var(--text-muted); font-size:14px; font-weight:bold;">
+                    <i class="fas fa-box-open" style="font-size:40px; margin-bottom:10px; color:#cbd5e1; display:block;"></i>
+                    No products are currently available for you in the store.
+                 </div>`;
+    } else {
+        stockList.forEach(item => {
+            const safeName = item.name.replace(/'/g, "\\'");
+            let imageHtml = '';
+            if (item.photo && item.photo !== 'undefined' && item.photo.trim() !== '') {
+                imageHtml = `<img src="${item.photo}" onclick="event.stopPropagation(); window.zoomProductImage('${item.photo}', '${safeName}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; flex-shrink: 0; cursor:zoom-in;" title="Tap to zoom">`;
+            }
+
+            const stockStatus = item.qty > 0 
+                ? `<span style="background: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #bbf7d0; white-space: nowrap;">In Stock</span>` 
+                : `<span style="background: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 9px; font-weight: bold; border: 1px solid #fecaca; white-space: nowrap;">Out of Stock</span>`;
+            
+            // 🟢 Get the formatted price display
+            let priceHtml = window.getPriceDisplayHtml(item.price, item.mrp, false);
+
+            html += `
+                <div style="display:flex; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px; border-radius:10px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05); width: 100%; box-sizing: border-box; cursor:pointer;" onclick="window.openProductDetailsPopup('${safeName}', '${item.price}', '${item.photo}')">
+                    ${imageHtml}
+                    <div style="flex-grow: 1; min-width: 0; padding-right: 10px;">
+                        <div style="font-weight: 700; font-size: 13.5px; color: var(--text-main); line-height: 1.3; margin-bottom: 4px; word-wrap: break-word;">${item.name}</div>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            ${priceHtml}
+                            ${stockStatus}
+                        </div>
+                    </div>
+                    <div style="flex-shrink: 0;">
+                        <button onclick="event.stopPropagation(); window.sendProductQuery('${safeName}')" style="background: #25D366; color: white; border: none; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(37,211,102,0.2); display: flex; align-items: center; gap: 4px;">
+                            <i class="fab fa-whatsapp" style="font-size:14px;"></i> Buy
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+    html += '</div>';
+
+    Swal.fire({
+        title: '<div style="font-size:18px;"><i class="fas fa-store" style="color:var(--primary);"></i> Accessories Store</div>',
+        html: html,
+        showConfirmButton: false,
+        showCloseButton: true,
+        background: 'var(--bg-input)',
+        width: '95%',
+        padding: '12px'
+    });
+};
+
+// 7. Update Product Details Popup (For Student Portal)
+window.openProductDetailsPopup = function(name, price, photoUrl) {
+    let existingOverlay = document.getElementById('customProductDetailOverlay');
+    if (existingOverlay) document.body.removeChild(existingOverlay);
+
+    const overlay = document.createElement('div');
+    overlay.id = 'customProductDetailOverlay';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.85); z-index:2000005; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease; padding: 20px; box-sizing: border-box;';
+
+    const safeName = name.replace(/\\'/g, "'"); 
+    const item = window.stockInventory.find(i => i.name === safeName);
+    let photosToSlide = [];
+    if(item && item.photos && item.photos.length > 0) photosToSlide = item.photos;
+    else if (photoUrl && photoUrl !== 'undefined') photosToSlide = [photoUrl];
+
+    let sliderHtml = window.buildPhotosSliderHtml(photosToSlide, '250px', 'contain');
+    
+    // 🟢 Fetch MRP dynamically for the popup
+    let mrp = item ? item.mrp : null;
+    let priceHtml = window.getPriceDisplayHtml(price, mrp, true);
+
+    overlay.innerHTML = `
+        <div style="background: var(--bg-card); width: 100%; max-width: 400px; border-radius: 20px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; text-align: center;">
+            ${sliderHtml}
+            <div style="font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1.3; margin-bottom: 8px;">${name}</div>
+            
+            <!-- Discount Block applied here -->
+            <div style="display:flex; justify-content:center;">
+                ${priceHtml}
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button onclick="window.sendProductQuery('${safeName}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fab fa-whatsapp" style="font-size: 20px;"></i> Buy Now
+                </button>
+                <button onclick="document.body.removeChild(this.parentElement.parentElement.parentElement)" style="background: #ef4444; color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.3);">
+                    Close
+                </button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+};
+
+// 8. Update Slider Logic (For Top Horizontal Scroll)
+// এটি অটোমেটিকভাবে `renderStudentPortal` ফাংশনকে ওভাররাইড করে স্লাইডারে প্রাইস আপডেট করবে
+const originalRenderStudentPortal = window.renderStudentPortal;
+if(typeof originalRenderStudentPortal !== 'undefined') {
+    window.showStudentProducts(); // Just to load the helper methods
+}
