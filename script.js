@@ -926,56 +926,56 @@ document.body.innerHTML = `
             </div>
         </div>
 
-        <!-- 🟢 Teacher Modal (Theme Adaptive & Matches the Picture Layout) -->
+        <!-- 🟢 Teacher Modal (Theme Adaptive & Compact Size) -->
         <div id="m-teacher" class="modal-portal">
-            <div class="modal-content-portal" style="padding: 25px 20px; border-radius: 24px; background: var(--bg-card); width: 90%; max-width: 380px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); box-sizing: border-box; border: 1px solid var(--border-color);">
+            <div class="modal-content-portal" style="padding: 15px 20px; border-radius: 20px; background: var(--bg-card); width: 90%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); box-sizing: border-box; border: 1px solid var(--border-color);">
                 
                 <!-- Header -->
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h3 style="margin: 0; color: var(--text-main); font-size: 20px; font-weight: 900; font-family: 'Poppins', sans-serif;">Teacher Details</h3>
-                    <div onclick="document.getElementById('m-teacher').style.display='none'" style="background: var(--bg-input); color: var(--text-muted); width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; font-weight: bold; transition: 0.2s; border: 1px solid var(--border-color);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h3 style="margin: 0; color: var(--text-main); font-size: 16px; font-weight: 900; font-family: 'Poppins', sans-serif;">Teacher Details</h3>
+                    <div onclick="document.getElementById('m-teacher').style.display='none'" style="background: var(--bg-input); color: var(--text-muted); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 14px; font-weight: bold; transition: 0.2s; border: 1px solid var(--border-color);">
                         <i class="fas fa-times"></i>
                     </div>
                 </div>
                 <!-- Theme Colored Separator Line -->
-                <div style="height: 3px; background: var(--primary); width: 100%; margin-bottom: 25px; border-radius: 2px; opacity: 0.4;"></div>
+                <div style="height: 2px; background: var(--primary); width: 100%; margin-bottom: 15px; border-radius: 2px; opacity: 0.4;"></div>
 
                 <!-- Profile Image / Icon -->
                 <div style="text-align: center;">
-                    <div style="background: var(--bg-input); width: 85px; height: 85px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 38px; margin: 0 auto 15px auto; border: 2px solid var(--border-color);">
+                    <div style="background: var(--bg-input); width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 28px; margin: 0 auto 10px auto; border: 2px solid var(--border-color);">
                         <i class="fas fa-user-tie"></i>
                     </div>
-                    <h2 style="margin: 0 0 5px 0; color: var(--text-main); font-size: 22px; font-weight: 900; font-family: 'Poppins', sans-serif; letter-spacing: 0.5px;">Srikanta Banerjee</h2>
-                    <p style="margin: 0; color: var(--text-muted); font-size: 14px; font-weight: 700;">Owner & Instructor</p>
+                    <h2 style="margin: 0 0 3px 0; color: var(--text-main); font-size: 18px; font-weight: 900; font-family: 'Poppins', sans-serif; letter-spacing: 0.5px;">Srikanta Banerjee</h2>
+                    <p style="margin: 0; color: var(--text-muted); font-size: 12px; font-weight: 700;">Owner & Instructor</p>
                 </div>
 
                 <!-- Details Card -->
-                <div style="margin-top: 25px; background: var(--bg-body); padding: 20px; border-radius: 16px; border: 1px dashed var(--primary); text-align: left;">
+                <div style="margin-top: 15px; background: var(--bg-body); padding: 12px 15px; border-radius: 12px; border: 1px dashed var(--primary); text-align: left;">
                     
                     <!-- Address -->
-                    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px;">
-                        <i class="fas fa-map-marker-alt" style="color: var(--danger); font-size: 18px; margin-top: 2px; width: 22px; text-align: center;"></i> 
+                    <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px;">
+                        <i class="fas fa-map-marker-alt" style="color: var(--danger); font-size: 15px; margin-top: 3px; width: 20px; text-align: center;"></i> 
                         <div>
-                            <div style="font-weight: 900; color: var(--text-main); font-size: 15px; margin-bottom: 2px;">Address:</div>
-                            <div style="color: var(--text-muted); font-size: 15px; line-height: 1.5; font-weight: 500;">Moyna, Nabagram,<br>Purba Bardhaman</div>
+                            <div style="font-weight: 900; color: var(--text-main); font-size: 13px; margin-bottom: 2px;">Address:</div>
+                            <div style="color: var(--text-muted); font-size: 12px; line-height: 1.4; font-weight: 500;">Moyna, Nabagram,<br>Purba Bardhaman</div>
                         </div>
                     </div>
 
                     <!-- Contact -->
-                    <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 18px;">
-                        <i class="fas fa-phone-alt" style="color: var(--success); font-size: 18px; margin-top: 2px; width: 22px; text-align: center;"></i> 
+                    <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px;">
+                        <i class="fas fa-phone-alt" style="color: var(--success); font-size: 15px; margin-top: 3px; width: 20px; text-align: center;"></i> 
                         <div>
-                            <div style="font-weight: 900; color: var(--text-main); font-size: 15px; margin-bottom: 2px;">Contact:</div>
-                            <div style="color: var(--text-muted); font-size: 15px; font-weight: 500;">7001471235 / 9475311199</div>
+                            <div style="font-weight: 900; color: var(--text-main); font-size: 13px; margin-bottom: 2px;">Contact:</div>
+                            <div style="color: var(--text-muted); font-size: 12px; font-weight: 500;">7001471235 / 9475311199</div>
                         </div>
                     </div>
 
                     <!-- Classes -->
-                    <div style="display: flex; align-items: flex-start; gap: 12px;">
-                        <i class="fas fa-music" style="color: var(--primary); font-size: 18px; margin-top: 2px; width: 22px; text-align: center;"></i> 
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                        <i class="fas fa-music" style="color: var(--primary); font-size: 15px; margin-top: 3px; width: 20px; text-align: center;"></i> 
                         <div>
-                            <div style="font-weight: 900; color: var(--text-main); font-size: 15px; margin-bottom: 2px;">Classes:</div>
-                            <div style="color: var(--text-muted); font-size: 15px; line-height: 1.5; font-weight: 500;">Guitar, Bass Guitar, Piano,<br>Keyboard, Mandolin</div>
+                            <div style="font-weight: 900; color: var(--text-main); font-size: 13px; margin-bottom: 2px;">Classes:</div>
+                            <div style="color: var(--text-muted); font-size: 12px; line-height: 1.4; font-weight: 500;">Guitar, Bass Guitar, Piano,<br>Keyboard, Mandolin</div>
                         </div>
                     </div>
 
