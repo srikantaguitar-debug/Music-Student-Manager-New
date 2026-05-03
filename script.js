@@ -1823,26 +1823,6 @@ function wasStudentActiveDuringMonth(student, monthStr) {
     return false; 
 }
 
-        function getDueMonthsList(studentId) { 
-            const s = students.find(x => x.id === studentId); 
-            if (!s) return []; 
-            const dueMonths = []; 
-            const now = new Date(); 
-            let iterDate = new Date(s.joining_date);
-            if(isNaN(iterDate.getTime())) return [];
-            iterDate.setDate(1);
-            while (iterDate <= now) { 
-                const y = iterDate.getFullYear(); 
-                const m = iterDate.getMonth() + 1; 
-                const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
-                if (wasStudentActiveDuringMonth(s, monthStr) && isMonthDue(monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
-                    dueMonths.push(formatMonthYear(monthStr)); 
-                } 
-                iterDate.setMonth(iterDate.getMonth() + 1); 
-            } 
-            return dueMonths; 
-        }
-
         function getDueMsg(student, month) { 
             const feePerMonth = student.fee_amount || DEFAULT_FEE; 
             const cls = student.class || 'Music'; 
@@ -2729,7 +2709,21 @@ function showFeeBreakdown(type, specificMonth = null) {
         const feeRecord = fees[selectedMonth]?.[s.id];
         const isPaid = feeRecord?.status === 'paid';
         if (type === 'collected') return isPaid;
-        if (type === 'due') return !isPaid && monthIsDue;
+        
+        // 🟢 FIX: Main Dashboard এর সাথে Due লিস্টের লজিক একদম সেম করা হলো
+        if (type === 'due') {
+            const presentDays = window.getPresentCountForMonth(s.id, selectedMonth);
+            const hasAttended = presentDays > 0;
+            const feeType = s.fee_type || 'monthly';
+            
+            let isDueNow = false;
+            if (feeType === 'per_class') {
+                isDueNow = presentDays > 0;
+            } else {
+                isDueNow = hasAttended || monthIsDue;
+            }
+            return !isPaid && isDueNow;
+        }
         return false;
     });
 
@@ -2760,10 +2754,13 @@ function showFeeBreakdown(type, specificMonth = null) {
         list.forEach(s => {
             const feeRecord = fees[selectedMonth]?.[s.id];
             let info = '';
-            if(type === 'collected') info = `<br><span style="font-size:10px; color:green;">₹${feeRecord.amount} on ${new Date(feeRecord.date).toLocaleDateString()}</span>`;
-            else {
+            if(type === 'collected') {
+                info = `<br><span style="font-size:10px; color:green;">₹${feeRecord.amount} on ${new Date(feeRecord.date).toLocaleDateString()}</span>`;
+            } else {
+                // 🟢 FIX: Accurate Due Amount Calculation
                 const totalDueMonths = getDueMonthsList(s.id).length;
-                info = `<br><span style="font-size:10px; color:red;">Due: ₹${s.fee_amount || DEFAULT_FEE} (${totalDueMonths} Months Pending)</span>`;
+                const dueAmt = window.getCalculatedDueAmount(s, selectedMonth);
+                info = `<br><span style="font-size:10px; color:red;">Due: ₹${dueAmt} (${totalDueMonths} Months Pending)</span>`;
             }
             
             tableBody.innerHTML += `<tr><td>${s.serial_no}</td><td>${getStudentHtml(s)}${info}</td><td>${type === 'due' ? getContactButtons(s.id, selectedMonth) : getAllContactButtons(s)}</td></tr>`;
@@ -4742,30 +4739,6 @@ async function unmarkFee(studentId, month) {
     }); 
 }
         
-function getOldestUnpaidMonth(studentId, selectedMonthStr) {
-    const s = students.find(x => x.id === studentId);
-    if (!s) return selectedMonthStr;
-    
-    let iterDate = new Date(s.joining_date);
-    if(isNaN(iterDate.getTime())) return selectedMonthStr;
-    
-    iterDate.setDate(1); 
-    const targetDate = new Date(selectedMonthStr + '-01');
-
-    while (iterDate <= targetDate) {
-        const y = iterDate.getFullYear();
-        const m = iterDate.getMonth() + 1;
-        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
-        
-        if (wasStudentActiveDuringMonth(s, monthStr)) {
-            if (fees[monthStr]?.[studentId]?.status !== 'paid') {
-                return monthStr; 
-            }
-        }
-        iterDate.setMonth(iterDate.getMonth() + 1);
-    }
-    return selectedMonthStr; 
-}
 
 function getDueMonthsRawList(studentId) {
     const s = students.find(x => x.id === studentId); 
@@ -9991,55 +9964,53 @@ window.isPastDueDate = function(monthStr) {
     if (y === currentYear && m === currentMonth && today > dueDate) return true; 
     return false;
 };
-// 🟢 ড্যাশবোর্ডের Yearly Due ক্যালকুলেশন আপডেট (Monthly + Per Class)
-const originalRenderDashboard = window.renderDashboard;
-window.renderDashboard = function() {
-    if (typeof originalRenderDashboard === 'function') originalRenderDashboard();
+// =====================================================================
+// 🟢 MAGIC FIX: DASHBOARD MONTHLY/YEARLY DUE & DEFAULTERS LIST ACCURACY
+// =====================================================================
 
-    setTimeout(() => {
-        let yearlyCollected = 0, yearlyDueAmount = 0; 
-        const currentYear = new Date().getFullYear();
-        
-        students.forEach(student => { 
-            const feeType = student.fee_type || 'monthly'; 
-
-            for (let i = 0; i < 12; i++) { 
-                const monthStr = `${currentYear}-${(i + 1).toString().padStart(2, '0')}`; 
-                if (window.wasStudentActiveDuringMonth(student, monthStr)) { 
-                    
-                    if (fees[monthStr]?.[student.id]?.status === 'paid') { 
-                        yearlyCollected += fees[monthStr][student.id].amount; 
-                    } 
-                    else {
-                        const presentDays = window.getPresentCountForMonth(student.id, monthStr);
-                        const hasAttended = presentDays > 0;
-                        
-                        if (feeType === 'per_class') {
-                            // Per Class: ক্লাস করলে ড্যাশবোর্ডে ডিউ যোগ হবে
-                            if (hasAttended) yearlyDueAmount += (presentDays * (student.fee_amount || 0));
-                        } else {
-                            // Monthly: ক্লাস করলে বা ১০ তারিখ পার হলে ড্যাশবোর্ডে ডিউ যোগ হবে
-                            if (hasAttended || window.isPastDueDate(monthStr)) {
-                                yearlyDueAmount += (student.fee_amount || DEFAULT_FEE); 
-                            }
-                        }
-                    } 
-                } 
-            } 
-        });
-
-        const dashboardSummary = document.getElementById('dashboardYearlySummary');
-        if(dashboardSummary) {
-            dashboardSummary.innerHTML = `
-                <div onclick="showYearlyBreakdown('collected', '${currentYear}')" style="cursor:pointer;">
-                    <h4>Yearly Collected</h4><p class="summary-collected">₹${yearlyCollected}</p>
-                </div>
-                <div onclick="showYearlyBreakdown('due', '${currentYear}')" style="cursor:pointer;">
-                    <h4>Yearly Due (Active)</h4><p class="summary-due">₹${yearlyDueAmount}</p>
-                </div>`; 
-        }
-    }, 100);
+window.getDueMonthsList = function(studentId) { 
+    const s = students.find(x => x.id === studentId); 
+    if (!s) return []; 
+    const dueMonths = []; 
+    const now = new Date(); 
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return [];
+    iterDate.setDate(1);
+    while (iterDate <= now) { 
+        const y = iterDate.getFullYear(); 
+        const m = iterDate.getMonth() + 1; 
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+        if (window.wasStudentActiveDuringMonth(s, monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
+            if (window.getCalculatedDueAmount(s, monthStr) > 0) {
+                dueMonths.push(formatMonthYear(monthStr)); 
+            }
+        } 
+        iterDate.setMonth(iterDate.getMonth() + 1); 
+    } 
+    return dueMonths; 
 };
+
+window.getOldestUnpaidMonth = function(studentId, selectedMonthStr) {
+    const s = students.find(x => x.id === studentId);
+    if (!s) return selectedMonthStr;
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return selectedMonthStr;
+    iterDate.setDate(1); 
+    const targetDate = new Date(selectedMonthStr + '-01');
+    while (iterDate <= targetDate) {
+        const y = iterDate.getFullYear();
+        const m = iterDate.getMonth() + 1;
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+        if (window.wasStudentActiveDuringMonth(s, monthStr)) {
+            if (fees[monthStr]?.[studentId]?.status !== 'paid' && window.getCalculatedDueAmount(s, monthStr) > 0) {
+                return monthStr; 
+            }
+        }
+        iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+    return selectedMonthStr; 
+};
+
 // 🟢 ১. একটি মাস্টার ডিউ ক্যালকুলেটর (সবার জন্য)
 window.getCalculatedDueAmount = function(student, monthStr) {
     const presentDays = window.getPresentCountForMonth(student.id, monthStr);
@@ -11138,3 +11109,169 @@ const originalRenderStudentPortal = window.renderStudentPortal;
 if(typeof originalRenderStudentPortal !== 'undefined') {
     window.showStudentProducts(); // Just to load the helper methods
 }
+// =====================================================================
+// 🟢 MAGIC FIX: DASHBOARD MONTHLY/YEARLY DUE & DEFAULTERS LIST ACCURACY
+// =====================================================================
+
+window.getDueMonthsList = function(studentId) { 
+    const s = students.find(x => x.id === studentId); 
+    if (!s) return []; 
+    const dueMonths = []; 
+    const now = new Date(); 
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return [];
+    iterDate.setDate(1);
+    while (iterDate <= now) { 
+        const y = iterDate.getFullYear(); 
+        const m = iterDate.getMonth() + 1; 
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`; 
+        if (window.wasStudentActiveDuringMonth(s, monthStr) && fees[monthStr]?.[studentId]?.status !== 'paid') { 
+            if (window.getCalculatedDueAmount(s, monthStr) > 0) {
+                dueMonths.push(formatMonthYear(monthStr)); 
+            }
+        } 
+        iterDate.setMonth(iterDate.getMonth() + 1); 
+    } 
+    return dueMonths; 
+};
+
+window.getOldestUnpaidMonth = function(studentId, selectedMonthStr) {
+    const s = students.find(x => x.id === studentId);
+    if (!s) return selectedMonthStr;
+    let iterDate = new Date(s.joining_date);
+    if(isNaN(iterDate.getTime())) return selectedMonthStr;
+    iterDate.setDate(1); 
+    const targetDate = new Date(selectedMonthStr + '-01');
+    while (iterDate <= targetDate) {
+        const y = iterDate.getFullYear();
+        const m = iterDate.getMonth() + 1;
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+        if (window.wasStudentActiveDuringMonth(s, monthStr)) {
+            if (fees[monthStr]?.[studentId]?.status !== 'paid' && window.getCalculatedDueAmount(s, monthStr) > 0) {
+                return monthStr; 
+            }
+        }
+        iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+    return selectedMonthStr; 
+};
+
+const originalRenderDashboard = window.renderDashboard;
+window.renderDashboard = function() {
+    if (typeof originalRenderDashboard === 'function') originalRenderDashboard();
+
+    setTimeout(() => {
+        let monthlyCollected = 0, monthlyDueAmount = 0, yearlyCollected = 0, yearlyDueAmount = 0; 
+        let monthlyPaidCount = 0, monthlyDueCount = 0; 
+        const currentYear = new Date().getFullYear();
+        const currentMonthStr = `${currentYear}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
+
+        students.forEach(student => { 
+            for (let i = 0; i < 12; i++) { 
+                const monthStr = `${currentYear}-${(i + 1).toString().padStart(2, '0')}`; 
+                if (window.wasStudentActiveDuringMonth(student, monthStr)) { 
+                    if (fees[monthStr]?.[student.id]?.status === 'paid') { 
+                        if (monthStr === currentMonthStr) {
+                            monthlyCollected += fees[monthStr][student.id].amount; 
+                            monthlyPaidCount++; 
+                        }
+                        yearlyCollected += fees[monthStr][student.id].amount; 
+                    } else { 
+                        const dueAmt = window.getCalculatedDueAmount(student, monthStr);
+                        if (dueAmt > 0) {
+                            if (monthStr === currentMonthStr) {
+                                monthlyDueAmount += dueAmt; 
+                                monthlyDueCount++; 
+                            }
+                            yearlyDueAmount += dueAmt; 
+                        }
+                    } 
+                } 
+            } 
+        });
+
+        // Update Yearly UI
+        const dashboardSummary = document.getElementById('dashboardYearlySummary');
+        if(dashboardSummary) {
+            dashboardSummary.innerHTML = `
+                <div onclick="showYearlyBreakdown('collected', '${currentYear}')" style="cursor:pointer;">
+                    <h4>Yearly Collected</h4><p class="summary-collected">₹${yearlyCollected}</p>
+                </div>
+                <div onclick="showYearlyBreakdown('due', '${currentYear}')" style="cursor:pointer;">
+                    <h4>Yearly Due (Active)</h4><p class="summary-due">₹${yearlyDueAmount}</p>
+                </div>`; 
+        }
+
+        // Update Monthly UI (Fixing Dashboard Dues)
+        const monthlyUI = document.getElementById('financeOverviewNumbers');
+        if(monthlyUI) {
+            monthlyUI.innerHTML = `
+                <div onclick="showFeeBreakdown('collected')">
+                    <h4 style="line-height: 1.4; margin-bottom: 8px;">Collected <br><span style="font-size: 10px; text-transform: none; font-weight: 500; color: var(--secondary);">(${monthlyPaidCount} Students)</span></h4>
+                    <p class="summary-collected">₹${monthlyCollected}</p>
+                </div>
+                <div onclick="showFeeBreakdown('due')">
+                    <h4 style="line-height: 1.4; margin-bottom: 8px;">Due <br><span style="font-size: 10px; text-transform: none; font-weight: 500; color: var(--secondary);">(${monthlyDueCount} Students)</span></h4>
+                    <p class="summary-due">₹${monthlyDueAmount}</p>
+                </div>`;
+        }
+
+        // Update Pie Chart
+        const chartCanvas = document.getElementById('financeChart');
+        if(chartCanvas) {
+            const ctx = chartCanvas.getContext('2d'); 
+            if (financeChartInstance) financeChartInstance.destroy(); 
+            financeChartInstance = new Chart(ctx, { 
+                type: 'doughnut', 
+                data: { 
+                    labels: ['Collected', 'Due'], 
+                    datasets: [{ data: [monthlyCollected, monthlyDueAmount], backgroundColor: ['#28a745', '#dc3545'], hoverOffset: 4 }] 
+                }, 
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-main') } }, 
+                        title: { display: true, text: `Summary for ${formatMonthYear(currentMonthStr)}`, color: getComputedStyle(document.body).getPropertyValue('--text-main') } 
+                    } 
+                } 
+            });
+        }
+
+        // Update Defaulters List at the bottom of Dashboard
+        const dueTableBody = document.querySelector('#dueFeeTable tbody'); 
+        const dueMessageEl = document.getElementById('dueFeeMessage'); 
+        if(dueTableBody && dueMessageEl) {
+            dueTableBody.innerHTML = ''; 
+            
+            const defaulters = students.filter(s => window.isStudentCurrentlyActive(s))
+                .map(s => { return { student: s, months: window.getDueMonthsList(s.id) }; })
+                .filter(item => item.months.length > 0); 
+            
+            if (defaulters.length === 0) { 
+                dueMessageEl.textContent = "No pending dues."; 
+            } else { 
+                dueMessageEl.textContent = `(${defaulters.length}) students have pending dues.`; 
+                defaulters.sort((a, b) => b.months.length - a.months.length);
+                defaulters.forEach(item => { 
+                    const monthsStr = item.months.join(", "); 
+                    const studentHtml = getStudentHtml(item.student); 
+                    const dueDisplay = `<div style="margin-top:5px; font-size:11px; color:#dc2626; font-weight:600; line-height:1.4;">Due: ${monthsStr}</div>`; 
+                    
+                    const oldestDueMonthRaw = window.getOldestUnpaidMonth(item.student.id, currentMonthStr); 
+                    
+                    const payBtn = `<button class="btn-success btn-like" onclick="openFeeModal(${item.student.id}, '${oldestDueMonthRaw}')" style="padding: 4px 8px; font-size: 11px; margin: 2px;"><i class="fas fa-rupee-sign"></i> Pay</button>`;
+                    const contactBtns = window.getContactButtons(item.student.id, oldestDueMonthRaw); 
+                    
+                    dueTableBody.innerHTML += `<tr>
+                        <td>${studentHtml}${dueDisplay}</td>
+                        <td class="action-buttons">
+                            ${payBtn} 
+                            ${contactBtns}
+                        </td>
+                    </tr>`; 
+                }); 
+            }
+        }
+
+    }, 150); // wait for original renderDashboard to finish
+};
