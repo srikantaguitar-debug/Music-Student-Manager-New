@@ -511,32 +511,36 @@ window.showStudentProducts = function() {
                                 });
 
                                 let attHtml = validAttRecords.length > 0 ? validAttRecords.map(rec => {
-                                    let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
-                                    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
-                                    let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
-                                    let inst = typeof rec.data === 'object' && rec.data !== null && rec.data.instrument ? rec.data.instrument : ''; 
+    let status = typeof rec.data === 'object' && rec.data !== null && rec.data.status ? rec.data.status : (typeof rec.data === 'string' ? rec.data : 'Not Marked');
+    let note = typeof rec.data === 'object' && rec.data !== null && rec.data.note ? rec.data.note : '';
+    let time = typeof rec.data === 'object' && rec.data !== null && rec.data.time ? rec.data.time : '';
+    let inst = typeof rec.data === 'object' && rec.data !== null && rec.data.instrument ? rec.data.instrument : ''; 
 
-                                    let clr = status === 'present' ? '#16a34a' : (status === 'absent' ? '#dc2626' : '#f59e0b');
+    let clr = status === 'present' ? 'var(--success)' : (status === 'absent' ? 'var(--danger)' : 'var(--warning)');
 
-                                    const d = new Date(rec.date);
-                                    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
-                                    const formattedDate = d.toLocaleDateString('en-IN');
+    const d = new Date(rec.date);
+    const dayName = d.toLocaleDateString('en-IN', { weekday: 'short' });
+    const formattedDate = d.toLocaleDateString('en-IN');
 
-                                    let timeDisplay = time ? formatTime12H(time) : '';
-                                    let timeBadge = timeDisplay ? `<span style="font-size:11px; color:#3b82f6; background:#eff6ff; padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
-                                    
-                                    let instBadge = inst ? `<span style="font-size:10px; color:#0ea5e9; background:#e0f2fe; padding:2px 6px; border-radius:4px; margin-left:5px; border:1px solid #bae6fd; font-weight:bold;">${inst}</span>` : '';
-                                    
-                                    let noteDisplay = note ? `<br><span style="font-size:11px; color:#64748b;">📝 ${note}</span>` : '';
+    let timeDisplay = time ? formatTime12H(time) : '';
+    let timeBadge = timeDisplay ? `<span style="font-size:11px; color:var(--primary); background:var(--bg-body); padding:2px 6px; border-radius:4px; margin-left:5px;">🕒 ${timeDisplay}</span>` : '';
+    
+    let instBadge = inst ? `<span style="font-size:10px; color:var(--primary); background:var(--bg-body); padding:2px 6px; border-radius:4px; margin-left:5px; border:1px solid var(--border-color); font-weight:bold;">${inst}</span>` : '';
+    
+    let noteDisplay = note ? `<br><span style="font-size:11px; color:var(--text-muted); margin-top:3px; display:inline-block;">📝 ${note}</span>` : '';
 
-                                    return `<div style="margin-bottom:10px; padding:12px; background:#f8fafc; border-radius:10px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
-                                        <div>
-                                            <strong style="color:#1e293b;">${formattedDate} (${dayName})</strong>${timeBadge}${instBadge}
-                                            ${noteDisplay}
-                                        </div>
-                                        <div style="color:${clr}; font-weight:bold; text-transform:uppercase;">${status}</div>
-                                    </div>`;
-                                }).join('') : '<p style="text-align:center; color:gray; font-size:13px;">No attendance records.</p>';
+    return `<div style="margin-bottom:12px; padding:15px; background:var(--bg-card); border-radius:14px; border:1px solid var(--border-color); border-left:5px solid var(--primary); display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
+        <div style="line-height:1.4;">
+            <strong style="color:var(--text-main); font-size:15px;">${formattedDate} (${dayName})</strong>
+            <div style="margin-top:5px; display:flex; gap:5px; flex-wrap:wrap;">
+                ${timeBadge}
+                ${instBadge}
+            </div>
+            ${noteDisplay}
+        </div>
+        <div style="color:${clr}; font-weight:900; text-transform:uppercase; font-size:14px;">${status}</div>
+    </div>`;
+}).join('') : '<p style="text-align:center; color:var(--text-muted); font-size:13px;">No attendance records.</p>';
 
 // ৩. Payment Data
                         let feeRecords = [];
@@ -544,28 +548,22 @@ window.showStudentProducts = function() {
                         feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
                         
                         let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
-                            // ট্রানজ্যাকশন আইডি থাকলে দেখাবে
-                            let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:#047857; font-weight:600; display:inline-block; margin-top:6px; background:#d1fae5; padding:4px 8px; border-radius:6px; border:1px dashed #34d399;"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
-                            
-                            // পেমেন্টের তারিখ ফরম্যাট করা (যেমন: 15 Oct, 2023)
-                            let payDate = rec.data.date ? new Date(rec.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
-                            
-                            // মাসের নাম ফরম্যাট করা
-                            let monthName = new Date(rec.month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' });
-                            
-                            return `
-                            <div style="margin-bottom:15px; padding:16px; background:#f0fdf4; border-radius:14px; border-left:6px solid #22c55e; display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1);">
-                                <div>
-                                    <strong style="color:#166534; font-size:16px; letter-spacing: 0.5px;">${monthName}</strong><br>
-                                    <span style="font-size:12px; color:#15803d; display:flex; align-items:center; gap:5px; margin-top:4px; font-weight: 500;">
-                                        <i class="fas fa-calendar-check" style="color:#22c55e;"></i> Paid on: ${payDate} (${rec.data.mode || 'Cash'})
-                                    </span>
-                                    ${txnHtml}
-                                </div>
-                                <div style="font-size:20px; font-weight:800; color:#166534; background:#dcfce7; padding:8px 14px; border-radius:10px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">₹${rec.data.amount}</div>
-                            </div>`;
-                        }).join('') : '<p style="text-align:center; color:gray; font-size:14px; padding:20px; background:#f8fafc; border-radius:12px; border:1px dashed #cbd5e1;">No payment records found.</p>';
-
+    let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:var(--success); font-weight:600; display:inline-block; margin-top:6px; background:var(--bg-body); padding:4px 8px; border-radius:6px; border:1px dashed var(--success);"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
+    let payDate = rec.data.date ? new Date(rec.data.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'N/A';
+    let monthName = new Date(rec.month + '-01').toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    
+    return `
+    <div style="margin-bottom:15px; padding:16px; background:var(--bg-card); border-radius:16px; border:1px solid var(--border-color); border-left:6px solid var(--success); display:flex; justify-content:space-between; align-items:center; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+        <div>
+            <strong style="color:var(--primary); font-size:16px; letter-spacing: 0.5px;">${monthName}</strong><br>
+            <span style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:5px; margin-top:4px; font-weight: 500;">
+                <i class="fas fa-calendar-check" style="color:var(--success);"></i> Paid on: ${payDate} (${rec.data.mode || 'Cash'})
+            </span>
+            ${txnHtml}
+        </div>
+        <div style="font-size:18px; font-weight:900; color:var(--success); background:var(--bg-body); padding:8px 14px; border-radius:12px; border:1px solid var(--border-color);">₹${rec.data.amount}</div>
+    </div>`;
+}).join('') : '<p style="text-align:center; color:var(--text-muted); font-size:14px; padding:20px; background:var(--bg-card); border-radius:12px; border:1px dashed var(--border-color);">No payment records found.</p>';
 // ৪. Due Data (Updated for Monthly & Per Class)
 let dueHtml = '';
 let dueMonthsDetails = [];
@@ -665,18 +663,18 @@ if(totalDueAmountPortal > 0) {
                                 let materialsHtml = '';
                                 if (s.study_materials && s.study_materials.length > 0) {
                                     materialsHtml = s.study_materials.sort((a,b) => new Date(b.date) - new Date(a.date)).map(mat => {
-                                        let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:#3b82f6;"></i>');
-                                        return `<div style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid #e2e8f0;">
-                                            <div style="display:flex; align-items:center; gap:10px;">
-                                                <div style="font-size:20px;">${icon}</div>
-                                                <div>
-                                                    <div style="font-weight:600; color:#1e293b; font-size:13px;">${mat.title}</div>
-                                                    <div style="font-size:10px; color:#64748b;">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
-                                                </div>
-                                            </div>
-                                            <a href="${mat.link}" target="_blank" style="background:#6366f1; color:#fff; padding:6px 12px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:600;">View</a>
-                                        </div>`;
-                                    }).join('');
+    let icon = mat.type === 'video' ? '<i class="fab fa-youtube" style="color:#ef4444;"></i>' : (mat.type === 'pdf' ? '<i class="fas fa-file-pdf" style="color:#ef4444;"></i>' : '<i class="fas fa-music" style="color:var(--primary);"></i>');
+    return `<div style="padding:12px; background:var(--bg-card); border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; border:1px solid var(--border-color); border-left:4px solid var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <div style="font-size:20px;">${icon}</div>
+            <div>
+                <div style="font-weight:700; color:var(--text-main); font-size:13px;">${mat.title}</div>
+                <div style="font-size:10px; color:var(--text-muted);">Uploaded: ${new Date(mat.date).toLocaleDateString('en-IN')}</div>
+            </div>
+        </div>
+        <a href="${mat.link}" target="_blank" style="background:var(--primary); color:#fff; padding:6px 14px; border-radius:8px; text-decoration:none; font-size:11px; font-weight:700; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">View</a>
+    </div>`;
+}).join('');
                                 } else {
                                     materialsHtml = '<p style="text-align:center; color:gray; font-size:12px;">No materials shared yet.</p>';
                                 }
@@ -713,30 +711,30 @@ if (isStudentActive && canLogPractice) {
 
     practiceLogFormHtml = `
     <div style="margin-bottom: 15px; position: relative;">
-        <label style="font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 5px; display: block; text-align: left; text-transform: uppercase; letter-spacing: 0.5px;">
-            <i class="fas fa-music" style="color: #8b5cf6;"></i> Select Subject
+        <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; display: block; text-align: left; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-music" style="color: var(--primary);"></i> Select Subject
         </label>
         
-        <select id="practiceClassSelect" ${classSelectDisabled} style="width: 100%; padding: 12px 15px; border-radius: 10px; font-size: 15px; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; transition: all 0.3s;">
+        <select id="practiceClassSelect" ${classSelectDisabled} style="width: 100%; padding: 12px 15px; border-radius: 10px; font-size: 15px; outline: none; box-sizing: border-box; appearance: none; -webkit-appearance: none; transition: all 0.3s; background: var(--bg-card); color: var(--text-main); border: 2px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
             ${classOptionsHtml}
         </select>
     </div>
 
-    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px dashed #cbd5e1;">
-        <span style="font-size: 13px; color: #64748b; font-weight: 600;"><i class="fas fa-clock"></i> Time:</span>
-        <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px; outline: none; color: #1e293b; background: white;">
-        <span style="font-size: 10px; color: #94a3b8;">(Optional)</span>
+    <div style="margin-bottom: 15px; display: flex; align-items: center; gap: 10px; background: var(--bg-body); padding: 10px; border-radius: 8px; border: 1px dashed var(--primary);">
+        <span style="font-size: 13px; color: var(--text-main); font-weight: 600;"><i class="fas fa-clock" style="color: var(--primary);"></i> Time:</span>
+        <input type="time" id="practiceTimeInput" style="flex: 1; padding: 8px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 13px; outline: none; color: var(--text-main); background: var(--bg-card);">
+        <span style="font-size: 10px; color: var(--text-muted);">(Optional)</span>
     </div>
 
     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
         <div style="width: 40%; display: flex; gap: 5px;">
-            <input type="number" id="practiceHours" placeholder="Hrs" min="0" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
-            <input type="number" id="practiceMinutes" placeholder="Mins" min="0" max="59" style="width: 50%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center;">
+            <input type="number" id="practiceHours" placeholder="Hrs" min="0" style="width: 50%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center; background: var(--bg-card); color: var(--text-main);">
+            <input type="number" id="practiceMinutes" placeholder="Mins" min="0" max="59" style="width: 50%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; text-align: center; background: var(--bg-card); color: var(--text-main);">
         </div>
-        <input type="text" id="practiceTopic" placeholder="Topic (Optional)" style="width: 60%; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box;">
+        <input type="text" id="practiceTopic" placeholder="Topic (Optional)" style="width: 60%; padding: 10px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 13px; outline: none; box-sizing: border-box; background: var(--bg-card); color: var(--text-main);">
     </div>
     
-    <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: transform 0.2s;">
+    <button onclick="submitPracticeLog(${studentViewId})" style="width: 100%; background: var(--primary); color: white; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1); transition: transform 0.2s;">
         <i class="fas fa-check-circle" style="margin-right: 5px;"></i> Log Practice
     </button>`;
 } 
