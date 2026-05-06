@@ -1849,7 +1849,8 @@ function getPaidMsg(student, monthsStr, amount, txnId) {
     return msg; 
 }
         
-function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) { 
+// 🟢 REPLACEMENT: sendMsg with Confirmation Popup
+window.sendMsg = async function(type, studentId, monthStr, amount = 0, isDue = true) { 
     const student = students.find(s => s.id === studentId); 
     if(!student) return; 
     
@@ -1862,18 +1863,41 @@ function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) {
     
     const msgBody = isDue ? getDueMsg(student, monthStr) : getPaidMsg(student, monthStr, amount, txnId); 
     
-    if(type === 'wa') { 
-        let cleanPhone = student.phone.replace(/[^0-9]/g, ''); 
-        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); 
-    } else if (type === 'sms') { 
-        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); 
-    } else if (type === 'mail') { 
-        const subject = isDue ? "Fee Reminder" : "Payment Receipt"; 
-        window.open(`mailto:${student.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msgBody)}`, '_self'); 
-    } 
-}
-        function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
+    let cleanPhone = student.phone.replace(/[^0-9]/g, ''); 
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    
+    // 🟢 Confirmation Popup দেখানো হচ্ছে
+    window.showMessageConfirmation(type, cleanPhone, msgBody, student.name, () => {
+        if(type === 'wa') { 
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); 
+        } else if (type === 'sms') { 
+            window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msgBody)}`; 
+        } else if (type === 'mail') { 
+            const subject = isDue ? "Fee Reminder" : "Payment Receipt"; 
+            window.open(`mailto:${student.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msgBody)}`, '_self'); 
+        }
+    });
+};
+// 🟢 REPLACEMENT: sendBirthdayWish with Confirmation Popup
+window.sendBirthdayWish = async function(type, studentId) { 
+    const student = students.find(s => s.id === studentId); 
+    if(!student) return; 
+    
+    const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; 
+    
+    let cleanPhone = student.phone.replace(/[^0-9]/g, ''); 
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    
+    window.showMessageConfirmation(type, cleanPhone, msgBody, student.name, () => {
+        if(type === 'wa') { 
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); 
+        } else if (type === 'sms') { 
+            window.location.href = `sms:${student.phone}?body=${encodeURIComponent(msgBody)}`; 
+        } else if (type === 'mail') { 
+            window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); 
+        }
+    });
+};
         
 function dismissBirthday(studentId) {
     const currentYear = new Date().getFullYear();
@@ -1964,22 +1988,26 @@ async function changeAppPin() {
     } 
 }
         
-        function sendWelcomeMsg(type, studentId) {
-            const student = students.find(s => s.id === studentId);
-            if (!student) return;
+// 🟢 REPLACEMENT: sendWelcomeMsg with Confirmation Popup
+window.sendWelcomeMsg = async function(type, studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
 
-            const msgBody = `Welcome ${student.name} to the ${student.class || 'Music'} class! We are glad to have you with us. Your classes are on ${student.class_day || 'scheduled day'} at ${student.class_time ? formatTime12H(student.class_time) : 'scheduled time'}. Regards, Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard & Mandolin Classes)`;
-            
-            if (type === 'wa') {
-                let cleanPhone = student.phone.replace(/[^0-9]/g, '');
-                if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-                window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
-            } else if (type === 'sms') {
-                window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
-            } else if (type === 'mail') {
-                window.open(`mailto:${student.email}?subject=${encodeURIComponent("Welcome to Music Classes")}&body=${encodeURIComponent(msgBody)}`, '_self');
-            }
+    const msgBody = `Welcome ${student.name} to the ${student.class || 'Music'} class! We are glad to have you with us. Your classes are on ${student.class_day || 'scheduled day'} at ${student.class_time ? formatTime12H(student.class_time) : 'scheduled time'}. Regards, Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard & Mandolin Classes)`;
+    
+    let cleanPhone = student.phone.replace(/[^0-9]/g, '');
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    
+    window.showMessageConfirmation(type, cleanPhone, msgBody, student.name, () => {
+        if (type === 'wa') {
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        } else if (type === 'sms') {
+            window.location.href = `sms:${student.phone}?body=${encodeURIComponent(msgBody)}`;
+        } else if (type === 'mail') {
+            window.open(`mailto:${student.email}?subject=${encodeURIComponent("Welcome to Music Classes")}&body=${encodeURIComponent(msgBody)}`, '_self');
         }
+    });
+};
         
         window.shareWelcomePdf = async function(fileName) {
             const file = window.tempPdfFile;
@@ -7309,36 +7337,35 @@ window.executeSingleRestore = async function(backupData) {
         Swal.fire('Error', 'Failed to restore student completely. Check internet connection.', 'error');
     }
 };
-function sendGeneralMsg(type, studentId) {
+// 🟢 REPLACEMENT: sendGeneralMsg with Confirmation Popup
+window.sendGeneralMsg = async function(type, studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
-    // স্টুডেন্টের নিজস্ব পোর্টাল লিঙ্ক তৈরি করা হচ্ছে
     const baseUrl = window.location.origin + window.location.pathname;
     const portalLink = `${baseUrl}?student=${student.id}&manager=${DOC_ID}`;
 
     let msgBody = '';
 
-    // 🟢 চেক করা হচ্ছে স্টুডেন্ট Active নাকি Inactive
     if (window.isStudentCurrentlyActive(student)) {
-        // Active স্টুডেন্টদের জন্য পোর্টাল লিংক সহ মেসেজ
         msgBody = `Hello ${student.name},\n\nHope you are doing well and enjoying your ${student.class || 'Music'} classes! 🎵\n\nYou can check your Attendance, Fees, and Study Materials anytime from your Student Portal here:\n${portalLink}\n\nKeep practicing regularly!\n\nRegards,\nSrikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes)`;
     } else {
-        // 🟢 Inactive স্টুডেন্টদের জন্য আপনার দেওয়া নতুন মেসেজ
         msgBody = `Hello ${student.name},\n\nHope you are doing well. Just connecting regarding the music classes updates.\n\nFrom Srikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes.)`;
     }
     
-    if(type === 'wa') {
-        let cleanPhone = student.phone.replace(/[^0-9]/g, '');
-        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
-    } else if (type === 'sms') {
-        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
-    } else if (type === 'mail') {
-        const mailSubject = window.isStudentCurrentlyActive(student) ? "Update from Music Class" : "Connecting regarding music classes";
-        window.open(`mailto:${student.email}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(msgBody)}`, '_self');
-    }
-}
+    let cleanPhone = student.phone.replace(/[^0-9]/g, '');
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    
+    window.showMessageConfirmation(type, cleanPhone, msgBody, student.name, () => {
+        if(type === 'wa') {
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        } else if (type === 'sms') {
+            window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msgBody)}`;
+        } else if (type === 'mail') {
+            window.open(`mailto:${student.email}?subject=${encodeURIComponent("Update from Music Class")}&body=${encodeURIComponent(msgBody)}`, '_self');
+        }
+    });
+};
 
 function openEditStudentModal(id) {
     const student = students.find(s => s.id === id);
@@ -9707,22 +9734,29 @@ window.sendBulkNoticeToPortals = async function(isClear = false) {
 // 🟢 14 DAYS ABSENT ALERT LOGIC 
 // ==========================================
 
-window.sendAbsentAlertMsg = function(type, studentId, days) {
+// 🟢 REPLACEMENT: sendAbsentAlertMsg with Confirmation Popup
+window.sendAbsentAlertMsg = async function(type, studentId, days) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
     const msgBody = `Dear ${student.name},\n\nWe noticed you haven't attended your ${student.class || 'Music'} classes for the last ${days} days. Please let us know if everything is alright and when you plan to resume your classes.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
     
-    if (type === 'wa') {
-        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        if(cleanPhone) window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
-        else Swal.fire('Error', 'No phone number found', 'error');
-    } else if (type === 'sms') {
-        if(student.phone) window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
-        else Swal.fire('Error', 'No phone number found', 'error');
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    
+    if (!cleanPhone) {
+        Swal.fire('Error', 'No phone number found', 'error');
+        return;
     }
+    
+    window.showMessageConfirmation(type, cleanPhone, msgBody, student.name, () => {
+        if (type === 'wa') {
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        } else if (type === 'sms') {
+            window.location.href = `sms:${student.phone}?body=${encodeURIComponent(msgBody)}`;
+        }
+    });
 };
 
 window.markAbsentContacted = async function(studentId) {
@@ -11273,27 +11307,68 @@ window.renderDashboard = function() {
 
     }, 150); // wait for original renderDashboard to finish
 };
-// 🟢 গ্লোবাল মেসেজ প্রিভিউ ফাংশন
-window.previewAndSend = function(url, message, platform) {
-    let btnColor = platform === 'WhatsApp' ? '#25D366' : '#f59e0b';
-    let iconClass = platform === 'WhatsApp' ? 'fab fa-whatsapp' : 'fas fa-sms';
+// ==========================================
+// 🟢 GLOBAL CONFIRMATION FUNCTION FOR MESSAGES
+// ==========================================
+
+window.showMessageConfirmation = async function(type, phone, msgBody, studentName, actionCallback) {
+    // মেসেজটি একটু ছোট করে প্রিভিউ দেখানোর জন্য (বেশি বড় হলে কেটে দেওয়া)
+    let previewMsg = msgBody;
+    if (previewMsg.length > 200) {
+        previewMsg = previewMsg.substring(0, 200) + '...';
+    }
     
-    Swal.fire({
-        title: `<div style="font-size: 18px;"><i class="${iconClass}" style="color: ${btnColor};"></i> Review Message</div>`,
+    // ফোন নম্বর মাস্ক করা (শুধু শেষ ৪ ডিজিট দেখাবে)
+    let maskedPhone = phone;
+    if (phone && phone.length > 4) {
+        maskedPhone = '****' + phone.slice(-4);
+    }
+    
+    const icon = type === 'wa' ? 'fab fa-whatsapp' : 'fas fa-sms';
+    const color = type === 'wa' ? '#25D366' : '#3b82f6';
+    const platform = type === 'wa' ? 'WhatsApp' : 'SMS';
+    
+    const result = await Swal.fire({
+        title: `<i class="${icon}" style="color:${color}; margin-right:8px;"></i> Send via ${platform}`,
         html: `
-            <p style="font-size: 12px; color: var(--text-muted); text-align: left; margin-bottom: 5px;">Check the message before sending:</p>
-            <textarea readonly style="width: 100%; height: 180px; padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); font-family: inherit; font-size: 14px; resize: none; background: var(--bg-body); color: var(--text-main); box-sizing: border-box;">${message}</textarea>
+            <div style="text-align: left; background: var(--bg-input); padding: 12px; border-radius: 12px; margin-top: 5px;">
+                <div style="margin-bottom: 10px;">
+                    <strong style="color: var(--text-main);"><i class="fas fa-user"></i> To:</strong> 
+                    <span style="color: var(--text-muted);">${studentName || 'Student'}</span>
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <strong style="color: var(--text-main);"><i class="fas fa-phone"></i> Number:</strong> 
+                    <span style="color: var(--text-muted);">${maskedPhone || 'Not provided'}</span>
+                </div>
+                <div style="border-top: 1px solid var(--border-color); padding-top: 10px;">
+                    <strong style="color: var(--text-main);"><i class="fas fa-comment-dots"></i> Message Preview:</strong>
+                    <div style="background: var(--bg-body); padding: 10px; border-radius: 8px; margin-top: 8px; font-size: 13px; line-height: 1.5; color: var(--text-muted); max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">
+                        ${previewMsg.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            </div>
         `,
+        icon: 'question',
         showCancelButton: true,
-        confirmButtonText: 'Confirm & Send',
+        confirmButtonText: `<i class="${icon}"></i> Send ${platform}`,
+        confirmButtonColor: color,
         cancelButtonText: 'Cancel',
-        confirmButtonColor: btnColor,
-        cancelButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
         allowOutsideClick: false
-    }).then((result) => {
-        if (result.isConfirmed) {
-            // Confirm হলে তবেই লিংক ওপেন হবে
-            window.open(url, platform === 'WhatsApp' ? '_blank' : '_self');
-        }
     });
+    
+    if (result.isConfirmed) {
+        if (actionCallback) {
+            actionCallback();
+        } else {
+            // ডিফল্ট: সরাসরি লিংক ওপেন করা
+            if (type === 'wa') {
+                window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+            } else if (type === 'sms') {
+                window.location.href = `sms:${phone}?body=${encodeURIComponent(msgBody)}`;
+            }
+        }
+        return true;
+    }
+    return false;
 };
