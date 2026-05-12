@@ -125,8 +125,24 @@ function getPastInactivePeriodsHtml(student) {
 }
         // --- 6. App Logic & Initialization ---
         
-        if ('serviceWorker' in navigator) { 
-            window.addEventListener('load', () => { navigator.serviceWorker.register('./serviceWorker.js').catch(console.error); }); 
+        // 🟢 Auto Update & Force Reload Logic
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./serviceWorker.js').then((registration) => {
+                    registration.onupdatefound = () => {
+                        const installingWorker = registration.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                // 🟢 নতুন আপডেট পাওয়া গেলে অ্যাপ নিজে থেকে রিফ্রেশ হয়ে যাবে
+                                console.log('New update available. Force reloading...');
+                                setTimeout(() => {
+                                    window.location.reload(true);
+                                }, 1000);
+                            }
+                        };
+                    };
+                }).catch(console.error);
+            });
         }
         
         let lastCheckedDate = new Date().toDateString();
