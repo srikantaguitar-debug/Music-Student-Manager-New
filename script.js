@@ -202,10 +202,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const currentYear = new Date().getFullYear();
                         
                         // 🟢 FIX: Fetching Data correctly from Sub-collections
-                        const [studentDoc, mainDoc, pLogDoc, attSnap, feeSnap] = await Promise.all([
+                        const [studentDoc, mainDoc, pLogSnap, attSnap, feeSnap] = await Promise.all([
                             docRef.collection('students').doc(studentViewId).get(),
                             docRef.get(),
-                            docRef.collection('practice_logs').doc(String(currentYear)).get(),
+                            docRef.collection('practice_logs').get(), // 🟢 সব মাস ফেচ হচ্ছে
                             docRef.collection('attendance').get(),
                             docRef.collection('fees').get()
                         ]);
@@ -213,7 +213,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         if(studentDoc.exists && mainDoc.exists) {
                             const s = studentDoc.data();
                             
-                            const pLogs = pLogDoc.exists ? pLogDoc.data().records : [];
+                            // 🟢 সব মাসের রেকর্ড একসাথে জোড়া লাগানো হচ্ছে
+                            let pLogs = [];
+                            if (pLogSnap && !pLogSnap.empty) {
+                                pLogSnap.forEach(doc => {
+                                    if (doc.data().records) pLogs = pLogs.concat(doc.data().records);
+                                });
+                            }
                             const legacyLogs = s.practice_log || [];
                             s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
                             s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(t.id === v.id))===i).sort((a,b)=>b.id-a.id);
@@ -1416,17 +1422,23 @@ window.loadTheme = function() {
             }
         }
 
-        window.globalPracticeLogs = [];
-window.fetchPracticeLogs = async function() {
-    const year = new Date().getFullYear();
-    const user = firebase.auth().currentUser;
-    if(user) {
-        try {
-            const doc = await db.collection(COLLECTION_NAME).doc(user.uid).collection('practice_logs').doc(String(year)).get();
-            window.globalPracticeLogs = doc.exists ? (doc.data().records || []) : [];
-        } catch(e) { console.error(e); }
-    }
-};
+       window.globalPracticeLogs = [];
+        window.fetchPracticeLogs = async function() {
+            const user = firebase.auth().currentUser;
+            if(user) {
+                try {
+                    // 🟢 সব মাসের প্র্যাকটিস লগ একসাথে টেনে আনা হচ্ছে
+                    const snap = await db.collection(COLLECTION_NAME).doc(user.uid).collection('practice_logs').get();
+                    window.globalPracticeLogs = [];
+                    snap.forEach(doc => {
+                        if (doc.data().records) {
+                            window.globalPracticeLogs = window.globalPracticeLogs.concat(doc.data().records);
+                        }
+                    });
+                    window.globalPracticeLogs.sort((a,b) => b.id - a.id);
+                } catch(e) { console.error(e); }
+            }
+        };
 
 async function initApp() { 
     await window.fetchPracticeLogs();
@@ -6317,7 +6329,8 @@ window.submitPracticeLog = function(studentId) {
     if (studentIndex === -1) return;
     let studentData = students[studentIndex];
 
-    const currentYear = new Date().getFullYear();
+    // 🟢 মাস অনুযায়ী স্ট্রিং তৈরি করা হলো (যেমন: 2026-05)
+    const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     const newLog = {
         id: Date.now(),
         studentId: studentId,
@@ -6331,8 +6344,8 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 ফায়ারবেসে সেভ করার কমান্ড (এরর মেসেজ হাইড করা হয়েছে)
-    db.collection('music_classes').doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
+    // 🟢 ফায়ারবেসে MONTH (মাস) অনুযায়ী সেভ করা হচ্ছে
+    db.collection('music_classes').doc(targetUid).collection('practice_logs').doc(currentMonthStr).set({
         records: firebase.firestore.FieldValue.arrayUnion(newLog)
     }, { merge: true })
     .catch(e => console.log("Will sync in background later."));
@@ -6651,20 +6664,21 @@ window.deletePracticeLog = async function(studentId, logId, context) {
             practice_log: studentData.practice_log
         }).catch(e => console.log(e));
 
-        let logYear = new Date().getFullYear(); 
+        // 🟢 মাস অনুযায়ী ডিলিট লজিক
+        let logMonthStr = `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
         if(logToDelete.date) {
             const parts = logToDelete.date.split('/');
-            if (parts.length === 3) logYear = parts[2];
+            if (parts.length === 3) logMonthStr = `${parts[2]}-${parts[1].padStart(2,'0')}`;
         }
 
-        const yearRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(logYear));
+        const monthRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(logMonthStr);
         
         try {
-            const yearDoc = await yearRef.get();
-            if (yearDoc.exists) {
-                let records = yearDoc.data().records || [];
+            const monthDoc = await monthRef.get();
+            if (monthDoc.exists) {
+                let records = monthDoc.data().records || [];
                 records = records.filter(r => String(r.id) !== String(logId));
-                await yearRef.update({ records: records });
+                await monthRef.update({ records: records });
             }
         } catch (error) {
             console.log("Background delete sync failed", error);
@@ -6778,22 +6792,22 @@ window.editPracticeLogTeacher = async function(studentId, logId) {
             practice_log: student.practice_log
         }).catch(e => console.log(e));
 
-        // Yearly Subcollection এ সেভ
-        let logYear = new Date().getFullYear(); 
+        // 🟢 Monthly Subcollection এ এডিট সেভ
+        let logMonthStr = `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
         if(oldLog.date) {
             const parts = oldLog.date.split('/');
-            if (parts.length === 3) logYear = parts[2];
+            if (parts.length === 3) logMonthStr = `${parts[2]}-${parts[1].padStart(2,'0')}`;
         }
 
-        const yearRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(logYear));
+        const monthRef = db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(logMonthStr);
         try {
-            const yearDoc = await yearRef.get();
-            if (yearDoc.exists) {
-                let records = yearDoc.data().records || [];
+            const monthDoc = await monthRef.get();
+            if (monthDoc.exists) {
+                let records = monthDoc.data().records || [];
                 const recIndex = records.findIndex(r => String(r.id) === String(logId));
                 if (recIndex > -1) {
                     records[recIndex] = newLog;
-                    await yearRef.update({ records: records });
+                    await monthRef.update({ records: records });
                 }
             }
         } catch (error) {
