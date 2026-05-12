@@ -1524,13 +1524,27 @@ async function initApp() {
                     });
                 }
 
-                // ৩. যদি পুরনো কোনো লগ নতুন করে সিঙ্ক হয়ে থাকে, তবে তা সাথে সাথে ফায়ারবেসে সেভ করা
+                // ৩. যদি পুরনো কোনো লগ নতুন করে সিঙ্ক হয়ে থাকে (বা ব্যাকআপ রিস্টোর হয়), তবে তা মাস অনুযায়ী ফায়ারবেসে সেভ করা
                 const currentUser = firebase.auth().currentUser;
                 if (needsPlogSync && currentUser) {
-                    const currentYear = new Date().getFullYear();
-                    db.collection(COLLECTION_NAME).doc(DOC_ID).collection('practice_logs').doc(String(currentYear)).set({
-                        records: window.globalPracticeLogs
-                    }, { merge: true }).catch(e => console.log(e));
+                    let monthlyLogs = {};
+                    window.globalPracticeLogs.forEach(log => {
+                        // লগের তারিখ থেকে মাস বের করা হচ্ছে
+                        let logMonthStr = `${new Date().getFullYear()}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
+                        if(log.date) {
+                            const parts = log.date.split('/');
+                            if (parts.length === 3) logMonthStr = `${parts[2]}-${parts[1].padStart(2,'0')}`;
+                        }
+                        if(!monthlyLogs[logMonthStr]) monthlyLogs[logMonthStr] = [];
+                        monthlyLogs[logMonthStr].push(log);
+                    });
+
+                    // আলাদা আলাদা মাসের ফোল্ডারে ডেটাগুলো সেভ করে দেওয়া হচ্ছে
+                    Object.keys(monthlyLogs).forEach(mStr => {
+                        db.collection(COLLECTION_NAME).doc(DOC_ID).collection('practice_logs').doc(mStr).set({
+                            records: monthlyLogs[mStr]
+                        }, { merge: true }).catch(e => console.log(e));
+                    });
                 }
 
                 attendance = {}; 
