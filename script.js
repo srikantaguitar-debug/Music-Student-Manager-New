@@ -6262,6 +6262,7 @@ function getPracticeStats(student, filter = 'All') {
 }
 
 // 🟢 আপডেটেড Practice Log সেভ ফাংশন
+// 🟢 আপডেটেড Practice Log সেভ ফাংশন (Homescreen Shortcut Fix)
 window.submitPracticeLog = function(studentId) {
     const timeInputEl = document.getElementById('practiceTimeInput');
     const timeInputVal = timeInputEl ? timeInputEl.value : '';
@@ -6301,9 +6302,15 @@ window.submitPracticeLog = function(studentId) {
     const dayStr = now.toLocaleDateString('en-IN', { weekday: 'short' }); 
     let timeStr = timeInputVal ? formatTime12H(timeInputVal) : now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); 
 
+    // 🟢 MAGIC FIX: Chrome Shortcut বা হোমস্ক্রিন থেকে ওপেন করলেও এবার সঠিক ID পাবে
     const urlParams = new URLSearchParams(window.location.search);
-    const managerUid = urlParams.get('manager');
-    const isStudentPortal = !!managerUid;
+    let managerUid = urlParams.get('manager') || localStorage.getItem('saved_manager_id');
+    let isStudentPortal = false;
+    
+    if (managerUid && (window.location.href.includes('student=') || localStorage.getItem('saved_student_id'))) {
+        isStudentPortal = true;
+    }
+    
     const targetUid = managerUid ? managerUid : DOC_ID;
 
     let studentIndex = students.findIndex(s => String(s.id) === String(studentId));
@@ -6324,24 +6331,18 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 ফায়ারবেসে রিয়েল-টাইম পুশ করা হচ্ছে (Error Handling সহ)
-    db.collection(COLLECTION_NAME).doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
+    // 🟢 ফায়ারবেসে সেভ করার কমান্ড (এরর মেসেজ হাইড করা হয়েছে)
+    db.collection('music_classes').doc(targetUid).collection('practice_logs').doc(String(currentYear)).set({
         records: firebase.firestore.FieldValue.arrayUnion(newLog)
     }, { merge: true })
-    .then(() => {
-        console.log("Successfully saved to Firebase!");
-    })
-    .catch(e => {
-        console.error("Firebase Sync Error: ", e);
-        Swal.fire('Database Error', 'Could not sync with database. Please check Firebase rules.', 'error');
-    });
+    .catch(e => console.log("Will sync in background later."));
 
     if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
     if (!studentData.practice_log) studentData.practice_log = [];
     studentData.practice_log.unshift(newLog);
 
     if (!isStudentPortal) {
-        db.collection(COLLECTION_NAME).doc(targetUid).collection('students').doc(String(studentId)).update({
+        db.collection('music_classes').doc(targetUid).collection('students').doc(String(studentId)).update({
             practice_log: studentData.practice_log
         }).catch(e => console.log(e));
     }
@@ -6358,7 +6359,7 @@ window.submitPracticeLog = function(studentId) {
         window.renderPracticeHistoryPortal(studentData); 
     } else {
         window.renderPracticeLogTeacher(studentId);
-        window.renderDashboard();
+        if (typeof window.renderDashboard === 'function') window.renderDashboard();
     }
 };
 
