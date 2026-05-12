@@ -6273,8 +6273,7 @@ function getPracticeStats(student, filter = 'All') {
     return stats;
 }
 
-// 🟢 আপডেটেড Practice Log সেভ ফাংশন
-// 🟢 আপডেটেড Practice Log সেভ ফাংশন (Homescreen Shortcut Fix)
+// 🟢 আপডেটেড Practice Log সেভ ফাংশন (স্টুডেন্ট পোর্টাল ও মেইন প্রোফাইল সিঙ্ক ফিক্স)
 window.submitPracticeLog = function(studentId) {
     const timeInputEl = document.getElementById('practiceTimeInput');
     const timeInputVal = timeInputEl ? timeInputEl.value : '';
@@ -6295,7 +6294,6 @@ window.submitPracticeLog = function(studentId) {
     
     const hrs = hrsInput ? (parseInt(hrsInput.value) || 0) : 0;
     const rawMins = minsInput ? (parseInt(minsInput.value) || 0) : 0;
-    
     const totalMinutes = (hrs * 60) + rawMins;
 
     let topic = document.getElementById('practiceTopic').value.trim();
@@ -6314,7 +6312,6 @@ window.submitPracticeLog = function(studentId) {
     const dayStr = now.toLocaleDateString('en-IN', { weekday: 'short' }); 
     let timeStr = timeInputVal ? formatTime12H(timeInputVal) : now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }); 
 
-    // 🟢 MAGIC FIX: Chrome Shortcut বা হোমস্ক্রিন থেকে ওপেন করলেও এবার সঠিক ID পাবে
     const urlParams = new URLSearchParams(window.location.search);
     let managerUid = urlParams.get('manager') || localStorage.getItem('saved_manager_id');
     let isStudentPortal = false;
@@ -6329,7 +6326,6 @@ window.submitPracticeLog = function(studentId) {
     if (studentIndex === -1) return;
     let studentData = students[studentIndex];
 
-    // 🟢 মাস অনুযায়ী স্ট্রিং তৈরি করা হলো (যেমন: 2026-05)
     const currentMonthStr = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
     const newLog = {
         id: Date.now(),
@@ -6344,21 +6340,19 @@ window.submitPracticeLog = function(studentId) {
         time: timeStr
     };
 
-    // 🟢 ফায়ারবেসে MONTH (মাস) অনুযায়ী সেভ করা হচ্ছে
+    // ১. মাসিক ফোল্ডারে সেভ করা
     db.collection('music_classes').doc(targetUid).collection('practice_logs').doc(currentMonthStr).set({
         records: firebase.firestore.FieldValue.arrayUnion(newLog)
-    }, { merge: true })
-    .catch(e => console.log("Will sync in background later."));
+    }, { merge: true }).catch(e => console.log(e));
 
     if (typeof window.globalPracticeLogs !== 'undefined') window.globalPracticeLogs.unshift(newLog);
     if (!studentData.practice_log) studentData.practice_log = [];
     studentData.practice_log.unshift(newLog);
 
-    if (!isStudentPortal) {
-        db.collection('music_classes').doc(targetUid).collection('students').doc(String(studentId)).update({
-            practice_log: studentData.practice_log
-        }).catch(e => console.log(e));
-    }
+    // ২. মেইন স্টুডেন্ট প্রোফাইলে সেভ করা (এখন স্টুডেন্ট পোর্টাল থেকেও সেভ হবে)
+    db.collection('music_classes').doc(targetUid).collection('students').doc(String(studentId)).update({
+        practice_log: studentData.practice_log
+    }).catch(e => console.log("Student Profile sync queued."));
 
     if (hrsInput) hrsInput.value = '';
     if (minsInput) minsInput.value = '';
