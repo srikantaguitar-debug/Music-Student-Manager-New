@@ -1,20 +1,38 @@
-const CACHE_NAME = 'music-manager-cache-v2'; // v2 করা হলো যাতে নতুন ফাইলগুলো ক্যাশ হয়
+const CACHE_NAME = 'music-manager-cache-v2'; // এরপর আপডেট করলে v3, v4 করে দেবেন
 
-// অ্যাপ ইনস্টল হওয়ার সময় বেসিক ফাইলগুলো সেভ করবে
+// ১. অ্যাপ ইনস্টল হওয়ার সময় বেসিক ফাইলগুলো সেভ করবে
 self.addEventListener('install', (event) => {
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             return cache.addAll([
                 '/',
                 '/index.html',
-                '/style.css',   // 🟢 আপনার CSS ফাইলের নাম যদি অন্য হয়, তবে সেটা দেবেন
-                '/script.js'    // 🟢 আপনার JS ফাইলের নাম যদি অন্য হয়, তবে সেটা দেবেন
+                '/style.css',   
+                '/script.js'    
             ]);
         })
     );
+    self.skipWaiting(); // 🟢 খুব জরুরি: নতুন আপডেট এলে সাথে সাথে ইনস্টল হতে বাধ্য করবে
 });
 
-// ইন্টারনেট না থাকলে মেমরি থেকে ফাইল লোড করবে
+// ২. 🟢 নতুন ম্যাজিক: নতুন আপডেট এলে পুরনো ফাইল (যেমন v1) অটোমেটিক মুছে ফেলবে
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cache) => {
+                    if (cache !== CACHE_NAME) {
+                        console.log('Clearing old cache:', cache);
+                        return caches.delete(cache);
+                    }
+                })
+            );
+        })
+    );
+    self.clients.claim(); // 🟢 খুব জরুরি: অ্যাপকে সাথে সাথে নতুন ভার্সনে শিফট করাবে
+});
+
+// ৩. ইন্টারনেট না থাকলে মেমরি থেকে ফাইল লোড করবে
 self.addEventListener('fetch', (event) => {
     event.respondWith(
         caches.match(event.request).then((response) => {
