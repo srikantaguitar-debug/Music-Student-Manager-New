@@ -11322,7 +11322,7 @@ window.renderDashboard = function() {
     }, 150); // wait for original renderDashboard to finish
 };
 // ==========================================
-// DETAILED STUDENT REPORT LOGIC (ALL BUGS FIXED & PROFILE ON TOP)
+// DETAILED STUDENT REPORT LOGIC (PERFECT PROFILE OPEN FIX)
 // ==========================================
 
 window.toggleReportStudentDropdown = function() {
@@ -11366,39 +11366,37 @@ window.jumpToIndividualReport = function(studentId, studentName, photoUrl) {
     window.generateDetailedStudentReport();
 };
 
-// 🟢 FIX: Profile Open Logic (Z-Index fix so it shows ON TOP of the Report)
-window.openStudentProfileFromReport = function(studentId, event) {
-    if(event) {
-        event.preventDefault();
-        event.stopPropagation(); 
-    }
+// 🟢 PERFECT FIX: স্টুডেন্টের আইডি Number-এ কনভার্ট করে প্রোফাইল খোলা হচ্ছে
+window.openStudentProfileFromReport = function(studentId) {
+    const numericId = parseInt(studentId); // স্ট্রিং থেকে নাম্বারে কনভার্ট করা হলো
     
-    // ১. রিপোর্ট পপ-আপটিকে পেছনের দিকে (Back) পাঠিয়ে দেব
-    const reportModal = document.getElementById('studentReportModal');
-    if (reportModal) {
-        reportModal.style.zIndex = "1000"; // z-index কমিয়ে দিলাম
-    }
-    
-    // ২. আপনার মেইন প্রোফাইল খোলার ফাংশন কল করবো
-    try {
-        if (typeof window.viewStudent === 'function') window.viewStudent(studentId);
-        else if (typeof window.openStudentDetails === 'function') window.openStudentDetails(studentId);
-        else if (typeof window.showStudentDetails === 'function') window.showStudentDetails(studentId);
-        else if (typeof viewStudent === 'function') viewStudent(studentId);
-        else if (typeof openStudentProfile === 'function') openStudentProfile(studentId);
-    } catch (e) {
-        console.error("Error opening profile:", e);
+    // ১. আপনার মেইন প্রোফাইল পেজ খোলার কোর ফাংশন কল করা হলো
+    if (typeof showStudentDetails === 'function') {
+        showStudentDetails(numericId);
+    } else if (typeof window.showStudentDetails === 'function') {
+        window.showStudentDetails(numericId);
+    } else if (typeof window.viewStudent === 'function') {
+        window.viewStudent(numericId);
+    } else if (typeof viewStudent === 'function') {
+        viewStudent(numericId);
     }
 
-    // ৩. মেইন প্রোফাইলটিকে জোর করে সবার উপরে (Front) নিয়ে আসবো
+    // ২. প্রোফাইল পপ-আপটিকে রিপোর্টের ওপরে তুলে আনার জন্য z-index ৪০০০ এ সেট করা হলো
     setTimeout(() => {
-        const modals = document.querySelectorAll('.modal, [class*="modal"]');
-        modals.forEach(m => {
-            if (m.id !== 'studentReportModal' && window.getComputedStyle(m).display !== 'none') {
-                m.style.zIndex = "9999"; // মেইন প্রোফাইল সবার উপরে চলে আসবে
+        const profileModal = document.getElementById('studentDetailsModal');
+        if (profileModal) {
+            profileModal.style.zIndex = "4000"; 
+            profileModal.style.display = "flex";
+        }
+        
+        // সেফটি চেক
+        const allModals = document.querySelectorAll('.modal');
+        allModals.forEach(m => {
+            if (m.id !== 'studentReportModal' && (m.style.display === 'block' || m.style.display === 'flex')) {
+                m.style.zIndex = "4000";
             }
         });
-    }, 300);
+    }, 50);
 };
 
 window.generateDetailedStudentReport = function() {
@@ -11407,7 +11405,7 @@ window.generateDetailedStudentReport = function() {
     const selectedMonth = document.getElementById('detailedReportMonth').value;
     const outputDiv = document.getElementById('detailedReportOutput');
     
-    // রিপোর্ট পপ-আপকে আবার সামনে আনার জন্য
+    // রিপোর্ট পপ-আপ নিজে ৩০০০ জেন-ইন্ডেক্সে থাকবে
     const reportModal = document.getElementById('studentReportModal');
     if (reportModal) reportModal.style.zIndex = "3000"; 
 
@@ -11465,7 +11463,7 @@ window.generateDetailedStudentReport = function() {
                 let allHtml = `<div style="text-align: center; margin-bottom: 15px; background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--primary);">
                     <h3 style="margin: 0; color: var(--primary); font-size: 18px;"><i class="fas fa-users"></i> All Students Report</h3>
                     <p style="margin: 5px 0 0 0; color: var(--text-main); font-size: 12px; font-weight: 600;">Time Period: ${periodText}</p>
-                    <p style="margin: 5px 0 0 0; font-size: 10px; color: var(--text-muted);"><i class="fas fa-info-circle"></i> Showing active students in this period.</p>
+                    <p style="margin: 5px 0 0 0; font-size: 10px; color: var(--text-muted);"><i class="fas fa-info-circle"></i> Click student name to open full profile.</p>
                 </div>`;
 
                 let studentFoundCount = 0;
@@ -11560,16 +11558,18 @@ window.generateDetailedStudentReport = function() {
 
                     allHtml += `
                     <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: 0.2s;">
-                        <div onclick="window.jumpToIndividualReport('${student.id}', '${safeNameForJS}', '${pUrl}')" style="cursor: pointer;">
+                        <div>
                             <div style="display: flex; gap: 15px; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-                                <img src="${pUrl}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+                                <img src="${pUrl}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: pointer;" onclick="event.stopPropagation(); window.openStudentProfileFromReport(${student.id})">
                                 <div>
-                                    <h4 onclick="window.openStudentProfileFromReport('${student.id}', event)" style="margin: 0; color: var(--primary); font-size: 16px; cursor: pointer; text-decoration: underline;">
+                                    <h4 onclick="event.stopPropagation(); window.openStudentProfileFromReport(${student.id})" style="margin: 0; color: var(--primary); font-size: 16px; cursor: pointer; text-decoration: underline; font-weight: bold;">
                                         ${safeName} <i class="fas fa-external-link-alt" style="font-size: 11px;"></i>
                                     </h4>
                                     <p style="margin: 2px 0 0 0; color: var(--text-muted); font-size: 11px;">${safeClass}</p>
                                 </div>
-                                <div style="margin-left: auto; color: var(--primary); font-size: 12px;">View <i class="fas fa-chevron-right"></i></div>
+                                <div onclick="window.jumpToIndividualReport('${student.id}', '${safeNameForJS}', '${pUrl}')" style="margin-left: auto; color: var(--primary); font-size: 12px; cursor: pointer; background: var(--bg-input); padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border-color);">
+                                    View Report <i class="fas fa-chevron-right"></i>
+                                </div>
                             </div>
                         </div>
 
@@ -11713,9 +11713,9 @@ window.generateDetailedStudentReport = function() {
 
                     <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); margin-bottom: 15px;">
                         <div style="display: flex; gap: 15px; align-items: center;">
-                            <img src="${photoUrl}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+                            <img src="${photoUrl}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); cursor: pointer;" onclick="event.stopPropagation(); window.openStudentProfileFromReport(${student.id})">
                             <div>
-                                <h3 onclick="window.openStudentProfileFromReport('${student.id}', event)" style="margin: 0; color: var(--primary); font-size: 16px; cursor: pointer; text-decoration: underline;">
+                                <h3 onclick="event.stopPropagation(); window.openStudentProfileFromReport(${student.id})" style="margin: 0; color: var(--primary); font-size: 16px; cursor: pointer; text-decoration: underline;">
                                     ${safeName} <i class="fas fa-external-link-alt" style="font-size: 12px;"></i>
                                 </h3>
                                 <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 12px;">${student.class || ''}</p>
