@@ -1,4 +1,4 @@
-const CACHE_NAME = 'music-manager-cache-v2'; // এরপর আপডেট করলে v3, v4 করে দেবেন
+const CACHE_NAME = 'music-manager-cache-v3'; // এরপর আপডেট করলে v3, v4 করে দেবেন
 
 // ১. অ্যাপ ইনস্টল হওয়ার সময় বেসিক ফাইলগুলো সেভ করবে
 self.addEventListener('install', (event) => {
