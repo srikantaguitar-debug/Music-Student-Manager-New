@@ -11321,3 +11321,479 @@ window.renderDashboard = function() {
 
     }, 150); // wait for original renderDashboard to finish
 };
+// ==========================================
+// DETAILED STUDENT REPORT LOGIC (ALL BUGS FIXED & PROFILE ON TOP)
+// ==========================================
+
+window.toggleReportStudentDropdown = function() {
+    const dropdown = document.getElementById('reportStudentDropdown');
+    dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+};
+
+window.filterReportStudentList = function() {
+    const query = document.getElementById('reportStudentSearch').value.toLowerCase();
+    const items = document.querySelectorAll('.report-student-item');
+    items.forEach(item => {
+        const name = item.getAttribute('data-name').toLowerCase();
+        item.style.display = name.includes(query) ? 'flex' : 'none';
+    });
+};
+
+window.selectReportStudent = function(id, name, photoUrl) {
+    document.getElementById('detailedReportStudentId').value = id;
+    document.getElementById('reportSelectedName').innerText = name;
+    
+    const photoEl = document.getElementById('reportSelectedPhoto');
+    if(id === 'all') { photoEl.style.display = 'none'; } 
+    else { photoEl.src = photoUrl; photoEl.style.display = 'block'; }
+    
+    document.getElementById('reportStudentDropdown').style.display = 'none';
+};
+
+window.goBackToAllStudentsList = function() {
+    document.getElementById('detailedReportStudentId').value = 'all';
+    document.getElementById('reportSelectedName').innerText = '🌟 All Students (Detailed List)';
+    document.getElementById('reportSelectedPhoto').style.display = 'none';
+    window.generateDetailedStudentReport();
+};
+
+window.jumpToIndividualReport = function(studentId, studentName, photoUrl) {
+    document.getElementById('detailedReportStudentId').value = studentId;
+    document.getElementById('reportSelectedName').innerText = studentName;
+    const photoEl = document.getElementById('reportSelectedPhoto');
+    if(photoUrl) { photoEl.src = photoUrl; photoEl.style.display = 'block'; } 
+    else { photoEl.style.display = 'none'; }
+    window.generateDetailedStudentReport();
+};
+
+// 🟢 FIX: Profile Open Logic (Z-Index fix so it shows ON TOP of the Report)
+window.openStudentProfileFromReport = function(studentId, event) {
+    if(event) {
+        event.preventDefault();
+        event.stopPropagation(); 
+    }
+    
+    // ১. রিপোর্ট পপ-আপটিকে পেছনের দিকে (Back) পাঠিয়ে দেব
+    const reportModal = document.getElementById('studentReportModal');
+    if (reportModal) {
+        reportModal.style.zIndex = "1000"; // z-index কমিয়ে দিলাম
+    }
+    
+    // ২. আপনার মেইন প্রোফাইল খোলার ফাংশন কল করবো
+    try {
+        if (typeof window.viewStudent === 'function') window.viewStudent(studentId);
+        else if (typeof window.openStudentDetails === 'function') window.openStudentDetails(studentId);
+        else if (typeof window.showStudentDetails === 'function') window.showStudentDetails(studentId);
+        else if (typeof viewStudent === 'function') viewStudent(studentId);
+        else if (typeof openStudentProfile === 'function') openStudentProfile(studentId);
+    } catch (e) {
+        console.error("Error opening profile:", e);
+    }
+
+    // ৩. মেইন প্রোফাইলটিকে জোর করে সবার উপরে (Front) নিয়ে আসবো
+    setTimeout(() => {
+        const modals = document.querySelectorAll('.modal, [class*="modal"]');
+        modals.forEach(m => {
+            if (m.id !== 'studentReportModal' && window.getComputedStyle(m).display !== 'none') {
+                m.style.zIndex = "9999"; // মেইন প্রোফাইল সবার উপরে চলে আসবে
+            }
+        });
+    }, 300);
+};
+
+window.generateDetailedStudentReport = function() {
+    const studentId = document.getElementById('detailedReportStudentId').value;
+    const selectedYear = String(document.getElementById('detailedReportYear').value);
+    const selectedMonth = document.getElementById('detailedReportMonth').value;
+    const outputDiv = document.getElementById('detailedReportOutput');
+    
+    // রিপোর্ট পপ-আপকে আবার সামনে আনার জন্য
+    const reportModal = document.getElementById('studentReportModal');
+    if (reportModal) reportModal.style.zIndex = "3000"; 
+
+    outputDiv.style.display = 'block';
+    outputDiv.innerHTML = `<div style="text-align:center; padding: 30px;"><i class="fas fa-spinner fa-spin fa-2x" style="color: var(--primary);"></i><br><br>Fetching Data...</div>`;
+
+    const now = new Date();
+    let weekStart = new Date();
+    weekStart.setDate(now.getDate() - 7);
+
+    const isWithinRange = (dateString) => {
+        if(!dateString) return false;
+        let parts = String(dateString).split(/[-/]/);
+        if(parts.length !== 3) return false;
+        
+        let year = parts[0].length === 4 ? parts[0] : parts[2];
+        let month = String(parts[1]).padStart(2, '0');
+        let day = parts[0].length === 4 ? parts[2] : parts[0];
+        
+        if (selectedMonth === 'this_week') {
+            let d = new Date(year, Number(month) - 1, day);
+            return d >= weekStart && d <= now;
+        }
+        if (selectedMonth === 'all') return year === selectedYear;
+        return year === selectedYear && month === selectedMonth;
+    };
+
+    const formatPracticeTime = (totalMins) => {
+        if (!totalMins || totalMins === 0) return "0m";
+        let h = Math.floor(totalMins / 60);
+        let m = totalMins % 60;
+        if (h > 0 && m > 0) return `${h}h ${m}m`;
+        if (h > 0) return `${h}h`;
+        return `${m}m`;
+    };
+
+    let allMyStudentsRaw = [];
+    if (typeof students !== 'undefined' && Array.isArray(students)) allMyStudentsRaw = students;
+    else if (typeof activeStudents !== 'undefined' && Array.isArray(activeStudents)) {
+        allMyStudentsRaw = activeStudents;
+        if (typeof inactiveStudents !== 'undefined') allMyStudentsRaw = allMyStudentsRaw.concat(inactiveStudents);
+    }
+
+    let allMyStudents = allMyStudentsRaw;
+
+    setTimeout(() => {
+        try {
+            if (studentId === 'all') {
+                // ==========================================
+                // ALL STUDENTS SUMMARY VIEW
+                // ==========================================
+                let monthText = selectedMonth === 'all' ? 'Full Year' : (selectedMonth === 'this_week' ? 'This Week' : selectedMonth);
+                let periodText = selectedMonth === 'this_week' ? 'Last 7 Days' : `${monthText}-${selectedYear}`;
+                
+                let allHtml = `<div style="text-align: center; margin-bottom: 15px; background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--primary);">
+                    <h3 style="margin: 0; color: var(--primary); font-size: 18px;"><i class="fas fa-users"></i> All Students Report</h3>
+                    <p style="margin: 5px 0 0 0; color: var(--text-main); font-size: 12px; font-weight: 600;">Time Period: ${periodText}</p>
+                    <p style="margin: 5px 0 0 0; font-size: 10px; color: var(--text-muted);"><i class="fas fa-info-circle"></i> Showing active students in this period.</p>
+                </div>`;
+
+                let studentFoundCount = 0;
+
+                allMyStudents.forEach(student => {
+                    if (!student || !student.id) return; 
+                    
+                    let pCount = 0, aCount = 0, feesTotalAmount = 0, pracMins = 0, notesCount = 0;
+                    let attendanceHTML = "", feeHTML = "", practiceHTML = "", notesHTML = "";
+                    
+                    if(typeof attendance !== 'undefined' && attendance) {
+                        for (const date in attendance) {
+                            if (isWithinRange(date)) {
+                                const entry = attendance[date][student.id];
+                                if (entry) {
+                                    const status = typeof entry === 'object' ? entry.status : entry;
+                                    const note = typeof entry === 'object' && entry.note ? entry.note : '';
+                                    if (status === 'present') { pCount++; attendanceHTML += `<li style="margin-bottom: 5px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;"><span style="color: var(--success); font-weight: bold;">Present</span> on ${date}</li>`; }
+                                    if (status === 'absent') { aCount++; attendanceHTML += `<li style="margin-bottom: 5px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;"><span style="color: var(--danger); font-weight: bold;">Absent</span> on ${date}</li>`; }
+                                    if (note) { notesCount++; notesHTML += `<li style="margin-bottom: 5px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;"><b>${date}:</b> ${note}</li>`; }
+                                }
+                            }
+                        }
+                    }
+
+                    if(typeof fees !== 'undefined' && fees) {
+                        for (const month in fees) {
+                            const rec = fees[month][student.id];
+                            if (rec && rec.status === 'paid' && isWithinRange(rec.date)) {
+                                feesTotalAmount += Number(rec.amount || 0);
+                                feeHTML += `<li style="margin-bottom: 5px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;">Paid <b style="color:var(--success);">₹${rec.amount}</b> on ${rec.date} <span style="font-size:10px;">(${month})</span></li>`;
+                            }
+                        }
+                    }
+
+                    if(student.practice_log && Array.isArray(student.practice_log)) {
+                        student.practice_log.forEach(log => { 
+                            if(isWithinRange(log.date)) {
+                                pracMins += Number(log.minutes||0); 
+                                practiceHTML += `<li style="margin-bottom: 5px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;"><b>${log.date}:</b> ${log.topic || 'Practice'} <span style="color:var(--primary); font-weight:bold;">(${formatPracticeTime(log.minutes)})</span></li>`; 
+                            }
+                        });
+                    }
+
+                    let dueAmt = 0;
+                    const cDate = new Date();
+                    const safeCurrentMonthStr = typeof currentMonthStr !== 'undefined' ? currentMonthStr : (cDate.getFullYear() + "-" + String(cDate.getMonth() + 1).padStart(2, '0'));
+                    
+                    if(typeof window.getOldestUnpaidMonth === 'function') {
+                       const oldestDue = window.getOldestUnpaidMonth(student.id, safeCurrentMonthStr);
+                       if(oldestDue && oldestDue <= safeCurrentMonthStr && student.fee && !isNaN(student.fee)) {
+                           try {
+                               let [dY, dM] = oldestDue.split('-').map(Number);
+                               let [cY, cM] = safeCurrentMonthStr.split('-').map(Number);
+                               let monthsDue = (cY - dY) * 12 + (cM - dM) + 1;
+                               if (monthsDue > 0) dueAmt = monthsDue * Number(student.fee);
+                           } catch(e) {}
+                       }
+                    }
+
+                    if (dueAmt > 0) {
+                        feeHTML += `<li style="margin-top: 8px; font-weight: bold; color: #ef4444; background: #fee2e2; padding: 6px; border-radius: 6px; text-align: center;">⚠️ Pending Due: ₹${dueAmt}</li>`;
+                    }
+
+                    if (pCount === 0 && aCount === 0 && feesTotalAmount === 0 && pracMins === 0 && notesCount === 0 && dueAmt === 0) {
+                        return; 
+                    }
+                    
+                    studentFoundCount++;
+
+                    const safeName = student.name || "Unknown";
+                    const safeNameForJS = safeName.replace(/'/g, "\\'");
+                    const pUrl = student.photo || "https://via.placeholder.com/60?text=" + safeName.charAt(0).toUpperCase();
+                    const safeClass = student.class || "N/A";
+                    
+                    const cleanPhone = student.phone ? String(student.phone).replace(/[^0-9]/g, '') : '';
+                    const waPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                    
+                    const contactButtons = student.phone ? `
+                    <div style="display: flex; gap: 8px; margin-top: 12px; justify-content: center; background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <a href="tel:${student.phone}" style="background: #10b981; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: bold; flex: 1; justify-content: center;">
+                            <i class="fas fa-phone-alt"></i> Call
+                        </a>
+                        <a href="sms:${student.phone}" style="background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: bold; flex: 1; justify-content: center;">
+                            <i class="fas fa-comment-alt"></i> SMS
+                        </a>
+                        <a href="https://wa.me/${waPhone}" target="_blank" style="background: #25d366; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: bold; flex: 1; justify-content: center;">
+                            <i class="fab fa-whatsapp"></i> WhatsApp
+                        </a>
+                    </div>
+                    ` : '';
+
+                    allHtml += `
+                    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); transition: 0.2s;">
+                        <div onclick="window.jumpToIndividualReport('${student.id}', '${safeNameForJS}', '${pUrl}')" style="cursor: pointer;">
+                            <div style="display: flex; gap: 15px; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+                                <img src="${pUrl}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+                                <div>
+                                    <h4 onclick="window.openStudentProfileFromReport('${student.id}', event)" style="margin: 0; color: var(--primary); font-size: 16px; cursor: pointer; text-decoration: underline;">
+                                        ${safeName} <i class="fas fa-external-link-alt" style="font-size: 11px;"></i>
+                                    </h4>
+                                    <p style="margin: 2px 0 0 0; color: var(--text-muted); font-size: 11px;">${safeClass}</p>
+                                </div>
+                                <div style="margin-left: auto; color: var(--primary); font-size: 12px;">View <i class="fas fa-chevron-right"></i></div>
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+                            <details style="background: var(--bg-input); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <summary style="font-size: 11px; font-weight: bold; color: var(--info); cursor: pointer; outline: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Attendance</span> <span style="font-size: 11px;"><span style="color:var(--success);">${pCount} P</span> | <span style="color:var(--danger);">${aCount} A</span> ▾</span>
+                                </summary>
+                                <ul style="padding-left: 0; margin: 5px 0 0 0; max-height: 100px; overflow-y: auto; font-size: 11px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 5px;">
+                                    ${attendanceHTML || "<li>No records.</li>"}
+                                </ul>
+                            </details>
+
+                            <details style="background: var(--bg-input); padding: 8px; border-radius: 8px; border: 1px solid ${dueAmt > 0 ? '#fca5a5' : 'var(--border-color)'};">
+                                <summary style="font-size: 11px; font-weight: bold; color: var(--success); cursor: pointer; outline: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Fees</span> <span style="font-size: 11px;">₹${feesTotalAmount} ${dueAmt > 0 ? `<span style="color: #ef4444; font-weight: bold; margin-left: 5px;">| Due ₹${dueAmt}</span>` : ''} ▾</span>
+                                </summary>
+                                <ul style="padding-left: 0; margin: 5px 0 0 0; max-height: 100px; overflow-y: auto; font-size: 11px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 5px;">
+                                    ${feeHTML || "<li>No payment records.</li>"}
+                                </ul>
+                            </details>
+
+                            <details style="background: var(--bg-input); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <summary style="font-size: 11px; font-weight: bold; color: var(--warning); cursor: pointer; outline: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Practice</span> <span style="font-size: 11px;">${formatPracticeTime(pracMins)} ▾</span>
+                                </summary>
+                                <ul style="padding-left: 0; margin: 5px 0 0 0; max-height: 100px; overflow-y: auto; font-size: 11px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 5px;">
+                                    ${practiceHTML || "<li>No records.</li>"}
+                                </ul>
+                            </details>
+
+                            <details style="background: var(--bg-input); padding: 8px; border-radius: 8px; border: 1px solid var(--border-color);">
+                                <summary style="font-size: 11px; font-weight: bold; color: #a855f7; cursor: pointer; outline: none; display: flex; justify-content: space-between; align-items: center;">
+                                    <span>Notes</span> <span style="font-size: 11px;">${notesCount} ▾</span>
+                                </summary>
+                                <ul style="padding-left: 0; margin: 5px 0 0 0; max-height: 100px; overflow-y: auto; font-size: 11px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 5px;">
+                                    ${notesHTML || "<li>No records.</li>"}
+                                </ul>
+                            </details>
+                        </div>
+                        ${contactButtons}
+                    </div>`;
+                });
+                
+                if (studentFoundCount === 0) {
+                    allHtml += `<div style="color:red; text-align:center; padding: 20px; border: 1px dashed red; border-radius: 8px;">No data found for this period.</div>`;
+                }
+                
+                outputDiv.innerHTML = allHtml;
+            } else {
+                // ==========================================
+                // INDIVIDUAL STUDENT REPORT VIEW
+                // ==========================================
+                let student = allMyStudents.find(s => String(s.id) === String(studentId));
+                if (!student) { outputDiv.innerHTML = `<div style="color:red; text-align:center;">Student details not found!</div>`; return; }
+
+                let presentCount = 0, absentCount = 0, attendanceHTML = "", feeHTML = "";
+                let notesHTML = "", notesCount = 0, feesTotalAmount = 0, pracMins = 0;
+                let practiceHTML = "";
+
+                if(typeof attendance !== 'undefined' && attendance) {
+                    for (const date in attendance) {
+                        if (isWithinRange(date)) {
+                            const entry = attendance[date][studentId];
+                            if (entry) {
+                                const status = typeof entry === 'object' ? entry.status : entry;
+                                const note = typeof entry === 'object' && entry.note ? entry.note : '';
+                                if (status === 'present') { presentCount++; attendanceHTML += `<li style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);"><span style="color: var(--success); font-weight: bold;">Present</span> on ${date}</li>`; }
+                                if (status === 'absent') { absentCount++; attendanceHTML += `<li style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);"><span style="color: var(--danger); font-weight: bold;">Absent</span> on ${date}</li>`; }
+                                if (note) { notesCount++; notesHTML += `<li style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);"><b>${date}:</b> ${note}</li>`; }
+                            }
+                        }
+                    }
+                }
+
+                if(typeof fees !== 'undefined' && fees) {
+                    for (const month in fees) {
+                        const rec = fees[month][studentId];
+                        if (rec && rec.status === 'paid' && isWithinRange(rec.date)) {
+                            feesTotalAmount += Number(rec.amount || 0);
+                            feeHTML += `<li style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);">Paid <b style="color:var(--success);">₹${rec.amount}</b> on ${rec.date} <span style="font-size:10px;">(${month})</span></li>`;
+                        }
+                    }
+                }
+
+                if(student.practice_log && Array.isArray(student.practice_log)) {
+                    student.practice_log.forEach(log => {
+                        if(isWithinRange(log.date)) { 
+                            pracMins += Number(log.minutes || 0); 
+                            practiceHTML += `<li style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);"><b>${log.date}:</b> ${log.topic || 'Practice'} <span style="color:var(--primary); font-weight:bold;">(${formatPracticeTime(log.minutes)})</span></li>`; 
+                        }
+                    });
+                }
+
+                let dueAmt = 0;
+                const cDate = new Date();
+                const safeCurrentMonthStr = typeof currentMonthStr !== 'undefined' ? currentMonthStr : (cDate.getFullYear() + "-" + String(cDate.getMonth() + 1).padStart(2, '0'));
+                
+                if(typeof window.getOldestUnpaidMonth === 'function') {
+                   const oldestDue = window.getOldestUnpaidMonth(studentId, safeCurrentMonthStr);
+                   if(oldestDue && oldestDue <= safeCurrentMonthStr && student.fee && !isNaN(student.fee)) {
+                       try {
+                           let [dY, dM] = oldestDue.split('-').map(Number);
+                           let [cY, cM] = safeCurrentMonthStr.split('-').map(Number);
+                           let monthsDue = (cY - dY) * 12 + (cM - dM) + 1;
+                           if (monthsDue > 0) dueAmt = monthsDue * Number(student.fee);
+                       } catch(e) {}
+                   }
+                }
+
+                if (dueAmt > 0) {
+                    feeHTML += `<li style="margin-top: 8px; font-weight: bold; color: #ef4444; background: #fee2e2; padding: 6px; border-radius: 6px; text-align: center;">⚠️ Pending Due: ₹${dueAmt}</li>`;
+                }
+
+                const safeName = student.name || "Unknown";
+                const photoUrl = student.photo || "https://via.placeholder.com/60?text=" + safeName.charAt(0).toUpperCase();
+                const cleanPhone = student.phone ? String(student.phone).replace(/[^0-9]/g, '') : '';
+                const waPhone = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+                
+                const singleContactButtons = student.phone ? `
+                <div style="display: flex; gap: 8px; margin-top: 12px; justify-content: center; background: var(--bg-input); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                    <a href="tel:${student.phone}" style="background: #10b981; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: bold; flex: 1; justify-content: center;">
+                        <i class="fas fa-phone-alt"></i> Call
+                    </a>
+                    <a href="sms:${student.phone}" style="background: #3b82f6; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: bold; flex: 1; justify-content: center;">
+                        <i class="fas fa-comment-alt"></i> SMS
+                    </a>
+                    <a href="https://wa.me/${waPhone}" target="_blank" style="background: #25d366; color: white; padding: 6px 12px; border-radius: 6px; font-size: 12px; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: bold; flex: 1; justify-content: center;">
+                        <i class="fab fa-whatsapp"></i> WhatsApp
+                    </a>
+                </div>
+                ` : '';
+
+                let monthText = selectedMonth === 'all' ? 'Full Year' : (selectedMonth === 'this_week' ? 'This Week' : selectedMonth);
+                let periodText = selectedMonth === 'this_week' ? 'Last 7 Days' : `${monthText}-${selectedYear}`;
+
+                outputDiv.innerHTML = `
+                    <button onclick="window.goBackToAllStudentsList()" style="background: var(--bg-card); color: var(--primary); border: 1px solid var(--primary); padding: 8px 12px; border-radius: 6px; font-size: 12px; font-weight: bold; margin-bottom: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; width: fit-content; outline: none;">
+                        <i class="fas fa-arrow-left"></i> Back to All Students
+                    </button>
+
+                    <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; border: 1px solid var(--primary); margin-bottom: 15px;">
+                        <div style="display: flex; gap: 15px; align-items: center;">
+                            <img src="${photoUrl}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary);">
+                            <div>
+                                <h3 onclick="window.openStudentProfileFromReport('${student.id}', event)" style="margin: 0; color: var(--primary); font-size: 16px; cursor: pointer; text-decoration: underline;">
+                                    ${safeName} <i class="fas fa-external-link-alt" style="font-size: 12px;"></i>
+                                </h3>
+                                <p style="margin: 3px 0 0 0; color: var(--text-muted); font-size: 12px;">${student.class || ''}</p>
+                                <p style="margin: 3px 0 0 0; color: var(--info); font-size: 11px; font-weight: 600;">Period: ${periodText}</p>
+                            </div>
+                        </div>
+                        ${singleContactButtons}
+                    </div>
+                    
+                    <details style="margin-bottom: 10px; background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <summary style="font-size: 14px; font-weight: bold; color: var(--info); cursor: pointer; outline: none; display: flex; justify-content: space-between;">
+                            <span><i class="fas fa-calendar-check"></i> Attendance</span>
+                            <span style="font-size: 12px; font-weight: normal;"><span style="color: var(--success);">${presentCount} P</span> | <span style="color: var(--danger);">${absentCount} A</span> ▾</span>
+                        </summary>
+                        <ul style="padding-left: 0; margin: 10px 0 0 0; max-height: 150px; overflow-y: auto; font-size: 12px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            ${attendanceHTML || "<li>No attendance records.</li>"}
+                        </ul>
+                    </details>
+
+                    <details style="margin-bottom: 10px; background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid ${dueAmt > 0 ? '#fca5a5' : 'var(--border-color)'};">
+                        <summary style="font-size: 14px; font-weight: bold; color: var(--success); cursor: pointer; outline: none; display: flex; justify-content: space-between;">
+                            <span><i class="fas fa-rupee-sign"></i> Fees</span>
+                            <span style="font-size: 12px; font-weight: normal;">₹${feesTotalAmount} ${dueAmt > 0 ? `<span style="color: #ef4444; font-weight: bold; margin-left: 5px;">| Due ₹${dueAmt}</span>` : ''} ▾</span>
+                        </summary>
+                        <ul style="padding-left: 0; margin: 10px 0 0 0; max-height: 150px; overflow-y: auto; font-size: 12px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            ${feeHTML || "<li>No fee records found.</li>"}
+                        </ul>
+                    </details>
+
+                    <details style="margin-bottom: 10px; background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <summary style="font-size: 14px; font-weight: bold; color: var(--warning); cursor: pointer; outline: none; display: flex; justify-content: space-between;">
+                            <span><i class="fas fa-stopwatch"></i> Practice Logs</span>
+                            <span style="font-size: 12px; font-weight: normal;">${formatPracticeTime(pracMins)} ▾</span>
+                        </summary>
+                        <ul style="padding-left: 0; margin: 10px 0 0 0; max-height: 150px; overflow-y: auto; font-size: 12px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            ${practiceHTML || "<li>No practice logs found.</li>"}
+                        </ul>
+                    </details>
+
+                    <details style="margin-bottom: 5px; background: var(--bg-card); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <summary style="font-size: 14px; font-weight: bold; color: #a855f7; cursor: pointer; outline: none; display: flex; justify-content: space-between;">
+                            <span><i class="fas fa-sticky-note"></i> Class Notes</span>
+                            <span style="font-size: 12px; font-weight: normal;">${notesCount} Notes ▾</span>
+                        </summary>
+                        <ul style="padding-left: 0; margin: 10px 0 0 0; max-height: 150px; overflow-y: auto; font-size: 12px; color: var(--text-main); list-style: none; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                            ${notesHTML || "<li>No class notes found.</li>"}
+                        </ul>
+                    </details>
+                `;
+            }
+        } catch (err) {
+            console.error(err);
+            outputDiv.innerHTML = `<div style="color:red; text-align:center; padding: 20px; background: #fef2f2; border: 1px solid red; border-radius: 8px;"><b>Error Occurred!</b><br><br><span style="font-size:11px;">${err.message}</span></div>`;
+        }
+    }, 600);
+};
+// ==========================================
+// OPEN DETAILED REPORT MODAL FUNCTION
+// ==========================================
+window.openStudentReportModal = function() {
+    const reportModal = document.getElementById('studentReportModal');
+    if (reportModal) {
+        reportModal.style.display = 'block'; // পপ-আপ ওপেন করবে
+        reportModal.style.zIndex = '3000';  // সবার উপরে আনবে
+        
+        // ডিফল্টভাবে 'All Students' সিলেক্ট করে রাখবে
+        document.getElementById('detailedReportStudentId').value = 'all';
+        const nameEl = document.getElementById('reportSelectedName');
+        if(nameEl) nameEl.innerText = '🌟 All Students (Detailed List)';
+        const photoEl = document.getElementById('reportSelectedPhoto');
+        if(photoEl) photoEl.style.display = 'none';
+        
+        // পপ-আপ খোলার সাথে সাথেই অটোমেটিক রিপোর্ট জেনারেট করে দেখাবে
+        if (typeof window.generateDetailedStudentReport === 'function') {
+            window.generateDetailedStudentReport();
+        }
+    } else {
+        console.error("Report Modal not found in HTML!");
+        Swal.fire('Error', 'Report Modal not found!', 'error');
+    }
+};
