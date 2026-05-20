@@ -11773,27 +11773,41 @@ window.generateDetailedStudentReport = function() {
     }, 600);
 };
 // ==========================================
-// OPEN DETAILED REPORT MODAL FUNCTION
+// OPEN DETAILED REPORT MODAL & GENERATE LIST (WITH PHOTO)
 // ==========================================
 window.openStudentReportModal = function() {
     const reportModal = document.getElementById('studentReportModal');
     if (reportModal) {
-        reportModal.style.display = 'block'; // পপ-আপ ওপেন করবে
-        reportModal.style.zIndex = '3000';  // সবার উপরে আনবে
+        reportModal.style.display = 'block';
+        reportModal.style.zIndex = '3000';
         
-        // ডিফল্টভাবে 'All Students' সিলেক্ট করে রাখবে
+        const studentListContainer = document.getElementById('reportStudentList');
+        const allMyStudentsRaw = (typeof students !== 'undefined') ? students : [];
+        
+        // ডিফল্ট 'All Students' অপশন
+        let listHtml = `
+            <div class="report-student-item" data-name="all students" onclick="window.selectReportStudent('all', '🌟 All Students', '')" style="padding: 10px; cursor:pointer; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
+                <div style="width:30px; height:30px; background:var(--primary); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center;">🌟</div>
+                <span>All Students</span>
+            </div>
+        `;
+        
+        // 🟢 FIX: স্টুডেন্টের নামের সাথে ছবি দেখানোর লজিক
+        allMyStudentsRaw.forEach(s => {
+            const pUrl = s.photo || "https://via.placeholder.com/60?text=" + (s.name||"U").charAt(0).toUpperCase();
+            listHtml += `
+                <div class="report-student-item" data-name="${s.name}" onclick="window.selectReportStudent('${s.id}', '${s.name.replace(/'/g, "\\'")}', '${pUrl}')" style="padding: 10px; cursor:pointer; border-bottom:1px solid #eee; display:flex; align-items:center; gap:10px;">
+                    <img src="${pUrl}" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border: 1px solid var(--border-color);">
+                    <span>${s.name}</span>
+                </div>
+            `;
+        });
+        
+        studentListContainer.innerHTML = listHtml;
         document.getElementById('detailedReportStudentId').value = 'all';
-        const nameEl = document.getElementById('reportSelectedName');
-        if(nameEl) nameEl.innerText = '🌟 All Students (Detailed List)';
-        const photoEl = document.getElementById('reportSelectedPhoto');
-        if(photoEl) photoEl.style.display = 'none';
         
-        // পপ-আপ খোলার সাথে সাথেই অটোমেটিক রিপোর্ট জেনারেট করে দেখাবে
         if (typeof window.generateDetailedStudentReport === 'function') {
             window.generateDetailedStudentReport();
         }
-    } else {
-        console.error("Report Modal not found in HTML!");
-        Swal.fire('Error', 'Report Modal not found!', 'error');
     }
 };
