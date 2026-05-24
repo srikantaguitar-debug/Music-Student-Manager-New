@@ -237,8 +237,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                                 });
                             }
                             const legacyLogs = s.practice_log || [];
-                            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => l.studentId == s.id)];
-                            // 🟢 FIX: String এ কনভার্ট করে চেক করা হচ্ছে যাতে ডাবল ডেটা অ্যাড না হয়
+                            s.combined_practice_logs = [...legacyLogs, ...pLogs.filter(l => String(l.studentId) === String(s.id))];
+                            // 🟢 FIX: String কনভার্ট করা হয়েছে যাতে ডাবল না হয়
                             s.combined_practice_logs = s.combined_practice_logs.filter((v,i,a)=>a.findIndex(t=>(String(t.id) === String(v.id)))===i).sort((a,b)=>b.id-a.id);
 
                             s.practice_log = s.combined_practice_logs;
@@ -820,10 +820,13 @@ let totalBadgeMins = 0;
 let allLogs = [...(pLogs || [])];
 if (s.practice_log) {
     s.practice_log.forEach(l => {
-        // 🟢 FIX: String এ কনভার্ট করে ডাবল ডেটা আটকানো হলো
-        if(!allLogs.some(pl => String(pl.id) === String(l.id))) allLogs.push({...l, studentId: s.id});
+        if(!allLogs.some(pl => String(pl.id) === String(l.id))) {
+            allLogs.push({...l, studentId: s.id});
+        }
     });
 }
+// 🟢 FIX: সব স্টুডেন্টের ডেটা থেকে ডুপ্লিকেট রিমুভ করা হলো
+allLogs = allLogs.filter((v,i,a) => a.findIndex(t => String(t.id) === String(v.id)) === i);
 
 if (allLogs.length > 0) {
     const _now = new Date();
@@ -1518,7 +1521,6 @@ async function initApp() {
                 students.forEach(st => {
                     if (st.practice_log && st.practice_log.length > 0) {
                         st.practice_log.forEach(l => {
-                            // 🟢 FIX: Strict ID Check Prevented
                             if (!window.globalPracticeLogs.some(gl => String(gl.id) === String(l.id))) {
                                 window.globalPracticeLogs.push({...l, studentId: st.id, studentName: st.name});
                                 needsPlogSync = true;
@@ -1530,10 +1532,9 @@ async function initApp() {
                 // ২. গ্লোবাল লগগুলোকে আবার স্টুডেন্টদের প্রোফাইলে আপডেট করা হচ্ছে
                 if (window.globalPracticeLogs && window.globalPracticeLogs.length > 0) {
                     window.globalPracticeLogs.forEach(log => {
-                        let s = students.find(st => st.id == log.studentId);
+                        let s = students.find(st => String(st.id) === String(log.studentId));
                         if (s) {
                             if (!s.practice_log) s.practice_log = [];
-                            // 🟢 FIX: Strict ID Check Prevented
                             if (!s.practice_log.some(l => String(l.id) === String(log.id))) {
                                 s.practice_log.push(log);
                             }
