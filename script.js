@@ -11480,7 +11480,7 @@ window.generateDetailedStudentReport = function() {
                     let attendanceHTML = "", feeHTML = "", practiceHTML = "", notesHTML = "";
                     
                     if(typeof attendance !== 'undefined' && attendance) {
-                        for (const date in attendance) {
+                        for (const date of Object.keys(attendance).sort().reverse()) {
                             if (isWithinRange(date)) {
                                 const entry = attendance[date][student.id];
                                 if (entry) {
@@ -11495,7 +11495,7 @@ window.generateDetailedStudentReport = function() {
                     }
 
                     if(typeof fees !== 'undefined' && fees) {
-                        for (const month in fees) {
+                        for (const month of Object.keys(fees).sort().reverse()) {
                             const rec = fees[month][student.id];
                             if (rec && rec.status === 'paid' && isWithinRange(rec.date)) {
                                 feesTotalAmount += Number(rec.amount || 0);
@@ -11505,7 +11505,7 @@ window.generateDetailedStudentReport = function() {
                     }
 
                     if(student.practice_log && Array.isArray(student.practice_log)) {
-                        student.practice_log.forEach(log => { 
+                        [...student.practice_log].sort((a,b) => { const pD = d => { const p = d.split('/'); return p.length===3 ? new Date(p[2], p[1]-1, p[0]) : new Date(d); }; return pD(b.date) - pD(a.date); }).forEach(log => {
                             if(isWithinRange(log.date)) {
                                 pracMins += Number(log.minutes||0); 
                                 practiceHTML += `<li style="margin-bottom: 5px; border-bottom: 1px dashed var(--border-color); padding-bottom: 5px;"><b>${log.date}:</b> ${log.topic || 'Practice'} <span style="color:var(--primary); font-weight:bold;">(${formatPracticeTime(log.minutes)})</span></li>`; 
@@ -11636,7 +11636,7 @@ window.generateDetailedStudentReport = function() {
                 let practiceHTML = "";
 
                 if(typeof attendance !== 'undefined' && attendance) {
-                    for (const date in attendance) {
+                    for (const date of Object.keys(attendance).sort().reverse()) {
                         if (isWithinRange(date)) {
                             const entry = attendance[date][studentId];
                             if (entry) {
@@ -11651,7 +11651,7 @@ window.generateDetailedStudentReport = function() {
                 }
 
                 if(typeof fees !== 'undefined' && fees) {
-                    for (const month in fees) {
+                    for (const month of Object.keys(fees).sort().reverse()) {
                         const rec = fees[month][studentId];
                         if (rec && rec.status === 'paid' && isWithinRange(rec.date)) {
                             feesTotalAmount += Number(rec.amount || 0);
@@ -11661,7 +11661,7 @@ window.generateDetailedStudentReport = function() {
                 }
 
                 if(student.practice_log && Array.isArray(student.practice_log)) {
-                    student.practice_log.forEach(log => {
+                    [...student.practice_log].sort((a,b) => { const pD = d => { const p = d.split('/'); return p.length===3 ? new Date(p[2], p[1]-1, p[0]) : new Date(d); }; return pD(b.date) - pD(a.date); }).forEach(log => {
                         if(isWithinRange(log.date)) { 
                             pracMins += Number(log.minutes || 0); 
                             practiceHTML += `<li style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px solid var(--border-color);"><b>${log.date}:</b> ${log.topic || 'Practice'} <span style="color:var(--primary); font-weight:bold;">(${formatPracticeTime(log.minutes)})</span></li>`; 
