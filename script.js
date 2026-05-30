@@ -11454,7 +11454,7 @@ window.generateDetailedStudentReport = function() {
         if (typeof inactiveStudents !== 'undefined') allMyStudentsRaw = allMyStudentsRaw.concat(inactiveStudents);
     }
 
-    let allMyStudents = allMyStudentsRaw;
+    let allMyStudents = allMyStudentsRaw.filter(s => window.isStudentCurrentlyActive(s));
 
     setTimeout(() => {
         try {
@@ -11514,29 +11514,27 @@ window.generateDetailedStudentReport = function() {
                     }
 
                     let dueAmt = 0;
-                    const cDate = new Date();
-                    const safeCurrentMonthStr = typeof currentMonthStr !== 'undefined' ? currentMonthStr : (cDate.getFullYear() + "-" + String(cDate.getMonth() + 1).padStart(2, '0'));
-                    
-                    if(typeof window.getOldestUnpaidMonth === 'function') {
-                       const oldestDue = window.getOldestUnpaidMonth(student.id, safeCurrentMonthStr);
-                       if(oldestDue && oldestDue <= safeCurrentMonthStr && student.fee && !isNaN(student.fee)) {
-                           try {
-                               let [dY, dM] = oldestDue.split('-').map(Number);
-                               let [cY, cM] = safeCurrentMonthStr.split('-').map(Number);
-                               let monthsDue = (cY - dY) * 12 + (cM - dM) + 1;
-                               if (monthsDue > 0) dueAmt = monthsDue * Number(student.fee);
-                           } catch(e) {}
-                       }
-                    }
+let iterDate = new Date(student.joining_date);
+if(!isNaN(iterDate.getTime())) {
+    iterDate.setDate(1);
+    const now = new Date();
+    while (iterDate <= now) {
+        const y = iterDate.getFullYear();
+        const m = iterDate.getMonth() + 1;
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+        
+        // স্টুডেন্ট ওই মাসে অ্যাক্টিভ থাকলে এবং ফিস 'paid' না থাকলে ডিউ কাউন্ট হবে
+        if (window.wasStudentActiveDuringMonth(student, monthStr) && fees[monthStr]?.[student.id]?.status !== 'paid') {
+            dueAmt += window.getCalculatedDueAmount(student, monthStr);
+        }
+        iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+}
 
                     if (dueAmt > 0) {
                         feeHTML += `<li style="margin-top: 8px; font-weight: bold; color: #ef4444; background: #fee2e2; padding: 6px; border-radius: 6px; text-align: center;">⚠️ Pending Due: ₹${dueAmt}</li>`;
                     }
 
-                    if (pCount === 0 && aCount === 0 && feesTotalAmount === 0 && pracMins === 0 && notesCount === 0 && dueAmt === 0) {
-                        return; 
-                    }
-                    
                     studentFoundCount++;
 
                     const safeName = student.name || "Unknown";
@@ -11670,20 +11668,22 @@ window.generateDetailedStudentReport = function() {
                 }
 
                 let dueAmt = 0;
-                const cDate = new Date();
-                const safeCurrentMonthStr = typeof currentMonthStr !== 'undefined' ? currentMonthStr : (cDate.getFullYear() + "-" + String(cDate.getMonth() + 1).padStart(2, '0'));
-                
-                if(typeof window.getOldestUnpaidMonth === 'function') {
-                   const oldestDue = window.getOldestUnpaidMonth(studentId, safeCurrentMonthStr);
-                   if(oldestDue && oldestDue <= safeCurrentMonthStr && student.fee && !isNaN(student.fee)) {
-                       try {
-                           let [dY, dM] = oldestDue.split('-').map(Number);
-                           let [cY, cM] = safeCurrentMonthStr.split('-').map(Number);
-                           let monthsDue = (cY - dY) * 12 + (cM - dM) + 1;
-                           if (monthsDue > 0) dueAmt = monthsDue * Number(student.fee);
-                       } catch(e) {}
-                   }
-                }
+let iterDate = new Date(student.joining_date);
+if(!isNaN(iterDate.getTime())) {
+    iterDate.setDate(1);
+    const now = new Date();
+    while (iterDate <= now) {
+        const y = iterDate.getFullYear();
+        const m = iterDate.getMonth() + 1;
+        const monthStr = `${y}-${m.toString().padStart(2, '0')}`;
+        
+        // স্টুডেন্ট ওই মাসে অ্যাক্টিভ থাকলে এবং ফিস 'paid' না থাকলে ডিউ কাউন্ট হবে
+        if (window.wasStudentActiveDuringMonth(student, monthStr) && fees[monthStr]?.[student.id]?.status !== 'paid') {
+            dueAmt += window.getCalculatedDueAmount(student, monthStr);
+        }
+        iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+}
 
                 if (dueAmt > 0) {
                     feeHTML += `<li style="margin-top: 8px; font-weight: bold; color: #ef4444; background: #fee2e2; padding: 6px; border-radius: 6px; text-align: center;">⚠️ Pending Due: ₹${dueAmt}</li>`;
