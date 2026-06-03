@@ -2872,7 +2872,7 @@ async function addReminder() {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder added!', showConfirmButton: false, timer: 1500 });
     
     // ব্যাকগ্রাউন্ডে সেভ হবে (কোনো ল্যাগ করবে না)
-    saveData().catch(e => console.log("Background sync pending")); 
+    await saveData(); 
 }
 
 async function deleteReminder(id) { reminders = reminders.filter(r => r.id !== id); await saveData(); renderReminders(); }
@@ -4026,7 +4026,7 @@ async function saveFee() {
     }); 
 
     // 🟢 ৩. ব্যাকগ্রাউন্ডে ডেটাবেসে সেভ হবে (কোনো 'await' নেই, তাই অ্যাপ স্লো হবে না)
-    saveData().catch(e => console.log("Background sync error:", e)); 
+    await saveData(); 
 }
 
 // ৩ নম্বর রিপ্লেসমেন্ট: ফিস ট্যাব ফাস্ট করার জন্য
@@ -4503,8 +4503,8 @@ window.markAttendance = async function(studentId, status) {
         }; 
     }
     
-    renderAttendance(); 
-    saveData().catch(err => console.log("Background Sync Pending...")); 
+    renderAttendance();
+    await saveData(); 
 };
 
 // 🟢 রিয়েল-টাইম ডুপ্লিকেট নোট চেকার
@@ -4621,7 +4621,7 @@ async function addAttendanceNote(studentId) {
         };
         
         renderAttendance();
-        saveData().catch(e => console.log("Note saved locally."));
+        await saveData();
 
         if (newNoteTrimmed !== "") {
             const student = students.find(s => s.id === studentId);
@@ -5924,8 +5924,8 @@ async function saveGlobalMaterial() {
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
     Toast.fire({ icon: 'success', title: 'Saved to Library' });
 
-    // ব্যাকগ্রাউন্ডে সেভ হবে
-    saveData().catch(e => console.log("Background sync pending"));
+// ব্যাকগ্রাউন্ডে সেভ হবে
+    await saveData(); 
 }
 
 // 🟢 Global Material Library - Lazy Loading Variables
