@@ -5005,7 +5005,7 @@ let currentAdvanceCount = 0;
             allowOutsideClick: false
         }); 
 
-        saveData().catch(e => console.log("Offline sync pending")); 
+        await saveData(); 
     }
 
 function showStudentDetails(studentId) { 
