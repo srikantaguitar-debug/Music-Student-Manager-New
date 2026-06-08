@@ -2687,10 +2687,62 @@ async function saveStatusChange() {
         await saveData(); 
         loadAllData(); 
         closeModal('statusChangeModal'); 
-        Swal.fire('Updated', `Status changed.`, 'success'); 
+        
+        // 🟢 MAGIC FIX: Status Change Success Popup with WA/SMS Buttons
+        const statusText = toActive ? 'Activated' : 'Deactivated';
+        const actionNote = note || (toActive ? 'Re-activated' : 'Deactivated');
+        
+        Swal.fire({
+            title: `Student ${statusText}!`,
+            html: `
+                <p style="font-size:14px; margin-bottom:15px;">The profile of <b>${student.name}</b> is now ${statusText}.</p>
+                <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px;">Notify student via:</p>
+                <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                    <button class="btn-whatsapp btn-like" onclick="window.sendStatusMsg('wa', ${student.id}, ${toActive}, '${actionNote.replace(/'/g, "\\'")}')" style="padding:10px 20px;"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                    <button class="btn-sms btn-like" onclick="window.sendStatusMsg('sms', ${student.id}, ${toActive}, '${actionNote.replace(/'/g, "\\'")}')" style="padding:10px 20px;"><i class="fas fa-sms"></i> SMS</button>
+                </div>
+            `,
+            icon: 'success',
+            showConfirmButton: true,
+            confirmButtonText: 'Done / Close',
+            confirmButtonColor: '#d33',
+            allowOutsideClick: false
+        });
     } 
 }       
 
+// 🟢 NEW: Function to send message when student status changes
+window.sendStatusMsg = function(type, studentId, isActive, note) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    let msgBody = '';
+
+    // 🟢 মেসেজের ডিজাইন (Active ও Inactive এর জন্য আলাদা)
+    if (isActive) {
+        msgBody = `Dear ${student.name},\n\nYour profile at ${instName} has been successfully ACTIVATED. 🎉\n\nNote: ${note}\n\nYou can now log in to your Student Portal to check updates, study materials, and track your practice.\n\nWelcome back!\nSrikanta Banerjee`;
+    } else {
+        msgBody = `Dear ${student.name},\n\nYour profile at ${instName} has been temporarily DEACTIVATED.\n\nReason: ${note}\n\nPlease contact us if you have any questions or wish to resume your classes.\n\nRegards,\nSrikanta Banerjee`;
+    }
+
+    if (type === 'wa') {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        
+        if (cleanPhone) {
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        } else {
+            Swal.fire('Error', 'No valid phone number found!', 'error');
+        }
+    } else if (type === 'sms') {
+        if (student.phone) {
+            window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+        } else {
+            Swal.fire('Error', 'No valid phone number found!', 'error');
+        }
+    }
+};
 function formatTime12H(timeStr) {
     if(!timeStr) return '';
     const [h, m] = timeStr.split(':');
@@ -2872,7 +2924,7 @@ async function addReminder() {
     Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder added!', showConfirmButton: false, timer: 1500 });
     
     // ব্যাকগ্রাউন্ডে সেভ হবে (কোনো ল্যাগ করবে না)
-    await saveData(); 
+    saveData().catch(e => console.log("Background sync pending")); 
 }
 
 async function deleteReminder(id) { reminders = reminders.filter(r => r.id !== id); await saveData(); renderReminders(); }
@@ -4026,7 +4078,7 @@ async function saveFee() {
     }); 
 
     // 🟢 ৩. ব্যাকগ্রাউন্ডে ডেটাবেসে সেভ হবে (কোনো 'await' নেই, তাই অ্যাপ স্লো হবে না)
-    await saveData(); 
+    saveData().catch(e => console.log("Background sync error:", e)); 
 }
 
 // ৩ নম্বর রিপ্লেসমেন্ট: ফিস ট্যাব ফাস্ট করার জন্য
@@ -4503,8 +4555,8 @@ window.markAttendance = async function(studentId, status) {
         }; 
     }
     
-    renderAttendance();
-    await saveData(); 
+    renderAttendance(); 
+    saveData().catch(err => console.log("Background Sync Pending...")); 
 };
 
 // 🟢 রিয়েল-টাইম ডুপ্লিকেট নোট চেকার
@@ -4621,7 +4673,7 @@ async function addAttendanceNote(studentId) {
         };
         
         renderAttendance();
-        await saveData();
+        saveData().catch(e => console.log("Note saved locally."));
 
         if (newNoteTrimmed !== "") {
             const student = students.find(s => s.id === studentId);
@@ -5005,7 +5057,7 @@ let currentAdvanceCount = 0;
             allowOutsideClick: false
         }); 
 
-        await saveData(); 
+        saveData().catch(e => console.log("Offline sync pending")); 
     }
 
 function showStudentDetails(studentId) { 
@@ -5924,8 +5976,8 @@ async function saveGlobalMaterial() {
     const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 2000 });
     Toast.fire({ icon: 'success', title: 'Saved to Library' });
 
-// ব্যাকগ্রাউন্ডে সেভ হবে
-    await saveData(); 
+    // ব্যাকগ্রাউন্ডে সেভ হবে
+    saveData().catch(e => console.log("Background sync pending"));
 }
 
 // 🟢 Global Material Library - Lazy Loading Variables
