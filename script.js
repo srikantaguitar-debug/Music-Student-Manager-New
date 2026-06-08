@@ -2716,14 +2716,16 @@ window.sendStatusMsg = function(type, studentId, isActive, note) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
 
+    // 🟢 ডায়নামিক ইন্সটিটিউট এবং সাবজেক্টের নাম
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const subject = student.class || 'Music';
     let msgBody = '';
 
     // 🟢 মেসেজের ডিজাইন (Active ও Inactive এর জন্য আলাদা)
     if (isActive) {
-        msgBody = `Dear ${student.name},\n\nYour profile at ${instName} has been successfully ACTIVATED. 🎉\n\nNote: ${note}\n\nYou can now log in to your Student Portal to check updates, study materials, and track your practice.\n\nWelcome back!\nSrikanta Banerjee`;
+        msgBody = `Dear ${student.name},\n\nYour profile for ${subject} classes has been successfully ACTIVATED. 🎉\n\nNote: ${note}\n\nYou can now log in to your Student Portal to check updates, study materials, and track your practice.\n\nWelcome back!\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
     } else {
-        msgBody = `Dear ${student.name},\n\nYour profile at ${instName} has been temporarily DEACTIVATED.\n\nReason: ${note}\n\nPlease contact us if you have any questions or wish to resume your classes.\n\nRegards,\nSrikanta Banerjee`;
+        msgBody = `Dear ${student.name},\n\nYour profile for ${subject} classes has been temporarily DEACTIVATED.\n\nReason: ${note}\n\nPlease contact us if you have any questions or wish to resume your classes.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
     }
 
     if (type === 'wa') {
