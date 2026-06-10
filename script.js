@@ -2680,15 +2680,18 @@ async function saveStatusChange() {
         student.status.isActive = toActive; 
         student.status.history.unshift({ status: toActive ? 'Active' : 'Inactive', date: statusDate, note: note || (toActive ? 'Re-activated' : 'Deactivated') }); 
         
-        await db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(id)).update({
+        // 🟢 MAGIC FIX 1: await সরিয়ে দেওয়া হলো, ডেটা ব্যাকগ্রাউন্ডে সেভ হবে
+        db.collection(COLLECTION_NAME).doc(DOC_ID).collection('students').doc(String(id)).update({
             status: student.status
-        });
+        }).catch(e => console.log("Offline sync pending"));
 
-        await saveData(); 
+        // 🟢 MAGIC FIX 2: await সরিয়ে দেওয়া হলো
+        saveData().catch(e => console.log("Background sync pending")); 
+        
         loadAllData(); 
         closeModal('statusChangeModal'); 
         
-        // 🟢 MAGIC FIX: Status Change Success Popup with WA/SMS Buttons
+        // 🟢 MAGIC FIX 3: Status Change Success Popup with WA/SMS Buttons (Instant Show)
         const statusText = toActive ? 'Activated' : 'Deactivated';
         const actionNote = note || (toActive ? 'Re-activated' : 'Deactivated');
         
@@ -2709,7 +2712,7 @@ async function saveStatusChange() {
             allowOutsideClick: false
         });
     } 
-}       
+}      
 
 // 🟢 NEW: Function to send message when student status changes
 window.sendStatusMsg = function(type, studentId, isActive, note) {
