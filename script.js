@@ -11867,7 +11867,19 @@ window.openStudentReportModal = function() {
         
         studentListContainer.innerHTML = listHtml;
         document.getElementById('detailedReportStudentId').value = 'all';
+
+        // 🟢 MAGIC FIX: Auto-select Current Month and Year for Detailed Report
+        const now = new Date();
+        const currentYear = String(now.getFullYear());
+        const currentMonth = String(now.getMonth() + 1).padStart(2, '0'); // মাস দুই ডিজিটে (যেমন: 06)
+
+        const yearDropdown = document.getElementById('detailedReportYear');
+        if(yearDropdown) yearDropdown.value = currentYear;
+
+        const monthDropdown = document.getElementById('detailedReportMonth');
+        if(monthDropdown) monthDropdown.value = currentMonth;
         
+        // রিপোর্ট জেনারেট করা হচ্ছে
         if (typeof window.generateDetailedStudentReport === 'function') {
             window.generateDetailedStudentReport();
         }
