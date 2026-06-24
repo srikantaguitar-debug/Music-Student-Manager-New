@@ -568,7 +568,13 @@ window.showStudentProducts = function() {
 // ৩. Payment Data
                         let feeRecords = [];
                         Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
-                        feeRecords.sort((a,b) => new Date(b.month+'-01') - new Date(a.month+'-01')).reverse();
+
+                        // 🟢 FIX: Payment History Sorting by Actual Payment Date (Latest payment at the top)
+                        feeRecords.sort((a, b) => {
+                            const dateA = new Date(a.data.date || a.month + '-01');
+                            const dateB = new Date(b.data.date || b.month + '-01');
+                            return dateB - dateA; // descending order
+                        });
                         
                         let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
     let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:var(--success); font-weight:600; display:inline-block; margin-top:6px; background:var(--bg-body); padding:4px 8px; border-radius:6px; border:1px dashed var(--success);"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
@@ -5096,7 +5102,10 @@ document.getElementById('modalFeeAmount').textContent = `₹${student.fee_amount
     }
     document.getElementById('modalDOB').innerHTML = dobDisplay; 
     
-document.getElementById('modalJoiningDate').textContent = new Date(student.joining_date).toLocaleDateString('en-IN');
+// 🟢 FIX: Joining Date এর নিচে Total Active Duration যোগ করা হলো
+// 🟢 FIX: Joining Date এর নিচে Total Active Duration যোগ করা হলো (Clickable)
+let activeDurStr = window.calculateTotalActiveDuration(student);
+document.getElementById('modalJoiningDate').innerHTML = `${new Date(student.joining_date).toLocaleDateString('en-IN')} <br><span onclick="window.showActivePeriodsDetails(${student.id})" title="Click to view details" style="font-size:11px; color: var(--primary); font-weight:700; background: var(--bg-body); padding: 3px 8px; border-radius: 6px; margin-top: 6px; display: inline-block; border: 1px solid var(--border-color); cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: 0.2s;"><i class="fas fa-clock"></i> Active: ${activeDurStr}</span>`;
 
     // 🟢 Inactive Calculation Logic শুরু
     const inactiveBox = document.getElementById('modalInactiveStatusBox');
@@ -5130,15 +5139,16 @@ document.getElementById('modalJoiningDate').textContent = new Date(student.joini
             
             const formattedInactiveDate = inactiveDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
             
-            // বক্সে লেখাগুলো সেট করা
+            // 🟢 FIX: বক্সে লেখাগুলো সেট করা (ক্লিকেবল করা হলো)
             inactiveBox.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div onclick="window.showInactivePeriodsDetails(${student.id})" title="Click to view details" style="display:flex; justify-content:space-between; align-items:center; cursor: pointer; transition: 0.2s;">
                     <span style="font-weight:600; color:#e11d48;"><i class="fas fa-user-slash"></i> Inactive From:</span> 
                     <div style="text-align:right;">
                         <span style="color:#be123c; font-weight:700;">${formattedInactiveDate}</span><br>
                         <span style="font-size:11px; color:#f43f5e; font-weight:600;">(Duration: ${dur.join(', ')})</span>
                     </div>
                 </div>`;
+            inactiveBox.style.cursor = 'pointer'; 
             inactiveBox.style.display = 'block'; // বক্সটি দৃশ্যমান করা
         } else {
             inactiveBox.style.display = 'none'; // Active হলে বক্সটি লুকিয়ে ফেলা
@@ -11884,4 +11894,263 @@ window.openStudentReportModal = function() {
             window.generateDetailedStudentReport();
         }
     }
+};
+// 🟢 NEW: Function to calculate total active duration (Years, Months, Days + Total Days) [FIXED SYNC]
+window.calculateTotalActiveDuration = function(student) {
+    if (!student || !student.joining_date) return "0 Days (0 Days)";
+    const joinDate = new Date(student.joining_date);
+    joinDate.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    if (joinDate > today) return "0 Days (0 Days)";
+    
+    let activePeriods = [];
+    let currentActiveStart = joinDate;
+
+    // 🟢 পপ-আপের মতো সেম লজিকে অ্যাক্টিভ পিরিয়ডগুলো আগে বের করা হলো
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        for (let i = 0; i < historyAsc.length; i++) {
+            let hDate = new Date(historyAsc[i].date);
+            hDate.setHours(0,0,0,0);
+            
+            if (hDate < joinDate) hDate = new Date(joinDate);
+
+            if (historyAsc[i].status === 'Inactive' && currentActiveStart) {
+                let endD = hDate > today ? today : hDate;
+                if (endD >= currentActiveStart) {
+                    activePeriods.push({ start: currentActiveStart, end: endD });
+                }
+                currentActiveStart = null;
+            } else if (historyAsc[i].status === 'Active' && !currentActiveStart) {
+                currentActiveStart = hDate > today ? today : hDate;
+            }
+        }
+    }
+
+    if (currentActiveStart && currentActiveStart <= today) {
+        activePeriods.push({ start: currentActiveStart, end: today });
+    }
+
+    // 🟢 এবার সবগুলো অ্যাক্টিভ পিরিয়ডের দিন যোগ করা হলো (যাতে পপ-আপের সাথে একদম মিলে যায়)
+    let activeDays = 0;
+    activePeriods.forEach(p => {
+        activeDays += Math.floor((p.end - p.start) / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end days
+    });
+
+    if (activeDays <= 0) return "0 Days (0 Days)";
+
+    // Year, Month, Day কনভার্সন
+    let y = Math.floor(activeDays / 365);
+    let m = Math.floor((activeDays % 365) / 30);
+    let d = Math.floor((activeDays % 365) % 30);
+    
+    let dur = [];
+    if (y > 0) dur.push(y + (y === 1 ? ' Yr' : ' Yrs'));
+    if (m > 0) dur.push(m + (m === 1 ? ' Mth' : ' Mths'));
+    if (d > 0) dur.push(d + (d === 1 ? ' Day' : ' Days'));
+    if (dur.length === 0) dur.push('0 Days');
+    
+    // 🟢 ব্র্যাকেটে টোটাল দিন যোগ করা হলো
+    return `${dur.join(', ')} (${activeDays} Days)`;
+};
+// 🟢 NEW: Function to show detailed active periods breakdown
+window.showActivePeriodsDetails = function(studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.joining_date) return;
+
+    const joinDate = new Date(student.joining_date);
+    joinDate.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    let activePeriods = [];
+    let currentActiveStart = joinDate;
+
+    // স্ট্যাটাস হিস্ট্রি থেকে অ্যাক্টিভ/ইনঅ্যাক্টিভ ডেট বের করা
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        for (let i = 0; i < historyAsc.length; i++) {
+            let hDate = new Date(historyAsc[i].date);
+            hDate.setHours(0,0,0,0);
+            
+            if (hDate < joinDate) hDate = new Date(joinDate);
+
+            if (historyAsc[i].status === 'Inactive' && currentActiveStart) {
+                let endD = hDate > today ? today : hDate;
+                if (endD >= currentActiveStart) {
+                    activePeriods.push({ start: currentActiveStart, end: endD, isCurrent: false });
+                }
+                currentActiveStart = null;
+            } else if (historyAsc[i].status === 'Active' && !currentActiveStart) {
+                currentActiveStart = hDate > today ? today : hDate;
+            }
+        }
+    }
+
+    // বর্তমানে যদি অ্যাক্টিভ থাকে, তবে আজকে পর্যন্ত কাউন্ট হবে
+    if (currentActiveStart && currentActiveStart <= today) {
+        activePeriods.push({ start: currentActiveStart, end: today, isCurrent: true });
+    }
+
+    if (activePeriods.length === 0) {
+        Swal.fire('Info', 'No active periods found.', 'info');
+        return;
+    }
+
+    // 🟢 পপ-আপের ডিজাইন তৈরি
+    let html = '<div style="text-align: left; max-height: 60vh; overflow-y: auto; padding: 5px;">';
+    
+    // লেটেস্ট পিরিয়ডটা ওপরে দেখানোর জন্য রিভার্স করা হলো
+    activePeriods.reverse().forEach(period => {
+        const startStr = period.start.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        const endStr = period.isCurrent ? 'Present' : period.end.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        
+        // 🟢 FIX: টোটাল দিনের হিসাব
+        let totalPeriodDays = Math.floor((period.end - period.start) / (1000 * 60 * 60 * 24)) + 1; // +1 দিন ধরা হলো
+
+        // Year, Month, Day ক্যালকুলেশন
+        let y = period.end.getFullYear() - period.start.getFullYear();
+        let m = period.end.getMonth() - period.start.getMonth();
+        let d = period.end.getDate() - period.start.getDate();
+
+        if (d < 0) { 
+            m--; 
+            const lm = new Date(period.end.getFullYear(), period.end.getMonth(), 0); 
+            d += lm.getDate(); 
+        }
+        if (m < 0) { y--; m += 12; }
+        
+        let dur = [];
+        if (y > 0) dur.push(y + (y === 1 ? ' Yr' : ' Yrs'));
+        if (m > 0) dur.push(m + (m === 1 ? ' Mth' : ' Mths'));
+        if (d > 0) dur.push(d + (d === 1 ? ' Day' : ' Days'));
+        if (dur.length === 0) dur.push('0 Days');
+
+        const statusBadge = period.isCurrent 
+            ? `<span style="background:var(--success); color:white; padding:2px 6px; border-radius:4px; font-size:10px;">Current</span>`
+            : `<span style="background:var(--text-muted); color:white; padding:2px 6px; border-radius:4px; font-size:10px;">Past</span>`;
+
+        html += `
+            <div style="background: var(--bg-card); padding: 12px; border-radius: 8px; border-left: 4px solid var(--success); margin-bottom: 10px; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 14px;">${startStr} - ${endStr}</div>
+                    ${statusBadge}
+                </div>
+                <div style="font-size: 12px; color: var(--success); font-weight: 600;"><i class="fas fa-history"></i> Duration: ${dur.join(', ')} <span style="color:#0ea5e9;">(${totalPeriodDays} Days)</span></div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+
+    Swal.fire({
+        title: 'Active Periods Details',
+        html: html,
+        showCloseButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: 'var(--primary)'
+    });
+};
+// 🟢 NEW: Function to show detailed INACTIVE periods breakdown
+window.showInactivePeriodsDetails = function(studentId) {
+    const student = students.find(s => s.id === studentId);
+    if (!student || !student.joining_date) return;
+
+    const joinDate = new Date(student.joining_date);
+    joinDate.setHours(0,0,0,0);
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    let inactivePeriods = [];
+    let currentInactiveStart = null;
+
+    // স্ট্যাটাস হিস্ট্রি থেকে ইনঅ্যাক্টিভ ডেট বের করা
+    if (student.status && student.status.history && student.status.history.length > 0) {
+        const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        for (let i = 0; i < historyAsc.length; i++) {
+            let hDate = new Date(historyAsc[i].date);
+            hDate.setHours(0,0,0,0);
+            
+            if (hDate < joinDate) hDate = new Date(joinDate);
+
+            if (historyAsc[i].status === 'Inactive' && !currentInactiveStart) {
+                currentInactiveStart = hDate > today ? today : hDate;
+            } else if (historyAsc[i].status === 'Active' && currentInactiveStart) {
+                let endD = hDate > today ? today : hDate;
+                if (endD >= currentInactiveStart) {
+                    inactivePeriods.push({ start: currentInactiveStart, end: endD, isCurrent: false });
+                }
+                currentInactiveStart = null;
+            }
+        }
+    }
+
+    // বর্তমানে যদি ইনঅ্যাক্টিভ থাকে, তবে আজকে পর্যন্ত কাউন্ট হবে
+    if (currentInactiveStart && currentInactiveStart <= today) {
+        inactivePeriods.push({ start: currentInactiveStart, end: today, isCurrent: true });
+    }
+
+    if (inactivePeriods.length === 0) {
+        Swal.fire('Info', 'No inactive periods found.', 'info');
+        return;
+    }
+
+    // 🟢 পপ-আপের ডিজাইন তৈরি (Red/Danger theme)
+    let html = '<div style="text-align: left; max-height: 60vh; overflow-y: auto; padding: 5px;">';
+    
+    // লেটেস্ট পিরিয়ডটা ওপরে দেখানোর জন্য রিভার্স করা হলো
+    inactivePeriods.reverse().forEach(period => {
+        const startStr = period.start.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        const endStr = period.isCurrent ? 'Present' : period.end.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        
+        // টোটাল ইনঅ্যাক্টিভ দিন
+        let totalPeriodDays = Math.floor((period.end - period.start) / (1000 * 60 * 60 * 24)); 
+
+        // Year, Month, Day ক্যালকুলেশন
+        let y = period.end.getFullYear() - period.start.getFullYear();
+        let m = period.end.getMonth() - period.start.getMonth();
+        let d = period.end.getDate() - period.start.getDate();
+
+        if (d < 0) { 
+            m--; 
+            const lm = new Date(period.end.getFullYear(), period.end.getMonth(), 0); 
+            d += lm.getDate(); 
+        }
+        if (m < 0) { y--; m += 12; }
+        
+        let dur = [];
+        if (y > 0) dur.push(y + (y === 1 ? ' Yr' : ' Yrs'));
+        if (m > 0) dur.push(m + (m === 1 ? ' Mth' : ' Mths'));
+        if (d > 0) dur.push(d + (d === 1 ? ' Day' : ' Days'));
+        if (dur.length === 0) dur.push('0 Days');
+
+        const statusBadge = period.isCurrent 
+            ? `<span style="background:var(--danger); color:white; padding:2px 6px; border-radius:4px; font-size:10px;">Currently Inactive</span>`
+            : `<span style="background:var(--text-muted); color:white; padding:2px 6px; border-radius:4px; font-size:10px;">Past</span>`;
+
+        html += `
+            <div style="background: var(--bg-card); padding: 12px; border-radius: 8px; border-left: 4px solid var(--danger); margin-bottom: 10px; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); box-shadow: 0 2px 4px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                    <div style="font-weight: 700; color: var(--text-main); font-size: 14px;">${startStr} - ${endStr}</div>
+                    ${statusBadge}
+                </div>
+                <div style="font-size: 12px; color: var(--danger); font-weight: 600;"><i class="fas fa-history"></i> Duration: ${dur.join(', ')} <span style="color:#ef4444;">(${totalPeriodDays} Days)</span></div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+
+    Swal.fire({
+        title: 'Inactive Periods Details',
+        html: html,
+        showCloseButton: true,
+        confirmButtonText: 'Close',
+        confirmButtonColor: 'var(--danger)' // লাল রঙের বাটন
+    });
 };
