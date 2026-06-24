@@ -1,4 +1,4 @@
-        // --- 2. Firebase Config ---
+        // --- 2. Firebase কনফিগ ---
         const firebaseConfig = {
             apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
             authDomain: "student-management-syste-6a036.firebaseapp.com",
