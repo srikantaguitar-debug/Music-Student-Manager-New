@@ -78,50 +78,70 @@
             }
         }
 
-// 🟢 Past Inactive Periods Calculation & Beautiful UI Function
+// 🟢 Past Inactive Periods Calculation (Single Summary Box & Clickable)
 function getPastInactivePeriodsHtml(student) {
     if (!student.status || !student.status.history || student.status.history.length === 0) return '';
 
     const historyAsc = [...student.status.history].sort((a, b) => new Date(a.date) - new Date(b.date));
     let currentInactiveStart = null;
-    let pastInactiveHtml = '';
+    let inactivePeriods = [];
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const joinDate = new Date(student.joining_date);
+    joinDate.setHours(0,0,0,0);
 
+    // সব ইনঅ্যাক্টিভ পিরিয়ড বের করা হচ্ছে
     for (let i = 0; i < historyAsc.length; i++) {
+        let hDate = new Date(historyAsc[i].date);
+        hDate.setHours(0,0,0,0);
+        if (hDate < joinDate) hDate = new Date(joinDate);
+
         if (historyAsc[i].status === 'Inactive' && !currentInactiveStart) {
-            currentInactiveStart = historyAsc[i].date;
+            currentInactiveStart = hDate > today ? today : hDate;
         } else if (historyAsc[i].status === 'Active' && currentInactiveStart) {
-            
-            const startDate = new Date(currentInactiveStart);
-            const endDate = new Date(historyAsc[i].date);
-
-            let y = endDate.getFullYear() - startDate.getFullYear();
-            let m = endDate.getMonth() - startDate.getMonth();
-            let d = endDate.getDate() - startDate.getDate();
-
-            if (d < 0) { m--; const lm = new Date(endDate.getFullYear(), endDate.getMonth(), 0); d += lm.getDate(); }
-            if (m < 0) { y--; m += 12; }
-
-            let dur = [];
-            if (y > 0) dur.push(y + ' Yrs');
-            if (m > 0) dur.push(m + ' Mths');
-            if (d > 0) dur.push(d + ' Days');
-            if (dur.length === 0) dur.push('0 Days');
-
-            const startStr = startDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
-            const endStr = endDate.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'});
-
-            // 🟢 থিম অনুযায়ী ডাইনামিক কালার এবং সুন্দর ফুল-উইথ (Full-width) ডিজাইন
-            pastInactiveHtml += `
-                <div style="margin-top: 12px; font-size: 13px; color: var(--text-main); background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px; border-left: 4px solid var(--danger); box-shadow: 0 2px 4px rgba(0,0,0,0.02); display: flex; flex-wrap: wrap; gap: 5px; align-items: center;">
-                    <span style="color: var(--danger); font-weight: 700;"><i class="fas fa-history"></i> Past Inactive:</span> 
-                    <span style="font-weight: 500;">${startStr} to ${endStr}</span> 
-                    <span style="color: var(--text-muted); font-size: 11px; font-weight: 600;">(${dur.join(', ')})</span>
-                </div>`;
-
-            currentInactiveStart = null; 
+            let endD = hDate > today ? today : hDate;
+            if (endD >= currentInactiveStart) {
+                inactivePeriods.push({ start: currentInactiveStart, end: endD });
+            }
+            currentInactiveStart = null;
         }
     }
-    return pastInactiveHtml;
+    
+    // বর্তমানে ইনঅ্যাক্টিভ থাকলে সেটাও যোগ হবে
+    if (currentInactiveStart && currentInactiveStart <= today) {
+        inactivePeriods.push({ start: currentInactiveStart, end: today });
+    }
+
+    // মোট ইনঅ্যাক্টিভ দিন কাউন্ট
+    let totalInactiveDays = 0;
+    inactivePeriods.forEach(p => {
+        totalInactiveDays += Math.floor((p.end - p.start) / (1000 * 60 * 60 * 24));
+    });
+
+    if (totalInactiveDays <= 0) return '';
+
+    // Year, Month, Day কনভার্সন
+    let y = Math.floor(totalInactiveDays / 365);
+    let m = Math.floor((totalInactiveDays % 365) / 30);
+    let d = Math.floor((totalInactiveDays % 365) % 30);
+
+    let dur = [];
+    if (y > 0) dur.push(y + (y === 1 ? ' Yr' : ' Yrs'));
+    if (m > 0) dur.push(m + (m === 1 ? ' Mth' : ' Mths'));
+    if (d > 0) dur.push(d + (d === 1 ? ' Day' : ' Days'));
+    if (dur.length === 0) dur.push('0 Days');
+
+    // 🟢 নতুন ক্লিকেবল (Clickable) ডিজাইন
+    return `
+        <div onclick="window.showInactivePeriodsDetails(${student.id})" title="Click to view details" style="margin-top: 12px; cursor: pointer; background: var(--bg-card); border: 1px solid var(--border-color); padding: 12px 15px; border-radius: 10px; border-left: 4px solid var(--danger); box-shadow: 0 2px 4px rgba(0,0,0,0.03); display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;">
+            <div>
+                <div style="color: var(--danger); font-weight: 800; font-size: 13px; margin-bottom: 4px;"><i class="fas fa-user-slash"></i> Total Inactive</div>
+                <div style="font-size: 14px; font-weight: 700; color: var(--text-main);">${dur.join(', ')} <span style="color: var(--danger); font-size: 12px;">(${totalInactiveDays} Days)</span></div>
+            </div>
+            <div style="background: rgba(239, 68, 68, 0.1); width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: var(--danger);">
+                <i class="fas fa-chevron-right" style="font-size: 12px;"></i>
+            </div>
+        </div>`;
 }
         // --- 6. App Logic & Initialization ---
         
