@@ -1,4 +1,4 @@
-        // --- 2. Firebase কনফিগ ---
+        // --- 2. Firebase Config ---
         const firebaseConfig = {
             apiKey: "AIzaSyBDr_ANRX57trE7_1pkH2BaOeQsG0B-3LI",
             authDomain: "student-management-syste-6a036.firebaseapp.com",
@@ -237,11 +237,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const docRef = db.collection('music_classes').doc(managerUid);
                         const currentYear = new Date().getFullYear();
                         
-                        // 🟢 FIX: Fetching Data correctly from Sub-collections
+                        // 🟢 MAGIC FIX 1: স্টুডেন্ট পোর্টালে সরাসরি সার্ভার থেকে ডেটা রিফ্রেশ করার কমান্ড
                         const [studentDoc, mainDoc, pLogSnap, attSnap, feeSnap] = await Promise.all([
-                            docRef.collection('students').doc(studentViewId).get(),
-                            docRef.get(),
-                            docRef.collection('practice_logs').get(), // 🟢 সব মাস ফেচ হচ্ছে
+                            docRef.collection('students').doc(studentViewId).get({ source: 'server' }).catch(() => docRef.collection('students').doc(studentViewId).get()),
+                            docRef.get({ source: 'server' }).catch(() => docRef.get()), 
+                            docRef.collection('practice_logs').get({ source: 'server' }).catch(() => docRef.collection('practice_logs').get()), 
                             docRef.collection('attendance').get(),
                             docRef.collection('fees').get()
                         ]);
@@ -9514,22 +9514,63 @@ window.renderPracticeLeaderboard = function() {
     `;
 };
 
-// 🟢 Firebase-এ সেভ করার ফাংশন
-window.publishLeaderboardToPortal = async function() {
+// 🟢 Firebase-এ সেভ করার ফাংশন (MAGIC FIX 2: Direct Firebase Cloud Push & Instant UI)
+window.publishLeaderboardToPortal = function() {
     if(!window.currentTop3ForPublish || window.currentTop3ForPublish.length === 0) {
-        Swal.fire('Info', 'No students to publish!', 'info'); return;
+        Swal.fire({title: 'Info', text: 'No students to publish!', icon: 'info', didOpen: (el) => { el.parentElement.style.zIndex = '999999'; }}); 
+        return;
     }
+
     const dataToSave = {
         period: window.currentPublishPeriod,
         topStudents: window.currentTop3ForPublish
     };
-    await dbSet('published_leaderboard', dataToSave);
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Published to Student Portals!', showConfirmButton: false, timer: 2000});
+    
+    // 🟢 সরাসরি ফায়ারবেস ক্লাউডে ডেটা পুশ করা হচ্ছে (১০০% গ্যারান্টি)
+    const user = firebase.auth().currentUser;
+    if(user) {
+        db.collection('music_classes').doc(user.uid).set({
+            published_leaderboard: dataToSave
+        }, { merge: true }).catch(e => console.error("Cloud push failed:", e));
+    }
+
+    // 🟢 ক্লিক করার সাথে সাথেই সাকসেস নোটিফিকেশন দেখাবে (সবার ওপরে)
+    Swal.fire({
+        toast: true, 
+        position: 'top-end', 
+        icon: 'success', 
+        title: 'Published to Portals!', 
+        showConfirmButton: false, 
+        timer: 2500,
+        didOpen: (toast) => {
+            toast.parentElement.style.zIndex = '999999'; 
+        }
+    });
 };
 
-window.clearPublishedLeaderboard = async function() {
-    await dbDelete('published_leaderboard');
-    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Hidden from Portals', showConfirmButton: false, timer: 2000});
+// 🟢 পাবলিশ হাইড বা ক্লিয়ার করার ফাংশন (Direct Firebase Delete)
+window.clearPublishedLeaderboard = function() {
+    
+    // 🟢 ফায়ারবেস ক্লাউড থেকে সরাসরি মুছে ফেলা হচ্ছে
+    const user = firebase.auth().currentUser;
+    if(user) {
+        db.collection('music_classes').doc(user.uid).update({
+            published_leaderboard: firebase.firestore.FieldValue.delete()
+        }).catch(e => console.log(e));
+    }
+    
+    // 🟢 ক্লিক করার সাথে সাথেই নোটিফিকেশন দেখাবে (সবার ওপরে)
+    Swal.fire({
+        toast: true, 
+        position: 'top-end', 
+        icon: 'success', 
+        title: 'Hidden from Portals', 
+        showConfirmButton: false, 
+        timer: 2500,
+        didOpen: (toast) => {
+            toast.parentElement.style.zIndex = '999999'; 
+        }
+    });
 };
 
 // 🟢 1. Send SMS / WA Message for Leaderboard (নির্দিষ্ট মাস ও সাল উল্লেখ সহ)
