@@ -402,6 +402,45 @@ window.currentStudentName = s.name; // WhatsApp মেসেজে স্টু�
                         </div>
                     `;
                 }
+                // 🟢 NEW: Exam Rankings UI for Student Portal
+let examRankingHtml = '';
+if (globalData.published_exam_ranking && globalData.published_exam_ranking.topStudents && globalData.published_exam_ranking.topStudents.length > 0) {
+    const exData = globalData.published_exam_ranking;
+    
+    let exCardsHtml = exData.topStudents.map(st => {
+        let scale = st.rank === 1 ? 'scale(1)' : 'scale(0.80)';
+        let order = st.rank === 1 ? 2 : (st.rank === 2 ? 1 : 3);
+        let photo = st.photo || 'https://via.placeholder.com/150?text=S';
+        let wrapMargin = st.rank === 1 ? 'margin: 0 5px;' : 'margin: 20px -15px 0 -15px;';
+        
+        let rankColor = st.rank === 1 ? '#eab308' : (st.rank === 2 ? '#94a3b8' : '#d97706');
+        let crown = st.rank === 1 ? '<div style="font-size:24px; margin-bottom:-10px; z-index:10; position:relative; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));">👑</div>' : '';
+        
+        return `
+        <div style="flex: 1; order: ${order}; ${wrapMargin} display: flex; flex-direction: column; align-items: center; z-index: ${st.rank === 1 ? '10' : '5'}; transform: ${scale};">
+            ${crown}
+            <div style="position: relative;">
+                <img src="${photo}" style="width: 75px; height: 75px; border-radius: 50%; border: 3px solid ${rankColor}; object-fit: cover; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+                <div style="position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%); background: ${rankColor}; color: #fff; font-size: 11px; font-weight: 900; padding: 2px 8px; border-radius: 10px; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2);">#${st.rank}</div>
+            </div>
+            <div style="margin-top: 15px; font-size: 12px; font-weight: 900; color: var(--text-main); text-transform: uppercase; text-align:center;">${st.name.split(' ')[0]}</div>
+            <div style="font-size: 10px; font-weight: 800; color: var(--primary); background: var(--bg-input); padding: 3px 6px; border-radius: 6px; margin-top: 4px; border: 1px solid var(--border-color);">${st.score}/${st.total} (${st.percentage}%)</div>
+        </div>`;
+    }).join('');
+
+    examRankingHtml = `
+    <div style="background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%); border-radius: 20px; padding: 25px 5px; margin-bottom: 25px; border: 2px solid #38bdf8; box-shadow: 0 8px 25px rgba(0,0,0,0.08); text-align: center; position: relative; overflow: hidden;">
+        <div style="position: absolute; top: -15px; left: -15px; font-size: 100px; color: #38bdf8; opacity: 0.1;"><i class="fas fa-award"></i></div>
+        <h4 style="margin: 0 0 15px 0; color: #0369a1; font-size: 16px; font-weight: 900; text-transform: uppercase; letter-spacing: 1px; position: relative; z-index: 2;">
+            🏆 EXAM TOP PERFORMERS 🏆
+        </h4>
+        <div style="display: flex; justify-content: center; align-items: flex-start; position: relative; z-index: 2; width: 100%;">
+            ${exCardsHtml}
+        </div>
+        <span style="font-size: 11px; color: #fff; font-weight: 800; background: #0284c7; padding: 5px 15px; border-radius: 12px; display: inline-block; margin-top: 15px; position: relative; z-index: 2; box-shadow: 0 4px 10px rgba(2,132,199,0.3); text-transform: uppercase;">${exData.examName}</span>
+    </div>
+    `;
+}
 // 🟢 NEW: Product Slider Logic for Student Portal (Updated)
 let portalProducts = window.stockInventory.filter(item => {
     if (item.qty <= 0) return false;
@@ -1150,6 +1189,7 @@ document.body.innerHTML = `
                         </div>
 
             ${hallOfFameHtml}
+            ${examRankingHtml}
             ${productSliderHtml}
             ${noticeHtml}
             <div id="studentJoinArea" style="display:none; background: #ecfdf5; border: 2px dashed #10b981; padding: 20px; border-radius: 16px; margin: 20px 0; text-align:center; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.2);">
