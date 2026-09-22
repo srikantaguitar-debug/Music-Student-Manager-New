@@ -12679,20 +12679,29 @@ window.renderExamRankingList = function(examName) {
         return;
     }
 
+    // 🟢 FIX: 'score' এর বদলে 'obtainedMarks' দিয়ে সর্ট করা হচ্ছে
     examResults.sort((a, b) => {
-        if (b.result.score !== a.result.score) return b.result.score - a.result.score;
-        return a.result.timeTakenSeconds - b.result.timeTakenSeconds;
+        const scoreA = a.result.obtainedMarks !== undefined ? a.result.obtainedMarks : (a.result.score || 0);
+        const scoreB = b.result.obtainedMarks !== undefined ? b.result.obtainedMarks : (b.result.score || 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        
+        const timeA = a.result.timeTakenSeconds || 999999;
+        const timeB = b.result.timeTakenSeconds || 999999;
+        return timeA - timeB;
     });
 
-    window.currentExamTop3ForPublish = examResults.slice(0, 3).map((item, index) => ({
-        id: item.student.id,
-        name: item.student.name,
-        photo: item.student.photo,
-        rank: index + 1,
-        score: item.result.score,
-        total: item.result.total,
-        percentage: item.result.percentage
-    }));
+    window.currentExamTop3ForPublish = examResults.slice(0, 3).map((item, index) => {
+        const res = item.result;
+        return {
+            id: item.student.id,
+            name: item.student.name,
+            photo: item.student.photo,
+            rank: index + 1,
+            score: res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0), // 🟢 FIX
+            total: res.totalMarks !== undefined ? res.totalMarks : (res.total || 0),       // 🟢 FIX
+            percentage: res.percentage
+        };
+    });
 
     let html = '';
     examResults.forEach((item, index) => {
@@ -12714,13 +12723,18 @@ window.renderExamRankingList = function(examName) {
             rankIcon = `<span style="font-size:14px; font-weight:bold; color:gray;">#${index + 1}</span>`;
         }
 
+        // 🟢 FIX: ভেরিয়েবল নামগুলো ঠিক করা হলো
+        const scoreDisplay = res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0);
+        const totalDisplay = res.totalMarks !== undefined ? res.totalMarks : (res.total || 0);
+        const timeDisplay = res.timeTaken ? res.timeTaken : 'N/A'; // পুরোনো এক্সামে টাইম নেই তাই N/A দেখাবে
+
         let top3Buttons = '';
         if (isTop3) {
             top3Buttons = `
             <div style="display:flex; gap:4px; align-items:center; margin-top:6px; flex-wrap:wrap;">
-                <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName}', ${res.score}, ${res.total}, ${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-award"></i> Certificate</button>
-                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName}', ${res.score}, ${res.total})" style="background:#25D366; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fab fa-whatsapp"></i></button>
-                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName}', ${res.score}, ${res.total})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fas fa-sms"></i></button>
+                <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-award"></i> Certificate</button>
+                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fab fa-whatsapp"></i></button>
+                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fas fa-sms"></i></button>
             </div>
             `;
         }
@@ -12732,15 +12746,16 @@ window.renderExamRankingList = function(examName) {
                 <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1;">
                 <div style="line-height:1.3;">
                     <div style="font-weight:700; font-size:15px; color:var(--text-main);">${s.name}</div>
-                    <div style="font-size:11px; color:var(--text-muted);">${s.class || 'Music'} | Time: ${res.timeTaken}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${s.class || 'Music'} | Time: ${timeDisplay}</div>
                     ${top3Buttons}
                 </div>
             </div>
             <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
                 <div style="text-align:right;">
-                    <div style="font-size:16px; font-weight:900; color:var(--primary);">${res.score}/${res.total}</div>
+                    <div style="font-size:16px; font-weight:900; color:var(--primary);">${scoreDisplay}/${totalDisplay}</div>
                     <div style="font-size:12px; font-weight:700; color:${res.percentage >= 40 ? 'var(--success)' : 'var(--danger)'};">${res.percentage}%</div>
                 </div>
+                <!-- 🟢 ডিলিট রেজাল্ট বাটন -->
                 <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:16px; cursor:pointer; padding:2px;" title="Delete Result to Retake">
                     <i class="fas fa-trash-alt"></i>
                 </button>
