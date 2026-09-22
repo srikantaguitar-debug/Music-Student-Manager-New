@@ -800,6 +800,7 @@ window.startLiveExam = function(examData) {
     window.activeExamData = examData;
     window.currentQIndex = 0;
     window.studentAnswers = {};
+    window.examStartTime = Date.now(); // 🟢 NEW: এক্সাম শুরুর সময় সেভ করা হলো
     window.showQuestionUI();
 };
 
@@ -869,6 +870,14 @@ window.submitFinalExam = async function() {
     const obtainedMarks = correctCount;
     const percentage = ((obtainedMarks / totalMarks) * 100).toFixed(1);
 
+    // 🟢 NEW: কত সময় লেগেছে তা হিসেব করা হচ্ছে
+    const endTime = Date.now();
+    const timeTakenSeconds = Math.floor((endTime - window.examStartTime) / 1000);
+    
+    let m = Math.floor(timeTakenSeconds / 60);
+    let s = timeTakenSeconds % 60;
+    let timeTakenStr = m > 0 ? `${m}m ${s}s` : `${s}s`; // যেমন: 2m 15s
+
     const resultData = {
         id: Date.now(),
         examId: exam.id,
@@ -878,6 +887,8 @@ window.submitFinalExam = async function() {
         totalMarks: totalMarks,
         obtainedMarks: obtainedMarks,
         percentage: percentage,
+        timeTaken: timeTakenStr,             // 🟢 NEW: পোর্টালে "Time" হিসেবে দেখানোর জন্য
+        timeTakenSeconds: timeTakenSeconds,  // 🟢 NEW: র‍্যাংক সর্ট করার জন্য (যার সময় কম সে উপরে থাকবে)
         remarks: percentage >= 80 ? 'Excellent' : (percentage >= 40 ? 'Passed' : 'Needs Improvement')
     };
 
@@ -890,7 +901,7 @@ window.submitFinalExam = async function() {
 
     Swal.fire({
         title: 'Exam Completed!',
-        html: `You scored <b>${obtainedMarks} out of ${totalMarks}</b>.<br><br>Your percentage is <b>${percentage}%</b>.`,
+        html: `You scored <b>${obtainedMarks} out of ${totalMarks}</b>.<br>Time taken: <b>${timeTakenStr}</b><br><br>Your percentage is <b>${percentage}%</b>.`,
         icon: percentage >= 40 ? 'success' : 'warning',
         confirmButtonText: 'Back to Portal',
         confirmButtonColor: 'var(--primary)'
@@ -12773,12 +12784,13 @@ window.renderExamRankingList = function(examName) {
         const percentColor = res.percentage >= 40 ? '#10b981' : '#ef4444';
 
         // 🟢 FIX: ওভারল্যাপ আটকাতে বাটনগুলো নিচে দেওয়া হয়েছে এবং 'word-wrap: break-word' ব্যবহার করে ফুল নাম দেখানো হয়েছে
+        // 🟢 FIX: Certificate লেখা এক লাইনে রাখার জন্য min-width এবং flex-shrink অ্যাড করা হয়েছে
         let top3Buttons = '';
         if (isTop3) {
             top3Buttons = `
-            <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="flex-grow: 1; background:#f59e0b; color:white; border:none; padding:10px; border-radius:10px; font-size:13px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25); white-space: nowrap;"><i class="fas fa-award" style="font-size: 15px;"></i> Certificate</button>
+            <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="flex-grow: 1; background:#f59e0b; color:white; border:none; padding:8px 10px; border-radius:10px; font-size:12.5px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:5px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25); white-space: nowrap; min-width: max-content;"><i class="fas fa-award" style="font-size: 14px;"></i> Certificate</button>
             
-            <div style="display:flex; gap:10px;">
+            <div style="display:flex; gap:10px; flex-shrink: 0;">
                 <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(37,211,102,0.3);"><i class="fab fa-whatsapp"></i></button>
                 
                 <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(59,130,246,0.3);"><i class="fas fa-sms"></i></button>
@@ -13190,4 +13202,174 @@ window.generateExamCertificate = async function(studentId, rank, examName, score
         console.error("Certificate Generation Error: ", error);
         Swal.fire('Error', 'Failed to generate Certificate.', 'error');
     }
+};
+// 🟢 NEW: Generate Exam Certificate PDF
+window.generateExamCertificate = async function(studentId, rank, examName, score, total, percentage) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire('Error', 'PDF Library is loading. Try again in a few seconds.', 'warning');
+        return;
+    }
+
+    Swal.fire({ title: 'Generating Certificate...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const width = doc.internal.pageSize.getWidth();
+        const height = doc.internal.pageSize.getHeight();
+        const now = new Date();
+        
+        // 🟢 Background and Border
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, width, height, 'F');
+        
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            doc.saveGraphicsState();
+            doc.setGState(new doc.GState({ opacity: 0.05 })); 
+            doc.addImage(instituteLogo, 'JPEG', (width / 2) - 60, (height / 2) - 60, 120, 120);
+            doc.restoreGraphicsState();
+        }
+
+        // Exam Certificate Border (Greenish Theme)
+        doc.setDrawColor(16, 185, 129); doc.setLineWidth(4); doc.rect(8, 8, width - 16, height - 16);
+        doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.5); doc.rect(11, 11, width - 22, height - 22);
+
+        let y = 22; 
+        
+        // 🟢 Institute Name
+        doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(5, 150, 105); 
+        const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
+        doc.text(instName, width/2, y, { align: "center" });
+        y += 10; 
+        
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            try { doc.addImage(instituteLogo, 'JPEG', width/2 - 10, y, 20, 20); y += 30; } catch(err) { y += 15; }
+        } else { y += 15; }
+
+        // 🟢 Certificate Title
+        doc.setFontSize(24); doc.setTextColor(15, 23, 42);
+        doc.text("CERTIFICATE OF EXCELLENCE", width/2, y, { align: "center" });
+        
+        y += 12; 
+        doc.setFontSize(14); doc.setFont("helvetica", "italic"); doc.setTextColor(71, 85, 105);
+        doc.text("This certificate is proudly presented to", width/2, y, { align: "center" });
+
+        y += 10; 
+        
+        // 🟢 Student Photo
+        if(student.photo) {
+            try {
+                doc.addImage(student.photo, 'JPEG', width/2 - 15, y, 30, 30);
+                doc.setDrawColor(16, 185, 129); doc.setLineWidth(1); doc.rect(width/2 - 15, y, 30, 30); 
+                y += 42; 
+            } catch(e) { y += 15; }
+        } else { y += 15; }
+
+        // 🟢 Student Name
+        doc.setFontSize(28); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+        doc.text(student.name, width/2, y, { align: "center" });
+
+        y += 12; 
+        
+        // 🟢 Exam Details
+        doc.setFontSize(14); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+        doc.text(`For outstanding performance in the Exam:`, width/2, y, { align: "center" });
+        
+        y += 8;
+        doc.setFontSize(18); doc.setTextColor(5, 150, 105); doc.setFont("helvetica", "bold");
+        doc.text(`"${examName}"`, width/2, y, { align: "center" });
+
+        y += 10;
+        doc.setFontSize(14); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+        doc.text(`Securing Rank #${rank} with a score of ${score}/${total} (${percentage}%)`, width/2, y, { align: "center" });
+
+        // 🟢 Footer (Date & Signature)
+        const footerY = height - 25; 
+        doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+        doc.text(`Date: ${now.toLocaleDateString('en-IN')}`, 30, footerY);
+        
+        if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
+            try { doc.addImage(authorizedSignature, 'PNG', width - 80, footerY - 15, 40, 15); } catch(err) {}
+        }
+        doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(width - 90, footerY + 1, width - 30, footerY + 1);
+        doc.text("Authorized Signature", width - 60, footerY + 6, { align: "center" });
+
+        // 🟢 Save Variables for Direct WhatsApp Sharing
+        const fileName = `Exam_Certificate_${student.name.replace(/\s+/g, '_')}.pdf`;
+        window.tempExamCertDoc = doc; 
+        window.tempExamCertFileName = fileName;
+        
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+        window.tempExamCertPhone = cleanPhone;
+        
+        window.tempExamCertMsg = `🏆 Congratulations ${student.name}!\n\nHere is your Exam Certificate for *${examName}*.\nRank: #${rank}\nScore: ${score}/${total} (${percentage}%)\n\nKeep up the great work! 🎸🎹\n\nRegards,\nSrikanta Banerjee`;
+
+        Swal.close();
+        setTimeout(() => {
+            Swal.fire({
+                title: 'Certificate Ready!', 
+                icon: 'success',
+                html: `
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                    <button onclick="window.shareExamCertWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;"><i class="fab fa-whatsapp" style="font-size:18px;"></i> Direct Share to WhatsApp</button>
+                    
+                    <button onclick="window.downloadExamCertOnly()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;"><i class="fas fa-download"></i> Download PDF Only</button>
+                </div>`,
+                showCloseButton: true, 
+                showConfirmButton: false, 
+                allowOutsideClick: false
+            });
+        }, 100);
+
+    } catch (error) {
+        console.error("Certificate Error: ", error);
+        Swal.fire('Error', 'Failed to generate Certificate.', 'error');
+    }
+};
+
+// 🟢 NEW: Direct Share logic for WhatsApp
+window.shareExamCertWA = async function() {
+    const doc = window.tempExamCertDoc; 
+    const fileName = window.tempExamCertFileName;
+    const msg = window.tempExamCertMsg; 
+    const phone = window.tempExamCertPhone;
+    
+    const pdfBlob = doc.output('blob'); 
+    const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    
+    Swal.close();
+
+    // মোবাইল ব্রাউজারে ডিরেক্ট শেয়ার করার জন্য
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { 
+            await navigator.share({ 
+                files: [file], 
+                title: 'Exam Certificate', 
+                text: msg 
+            }); 
+        } catch(e) { 
+            console.log("Sharing cancelled or failed");
+        }
+    } else {
+        // কম্পিউটার বা ল্যাপটপের জন্য (কারণ পিসিতে ডিরেক্ট পিডিএফ সেন্ড সাপোর্ট করে না)
+        Swal.fire({
+            title: 'PC/Desktop Detected',
+            text: 'Direct file sharing is only supported on Mobiles. The PDF will be downloaded now. Please attach it manually in WhatsApp Web.',
+            icon: 'info',
+            confirmButtonText: 'Download & Open WA'
+        }).then(() => {
+            doc.save(fileName); 
+            if(phone) window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+        });
+    }
+};
+
+// 🟢 NEW: Only Download Function
+window.downloadExamCertOnly = function() {
+    window.tempExamCertDoc.save(window.tempExamCertFileName);
+    Swal.close();
 };
