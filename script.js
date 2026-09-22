@@ -756,18 +756,21 @@ window.currentQIndex = 0;
 window.examTimerInterval = null;
 window.studentAnswers = {};
 
-window.checkPendingExams = async function(studentId) {
-    const docRef = db.collection('music_classes').doc(managerUid);
+// 🟢 FIX 2: Student Portal Exam Checker (Reference Error Fix)
+window.checkPendingExams = async function(studentObj, managerUidStr) {
+    if (!studentObj || !managerUidStr) return;
+
+    const docRef = db.collection('music_classes').doc(managerUidStr);
     const snap = await docRef.collection('active_exams').get();
     
     let pendingExamHtml = '';
     
     snap.forEach(doc => {
         const exam = doc.data();
-        // স্টুডেন্টের জন্য অ্যাসাইন করা হয়েছে কি না এবং সে অলরেডি এক্সাম দিয়েছে কি না তা চেক করা
-        const hasTaken = (s.exams || []).some(e => e.examId === exam.id);
+        // 🟢 's' এর বদলে studentObj ব্যবহার করা হয়েছে
+        const hasTaken = (studentObj.exams || []).some(e => e.examId === exam.id);
         
-        if (exam.assignedStudents.includes(parseInt(studentId)) && !hasTaken) {
+        if (exam.assignedStudents && exam.assignedStudents.includes(parseInt(studentObj.id)) && !hasTaken) {
             pendingExamHtml += `
                 <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 15px; border-radius: 12px; border: 2px dashed #f59e0b; margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
                     <div>
@@ -787,14 +790,15 @@ window.checkPendingExams = async function(studentId) {
         if(!div) {
             div = document.createElement('div');
             div.id = 'studentPendingExamsArea';
-            const portalTop = document.querySelector('.scroller-box').parentNode;
-            portalTop.insertBefore(div, portalTop.firstChild);
+            // 🟢 প্রোফাইল সেকশনের ঠিক নিচে এক্সাম বসানো হচ্ছে
+            const profileSection = document.querySelector('div[style*="text-align: center; margin-bottom: 25px;"]');
+            if (profileSection) {
+                profileSection.parentNode.insertBefore(div, profileSection.nextSibling);
+            }
         }
         div.innerHTML = pendingExamHtml;
     }
 };
-window.checkPendingExams(studentViewId); // ফাংশন কল করা হলো
-
 // লাইভ এক্সাম উইন্ডো
 window.startLiveExam = function(examData) {
     window.activeExamData = examData;
@@ -858,6 +862,7 @@ window.recordAnswer = function(selectedOpt) {
     window.showQuestionUI();
 };
 
+// 🟢 FIX 3: Safe Exam Submission
 window.submitFinalExam = async function() {
     const exam = window.activeExamData;
     let correctCount = 0;
@@ -866,17 +871,16 @@ window.submitFinalExam = async function() {
         if(ans.isCorrect) correctCount++;
     });
 
-    const totalMarks = exam.questions.length; // প্রতিটি প্রশ্ন ১ নম্বর ধরে
+    const totalMarks = exam.questions.length;
     const obtainedMarks = correctCount;
     const percentage = ((obtainedMarks / totalMarks) * 100).toFixed(1);
 
-    // 🟢 NEW: কত সময় লেগেছে তা হিসেব করা হচ্ছে
     const endTime = Date.now();
     const timeTakenSeconds = Math.floor((endTime - window.examStartTime) / 1000);
     
     let m = Math.floor(timeTakenSeconds / 60);
     let s = timeTakenSeconds % 60;
-    let timeTakenStr = m > 0 ? `${m}m ${s}s` : `${s}s`; // যেমন: 2m 15s
+    let timeTakenStr = m > 0 ? `${m}m ${s}s` : `${s}s`;
 
     const resultData = {
         id: Date.now(),
@@ -887,13 +891,17 @@ window.submitFinalExam = async function() {
         totalMarks: totalMarks,
         obtainedMarks: obtainedMarks,
         percentage: percentage,
-        timeTaken: timeTakenStr,             // 🟢 NEW: পোর্টালে "Time" হিসেবে দেখানোর জন্য
-        timeTakenSeconds: timeTakenSeconds,  // 🟢 NEW: র‍্যাংক সর্ট করার জন্য (যার সময় কম সে উপরে থাকবে)
+        timeTaken: timeTakenStr,
+        timeTakenSeconds: timeTakenSeconds,
         remarks: percentage >= 80 ? 'Excellent' : (percentage >= 40 ? 'Passed' : 'Needs Improvement')
     };
 
-    // ফায়ারবেসে স্টুডেন্টের প্রোফাইলে সেভ করা
-    const studentRef = db.collection('music_classes').doc(managerUid).collection('students').doc(String(studentViewId));
+    // 🟢 Safe ID Fetching
+    const urlParams = new URLSearchParams(window.location.search);
+    const safeManagerUid = urlParams.get('manager') || localStorage.getItem('saved_manager_id');
+    const safeStudentId = urlParams.get('student') || localStorage.getItem('saved_student_id');
+
+    const studentRef = db.collection('music_classes').doc(safeManagerUid).collection('students').doc(String(safeStudentId));
     
     await studentRef.set({
         exams: firebase.firestore.FieldValue.arrayUnion(resultData)
@@ -906,7 +914,7 @@ window.submitFinalExam = async function() {
         confirmButtonText: 'Back to Portal',
         confirmButtonColor: 'var(--primary)'
     }).then(() => {
-        window.location.reload(); // পেজ রিফ্রেশ করে রেজাল্ট আপডেট করা
+        window.location.reload(); 
     });
 };
                                 // ৫. Study Materials Data
@@ -1403,6 +1411,10 @@ document.body.innerHTML = `
 `;
 
 setTimeout(() => { renderPracticeHistoryPortal(s); }, 500);
+// 🟢 এক্সাম চেক করা হচ্ছে
+setTimeout(() => { 
+    window.checkPendingExams(s, managerUid); 
+}, 800);
 // 🟢 Auto Slider Logic (4 seconds)
 setTimeout(() => {
     let currentSlide = 0;
@@ -12655,6 +12667,7 @@ window.deleteDraftQuestion = function(index) {
     window.openExamDraftArea(); 
 };
 
+// 🟢 FIX 1: Admin Exam Publish Logic (Success Popup Fix)
 window.publishFinalExam = async function(examTotalMarks) {
     window.currentExamDraft.totalMarks = examTotalMarks; 
     const newExamId = 'EXAM_' + Date.now();
@@ -12668,9 +12681,17 @@ window.publishFinalExam = async function(examTotalMarks) {
 
     try {
         await db.collection('music_classes').doc(targetUid).collection('active_exams').doc(newExamId).set(window.currentExamDraft);
-        Swal.fire('Success', 'Exam published to selected students successfully!', 'success');
+        
+        Swal.close(); // 🟢 আগের লোডিং পপআপটি বন্ধ করতে হবে
+        setTimeout(() => {
+            Swal.fire('Success', 'Exam published to selected students successfully!', 'success');
+        }, 300);
+        
     } catch(e) {
-        Swal.fire('Error', 'Failed to publish exam. Please check connection.', 'error');
+        Swal.close();
+        setTimeout(() => {
+            Swal.fire('Error', 'Failed to publish exam. Please check connection.', 'error');
+        }, 300);
     }
 };
 
