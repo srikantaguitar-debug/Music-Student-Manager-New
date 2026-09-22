@@ -12377,13 +12377,14 @@ window.showInactivePeriodsDetails = function(studentId) {
     });
 };
 // ==========================================
-// 🟢 ONLINE EXAM SYSTEM (TEACHER SIDE) - FINAL FULL CODE
+// 🟢 ONLINE EXAM SYSTEM (WITH DRAFT, EDIT, MARKS & CERTIFICATE)
 // ==========================================
 
 window.onlineExams = []; 
 window.currentExamDraft = null;
+window.currentExamTop3ForPublish = [];
 
-// ১. এক্সাম তৈরি করার পপ-আপ (First Modal)
+// ১. এক্সাম তৈরির প্রথম ধাপ (নাম এবং সময় সেট করা)
 window.openCreateOnlineExamModal = function() {
     let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
@@ -12415,7 +12416,7 @@ window.openCreateOnlineExamModal = function() {
                 <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Subject:</label>
                 <input id="exam-subject" class="swal2-input" placeholder="e.g. Guitar, Keyboard" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
                 
-                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Time per Question (Seconds):</label>
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Time per Q (Sec):</label>
                 <input id="exam-timer" type="number" class="swal2-input" placeholder="e.g. 30" value="30" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
 
                 <div style="background:var(--bg-card); padding:12px; border-radius:10px; border:1px solid var(--border-color); margin-top:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
@@ -12433,7 +12434,7 @@ window.openCreateOnlineExamModal = function() {
             </div>
         `,
         showCancelButton: true,
-        confirmButtonText: 'Next: Add Questions <i class="fas fa-arrow-right"></i>',
+        confirmButtonText: 'Next: Draft Questions <i class="fas fa-arrow-right"></i>',
         confirmButtonColor: 'var(--primary)',
         cancelButtonColor: '#ef4444',
         preConfirm: () => {
@@ -12451,7 +12452,7 @@ window.openCreateOnlineExamModal = function() {
     }).then((res) => {
         if (res.isConfirmed) {
             window.currentExamDraft = res.value;
-            window.openAddQuestionModal();
+            window.openExamDraftArea(); // 🟢 ড্রাফট এরিয়া ওপেন হবে
         }
     });
 };
@@ -12460,11 +12461,7 @@ window.filterExamStudentList = function() {
     const filter = document.getElementById('search-exam-student').value.toUpperCase();
     document.querySelectorAll('.exam-student-item').forEach(item => {
         const name = item.querySelector('.exam-student-name').textContent.toUpperCase();
-        if (name.indexOf(filter) > -1) {
-            item.style.display = "flex";
-        } else {
-            item.style.display = "none";
-        }
+        item.style.display = (name.indexOf(filter) > -1) ? "flex" : "none";
     });
 };
 
@@ -12477,53 +12474,113 @@ window.toggleAllExamStudents = function(source) {
     });
 };
 
-// ২. প্রশ্ন যোগ করার পপ-আপ (Second Modal)
-window.openAddQuestionModal = function() {
-    let qCount = window.currentExamDraft.questions.length + 1;
+// ২. ড্রাফট এরিয়া (Draft Dashboard)
+window.openExamDraftArea = function() {
+    let qListHtml = '<div style="max-height: 350px; overflow-y: auto; text-align: left; padding: 5px;">';
+    let totalMarks = 0;
     
-    // টেম্পোরারি ভেরিয়েবল
-    window.tempCapturedQuestion = null;
+    if (window.currentExamDraft.questions.length === 0) {
+        qListHtml += '<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; font-weight:bold; background: var(--bg-card); border-radius: 8px; border: 1px dashed var(--border-color);">No questions added yet.<br>Click below to add your first question!</div>';
+    } else {
+        window.currentExamDraft.questions.forEach((q, index) => {
+            totalMarks += parseInt(q.marks);
+            qListHtml += `
+                <div style="background:var(--bg-card); border:1px solid var(--border-color); padding:12px; border-radius:10px; margin-bottom:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; border-bottom: 1px dashed var(--border-color); padding-bottom:5px;">
+                        <strong style="font-size:13px; color:var(--text-main);">Q${index + 1}. <span style="color:var(--primary); background:rgba(99, 102, 241, 0.1); padding:2px 6px; border-radius:4px;">${q.marks} Marks</span></strong>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="window.openQuestionEditor(${index})" style="background:var(--bg-input); border:1px solid #cbd5e1; color:var(--warning); cursor:pointer; padding:4px 8px; border-radius:6px; font-size:12px;" title="Edit"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteDraftQuestion(${index})" style="background:var(--bg-input); border:1px solid #cbd5e1; color:var(--danger); cursor:pointer; padding:4px 8px; border-radius:6px; font-size:12px;" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </div>
+                    <div style="font-size:14px; color:var(--text-main); font-weight:600; line-height:1.4;">${q.questionText}</div>
+                </div>
+            `;
+        });
+    }
+    qListHtml += '</div>';
 
     Swal.fire({
-        title: `Question #${qCount}`,
+        title: 'Exam Draft Area',
+        html: `
+            <div style="text-align:left; margin-bottom:15px; font-size:13px; color:var(--text-main); background: #f8fafc; padding: 10px; border-radius: 8px; border-left: 4px solid var(--primary);">
+                <strong>Title:</strong> ${window.currentExamDraft.title} <br>
+                <strong>Total Questions:</strong> ${window.currentExamDraft.questions.length} &nbsp;|&nbsp; <strong>Total Marks:</strong> ${totalMarks}
+            </div>
+            ${qListHtml}
+            <button onclick="window.openQuestionEditor(-1)" style="width:100%; background:var(--bg-input); border:2px dashed var(--primary); color:var(--primary); padding:12px; border-radius:10px; font-weight:bold; font-size:15px; cursor:pointer; margin-top:15px; transition:0.2s;">
+                <i class="fas fa-plus-circle"></i> Add New Question
+            </button>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-bullhorn"></i> Publish Final Exam',
+        confirmButtonColor: 'var(--success)',
+        cancelButtonText: 'Cancel',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            if(window.currentExamDraft.questions.length === 0) {
+                Swal.showValidationMessage('Please add at least 1 question before publishing!');
+                return false;
+            }
+            return true;
+        }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            window.publishFinalExam(totalMarks);
+        }
+    });
+};
+
+// ৩. নতুন প্রশ্ন তৈরি বা পুরনো প্রশ্ন এডিট করা
+window.openQuestionEditor = function(index) {
+    let isEdit = index >= 0;
+    let q = isEdit ? window.currentExamDraft.questions[index] : { questionText: '', options: {A:'', B:'', C:'', D:''}, correctAnswer: 'A', marks: 5 };
+
+    Swal.fire({
+        title: isEdit ? 'Edit Question' : 'Add Question',
         html: `
             <div style="text-align: left;">
-                <textarea id="q-text" class="swal2-textarea" placeholder="Type your question here..." style="width:100%; margin: 0 0 10px 0; font-size:14px; box-sizing: border-box; padding:10px;"></textarea>
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Question Text:</label>
+                <textarea id="q-text" class="swal2-textarea" style="width:100%; margin: 5px 0 10px 0; font-size:14px; box-sizing: border-box; padding:10px;">${q.questionText}</textarea>
                 
-                <input id="q-optA" class="swal2-input" placeholder="Option A *" style="width:100%; margin: 5px 0; box-sizing: border-box;">
-                <input id="q-optB" class="swal2-input" placeholder="Option B *" style="width:100%; margin: 5px 0; box-sizing: border-box;">
-                <input id="q-optC" class="swal2-input" placeholder="Option C (Optional)" style="width:100%; margin: 5px 0; box-sizing: border-box;">
-                <input id="q-optD" class="swal2-input" placeholder="Option D (Optional)" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <div style="margin-bottom:15px;">
+                    <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Marks for this Question:</label>
+                    <input id="q-marks" type="number" class="swal2-input" value="${q.marks}" style="width:100%; margin: 5px 0 0 0; font-size:16px; font-weight:bold; color:var(--primary); box-sizing: border-box;">
+                </div>
+
+                <input id="q-optA" class="swal2-input" placeholder="Option A *" value="${q.options.A}" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <input id="q-optB" class="swal2-input" placeholder="Option B *" value="${q.options.B}" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <input id="q-optC" class="swal2-input" placeholder="Option C (Optional)" value="${q.options.C || ''}" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <input id="q-optD" class="swal2-input" placeholder="Option D (Optional)" value="${q.options.D || ''}" style="width:100%; margin: 5px 0; box-sizing: border-box;">
                 
                 <label style="font-size:12px; font-weight:bold; margin-top:10px; display:block; color:var(--text-muted);">Correct Answer:</label>
                 <select id="q-correct" class="swal2-select" style="width:100%; margin: 5px 0; box-sizing: border-box; font-weight:bold; color:var(--success);">
-                    <option value="A">Option A</option>
-                    <option value="B">Option B</option>
-                    <option value="C">Option C</option>
-                    <option value="D">Option D</option>
+                    <option value="A" ${q.correctAnswer==='A'?'selected':''}>Option A</option>
+                    <option value="B" ${q.correctAnswer==='B'?'selected':''}>Option B</option>
+                    <option value="C" ${q.correctAnswer==='C'?'selected':''}>Option C</option>
+                    <option value="D" ${q.correctAnswer==='D'?'selected':''}>Option D</option>
                 </select>
             </div>
         `,
         showCancelButton: true,
-        showDenyButton: true,
-        confirmButtonText: '<i class="fas fa-plus"></i> Save & Add Next',
-        denyButtonText: '<i class="fas fa-check-double"></i> Finish & Publish',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: isEdit ? 'Update Question' : 'Save Question',
         confirmButtonColor: 'var(--primary)',
-        denyButtonColor: '#10b981',
         cancelButtonColor: '#ef4444',
+        allowOutsideClick: false,
         preConfirm: () => {
             const text = document.getElementById('q-text').value.trim();
             const optA = document.getElementById('q-optA').value.trim();
             const optB = document.getElementById('q-optB').value.trim();
+            const marks = parseInt(document.getElementById('q-marks').value);
             
-            if (!text || !optA || !optB) {
-                Swal.showValidationMessage('Question and at least Options A & B are required!');
+            if (!text || !optA || !optB || isNaN(marks) || marks <= 0) {
+                Swal.showValidationMessage('Question, Option A, Option B, and valid Marks are required!');
                 return false;
             }
             
             return {
                 questionText: text,
+                marks: marks,
                 options: {
                     A: optA,
                     B: optB,
@@ -12532,66 +12589,42 @@ window.openAddQuestionModal = function() {
                 },
                 correctAnswer: document.getElementById('q-correct').value
             };
-        },
-        preDeny: () => {
-            // Deny তে ক্লিক করলে ডেটা ক্যাপচার করে রাখা হচ্ছে যাতে .then এর ভেতরে null এরর না আসে
-            const text = document.getElementById('q-text').value.trim();
-            const optA = document.getElementById('q-optA').value.trim();
-            const optB = document.getElementById('q-optB').value.trim();
-            
-            if (text && optA && optB) {
-                window.tempCapturedQuestion = {
-                    questionText: text,
-                    options: {
-                        A: optA,
-                        B: optB,
-                        C: document.getElementById('q-optC').value.trim(),
-                        D: document.getElementById('q-optD').value.trim()
-                    },
-                    correctAnswer: document.getElementById('q-correct').value
-                };
-            }
-            return true;
         }
-    }).then(async (res) => {
-        if (res.isConfirmed && res.value) {
-            // "Save & Add Next"
-            window.currentExamDraft.questions.push(res.value);
-            window.openAddQuestionModal(); // আবার এই পপআপটাই খুলবে
-            
-        } else if (res.isDenied) {
-            // "Finish & Publish Exam"
-            if (window.tempCapturedQuestion) {
-                window.currentExamDraft.questions.push(window.tempCapturedQuestion);
-            }
-            
-            if (window.currentExamDraft.questions.length === 0) {
-                Swal.fire('Error', 'An exam must have at least 1 question to publish!', 'error');
-                return;
-            }
-
-            // ডেটাবেসে এক্সাম সেভ করা
-            const newExamId = 'EXAM_' + Date.now();
-            window.currentExamDraft.id = newExamId;
-            window.currentExamDraft.date = new Date().toISOString();
-            
-            const user = firebase.auth().currentUser;
-            const targetUid = user ? user.uid : DOC_ID;
-
-            Swal.fire({ title: 'Publishing Exam...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
-            try {
-                await db.collection('music_classes').doc(targetUid).collection('active_exams').doc(newExamId).set(window.currentExamDraft);
-                Swal.fire('Success', 'Exam published to selected students successfully!', 'success');
-            } catch(e) {
-                console.error(e);
-                Swal.fire('Error', 'Failed to publish exam. Please check connection.', 'error');
-            }
+    }).then((res) => {
+        if(res.isConfirmed) {
+            if (isEdit) window.currentExamDraft.questions[index] = res.value; 
+            else window.currentExamDraft.questions.push(res.value); 
         }
+        window.openExamDraftArea(); 
     });
 };
+
+window.deleteDraftQuestion = function(index) {
+    window.currentExamDraft.questions.splice(index, 1);
+    window.openExamDraftArea(); 
+};
+
+window.publishFinalExam = async function(examTotalMarks) {
+    window.currentExamDraft.totalMarks = examTotalMarks; 
+    const newExamId = 'EXAM_' + Date.now();
+    window.currentExamDraft.id = newExamId;
+    window.currentExamDraft.date = new Date().toISOString();
+    
+    const user = firebase.auth().currentUser;
+    const targetUid = user ? user.uid : DOC_ID;
+
+    Swal.fire({ title: 'Publishing Exam...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        await db.collection('music_classes').doc(targetUid).collection('active_exams').doc(newExamId).set(window.currentExamDraft);
+        Swal.fire('Success', 'Exam published to selected students successfully!', 'success');
+    } catch(e) {
+        Swal.fire('Error', 'Failed to publish exam. Please check connection.', 'error');
+    }
+};
+
 // ==========================================
-// 🟢 EXAM RANKING & PUBLISHING LOGIC (DESIGN UPDATED)
+// 🟢 EXAM RANKING MODAL & LIST
 // ==========================================
 
 window.openExamRankingModal = function() {
@@ -12609,17 +12642,13 @@ window.openExamRankingModal = function() {
         title: '<div style="font-size:24px; font-weight:800; color:var(--text-main); margin-bottom:10px;"><i class="fas fa-trophy" style="color:#f59e0b; font-size:28px;"></i> Exam Rankings</div>',
         html: `
             <div style="padding: 10px 5px;">
-                <!-- 🟢 আপডেটেড এবং সুন্দর ড্রপডাউন ডিজাইন -->
                 <select id="exam-rank-select" onchange="window.renderExamRankingList(this.value)" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 600; color: #065f46; background: #d1fae5; border: 1px solid #10b981; border-radius: 12px; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center; box-shadow: inset 0 2px 4px rgba(16, 185, 129, 0.1), 0 2px 4px rgba(0,0,0,0.02); transition: 0.2s;">
                     ${options}
                 </select>
-                
                 <p style="text-align:center; color:var(--text-muted); font-size:13px; font-weight:500; margin-top: 15px;">
                     Select an exam to view student ranks.
                 </p>
-                
                 <div id="exam-rank-list" style="max-height: 300px; overflow-y: auto; text-align: left; margin-top: 15px;">
-                    <!-- র‍্যাংক লিস্ট এখানে আসবে -->
                 </div>
             </div>
         `,
@@ -12632,88 +12661,355 @@ window.openExamRankingModal = function() {
 };
 
 window.renderExamRankingList = function(examName) {
-    const listDiv = document.getElementById('exam-rank-list');
-    if(!examName) { listDiv.innerHTML = ''; return; }
+    const listContainer = document.getElementById('exam-rank-list');
+    if (!listContainer) return;
 
-    let rankedStudents = [];
+    let examResults = [];
     students.forEach(s => {
-        if (s.exams) {
-            let ex = s.exams.find(e => e.examName === examName);
+        if (s.exams && s.exams.length > 0) {
+            const ex = s.exams.find(e => e.examName === examName);
             if (ex) {
-                rankedStudents.push({
-                    id: s.id,
-                    name: s.name,
-                    photo: s.photo,
-                    subject: ex.subject,
-                    totalMarks: ex.totalMarks,
-                    obtainedMarks: ex.obtainedMarks,
-                    percentage: parseFloat(ex.percentage)
-                });
+                examResults.push({ student: s, result: ex });
             }
         }
     });
 
-    // র‍্যাংক অনুযায়ী (Percentage) সাজানো
-    rankedStudents.sort((a,b) => b.percentage - a.percentage);
+    if (examResults.length === 0) {
+        listContainer.innerHTML = '<p style="text-align:center; color:gray; padding:20px;">No students have completed this exam yet.</p>';
+        return;
+    }
+
+    examResults.sort((a, b) => {
+        if (b.result.score !== a.result.score) return b.result.score - a.result.score;
+        return a.result.timeTakenSeconds - b.result.timeTakenSeconds;
+    });
+
+    window.currentExamTop3ForPublish = examResults.slice(0, 3).map((item, index) => ({
+        id: item.student.id,
+        name: item.student.name,
+        photo: item.student.photo,
+        rank: index + 1,
+        score: item.result.score,
+        total: item.result.total,
+        percentage: item.result.percentage
+    }));
 
     let html = '';
-    rankedStudents.forEach((st, index) => {
-        const rank = index + 1;
-        const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
-        let rankBadge = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : `#${rank}`));
-        let color = rank === 1 ? '#f59e0b' : (rank === 2 ? '#64748b' : (rank === 3 ? '#d97706' : '#1e293b'));
+    examResults.forEach((item, index) => {
+        const s = item.student;
+        const res = item.result;
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        let rankIcon = '';
+        let borderStyle = 'border: 1px solid var(--border-color);';
+        
+        let isTop3 = index < 3;
+
+        if (index === 0) {
+            rankIcon = '🥇'; borderStyle = 'border: 2px solid #fbbf24; border-left: 6px solid #fbbf24;';
+        } else if (index === 1) {
+            rankIcon = '🥈'; borderStyle = 'border: 2px solid #cbd5e1; border-left: 6px solid #cbd5e1;';
+        } else if (index === 2) {
+            rankIcon = '🥉'; borderStyle = 'border: 2px solid #b45309; border-left: 6px solid #b45309;';
+        } else {
+            rankIcon = `<span style="font-size:14px; font-weight:bold; color:gray;">#${index + 1}</span>`;
+        }
+
+        let top3Buttons = '';
+        if (isTop3) {
+            top3Buttons = `
+            <div style="display:flex; gap:4px; align-items:center; margin-top:6px; flex-wrap:wrap;">
+                <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName}', ${res.score}, ${res.total}, ${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-award"></i> Certificate</button>
+                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName}', ${res.score}, ${res.total})" style="background:#25D366; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fab fa-whatsapp"></i></button>
+                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName}', ${res.score}, ${res.total})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fas fa-sms"></i></button>
+            </div>
+            `;
+        }
 
         html += `
-            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-body); padding:10px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:8px; border-left: 4px solid ${color};">
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <div style="font-size:20px; font-weight:bold; width: 25px; text-align:center;">${rankBadge}</div>
-                    <img src="${photoSrc}" style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
-                    <div>
-                        <div style="font-size:14px; font-weight:bold; color:var(--text-main);">${st.name}</div>
-                        <div style="font-size:11px; color:var(--text-muted);">${st.subject || 'Music'}</div>
-                    </div>
-                </div>
-                <div style="text-align:right;">
-                    <div style="font-size:14px; font-weight:900; color:var(--success);">${st.obtainedMarks}/${st.totalMarks}</div>
-                    <div style="font-size:11px; font-weight:bold; color:var(--info);">${st.percentage}%</div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--bg-card); border-radius:10px; margin-bottom:10px; ${borderStyle} box-shadow:0 2px 4px rgba(0,0,0,0.02);">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:25px; text-align:center; font-size:20px;">${rankIcon}</div>
+                <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1;">
+                <div style="line-height:1.3;">
+                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">${s.name}</div>
+                    <div style="font-size:11px; color:var(--text-muted);">${s.class || 'Music'} | Time: ${res.timeTaken}</div>
+                    ${top3Buttons}
                 </div>
             </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
+                <div style="text-align:right;">
+                    <div style="font-size:16px; font-weight:900; color:var(--primary);">${res.score}/${res.total}</div>
+                    <div style="font-size:12px; font-weight:700; color:${res.percentage >= 40 ? 'var(--success)' : 'var(--danger)'};">${res.percentage}%</div>
+                </div>
+                <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:16px; cursor:pointer; padding:2px;" title="Delete Result to Retake">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        </div>
         `;
     });
 
-    if (rankedStudents.length > 0) {
-        html += `
-            <button onclick="window.publishExamToPortal('${examName}')" style="width:100%; margin-top:15px; padding:10px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 4px 6px rgba(139,92,246,0.3);">
-                <i class="fas fa-bullhorn"></i> Publish Top 3 to Portal
-            </button>
-            <button onclick="window.hideExamFromPortal()" style="width:100%; margin-top:8px; padding:10px; background:transparent; color:var(--danger); border:1px solid var(--danger); border-radius:8px; font-weight:bold; cursor:pointer;">
-                <i class="fas fa-eye-slash"></i> Hide Exam from Portal
-            </button>
-        `;
+    html += `
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px; border-top:1px dashed var(--border-color); padding-top:15px;">
+        <button onclick="window.publishExamRankingsToPortal('${examName}')" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-bullhorn"></i> Publish Top 3 to Portal
+        </button>
+        <button onclick="window.hideExamRankingsFromPortal()" style="background: transparent; color: #ef4444; border: 2px solid #fca5a5; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-eye-slash"></i> Hide Exam from Portal
+        </button>
+        <button onclick="window.deleteEntireExam('${examName}')" style="background: #fee2e2; color: #b91c1c; border: 1px dashed #ef4444; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top:10px;">
+            <i class="fas fa-trash"></i> Delete This Entire Exam
+        </button>
+    </div>
+    `;
+
+    listContainer.innerHTML = html;
+};
+
+window.publishExamRankingsToPortal = async function(examName) {
+    if(!window.currentExamTop3ForPublish || window.currentExamTop3ForPublish.length === 0) {
+        Swal.fire('Info', 'No students to publish!', 'info'); return;
+    }
+    Swal.fire({ title: 'Publishing...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    const dataToSave = { examName: examName, topStudents: window.currentExamTop3ForPublish, publishedAt: new Date().toISOString() };
+    try {
+        await dbSet('published_exam_ranking', dataToSave);
+        Swal.fire('Published!', 'Exam rankings are now visible on student portals.', 'success');
+    } catch(e) { Swal.fire('Error', 'Failed to publish.', 'error'); }
+};
+
+window.hideExamRankingsFromPortal = async function() {
+    Swal.fire({ title: 'Hiding...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    try {
+        await dbDelete('published_exam_ranking');
+        Swal.fire('Hidden', 'Exam rankings removed from student portals.', 'success');
+    } catch(e) { Swal.fire('Error', 'Failed to hide.', 'error'); }
+};
+
+window.deleteStudentExamResult = async function(studentId, examName) {
+    Swal.fire({
+        title: 'Delete Result?',
+        text: "The student will be able to take this exam again.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, delete it'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            const student = students.find(s => s.id === studentId);
+            if(student && student.exams) {
+                student.exams = student.exams.filter(e => e.examName !== examName);
+                const user = firebase.auth().currentUser;
+                const targetUid = user ? user.uid : DOC_ID;
+                try {
+                    await db.collection('music_classes').doc(targetUid).collection('students').doc(String(studentId)).update({ exams: student.exams });
+                    window.renderExamRankingList(examName); 
+                    Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Result deleted', showConfirmButton: false, timer: 1500});
+                } catch(e) { Swal.fire('Error', 'Failed to delete result.', 'error'); }
+            }
+        }
+    });
+};
+
+window.deleteEntireExam = async function(examName) {
+     Swal.fire({
+        title: 'Delete Entire Exam?',
+        html: "This will remove the exam from the system and delete ALL student results for this exam.<br><br><b>This cannot be undone!</b>",
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, DELETE EXAM'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            Swal.fire({ title: 'Deleting Exam...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+            const user = firebase.auth().currentUser;
+            const targetUid = user ? user.uid : DOC_ID;
+            try {
+                const examSnapshot = await db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get();
+                let batch = db.batch();
+                examSnapshot.forEach(doc => { batch.delete(doc.ref); });
+                
+                students.forEach(s => {
+                    if (s.exams) {
+                        const originalLength = s.exams.length;
+                        s.exams = s.exams.filter(e => e.examName !== examName);
+                        if (s.exams.length !== originalLength) {
+                            const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
+                            batch.update(studentRef, { exams: s.exams });
+                        }
+                    }
+                });
+                await batch.commit();
+                await dbDelete('published_exam_ranking');
+                
+                Swal.fire('Deleted!', 'The exam and all its results have been deleted.', 'success');
+                if(typeof window.openExamRankingModal === 'function') window.openExamRankingModal(); 
+            } catch(e) { Swal.fire('Error', 'Failed to delete exam completely.', 'error'); }
+        }
+    });
+};
+
+// ==========================================
+// 🟢 PDF CERTIFICATE & WHATSAPP/SMS LOGIC
+// ==========================================
+
+window.generateExamCertificate = async function(studentId, rank, examName, score, total, percentage) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire('Error', 'PDF Library is still loading. Please try again.', 'warning');
+        return;
     }
 
-    listDiv.innerHTML = html;
-    // পাবলিশ করার জন্য ডেটা টেম্পোরারি সেভ করে রাখা
-    window.currentExamRankings = { examName: examName, topStudents: rankedStudents.slice(0, 3) };
+    Swal.fire({ title: 'Generating Certificate...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const width = doc.internal.pageSize.getWidth();
+        const height = doc.internal.pageSize.getHeight();
+        const now = new Date();
+
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, width, height, 'F');
+        
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            doc.saveGraphicsState();
+            doc.setGState(new doc.GState({ opacity: 0.05 })); 
+            doc.addImage(instituteLogo, 'JPEG', (width / 2) - 60, (height / 2) - 60, 120, 120);
+            doc.restoreGraphicsState();
+        }
+
+        doc.setDrawColor(37, 99, 235);
+        doc.setLineWidth(4); doc.rect(8, 8, width - 16, height - 16);
+        doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.5); doc.rect(11, 11, width - 22, height - 22);
+
+        let y = 22; 
+        
+        doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(30, 64, 175); 
+        const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
+        doc.text(instName, width/2, y, { align: "center" });
+        y += 10; 
+        
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            try { doc.addImage(instituteLogo, 'JPEG', width/2 - 10, y, 20, 20); y += 30; } 
+            catch(err) { y += 15; }
+        } else { y += 15; }
+
+        doc.setFontSize(24); doc.setTextColor(15, 23, 42);
+        doc.text("CERTIFICATE OF EXCELLENCE", width/2, y, { align: "center" });
+        
+        y += 12; 
+        doc.setFontSize(14); doc.setFont("helvetica", "italic"); doc.setTextColor(71, 85, 105);
+        doc.text("This certificate is proudly presented to", width/2, y, { align: "center" });
+
+        y += 10; 
+        
+        if(student.photo) {
+            try {
+                doc.addImage(student.photo, 'JPEG', width/2 - 15, y, 30, 30);
+                doc.setDrawColor(37, 99, 235); doc.setLineWidth(1); doc.rect(width/2 - 15, y, 30, 30); 
+                y += 42; 
+            } catch(e) { y += 15; }
+        } else { y += 15; }
+
+        doc.setFontSize(28); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+        doc.text(student.name, width/2, y, { align: "center" });
+
+        y += 12; 
+        
+        doc.setFontSize(14); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+        doc.text(`For securing Rank #${rank} in the "${examName}" examination`, width/2, y, { align: "center" });
+        y += 8;
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(22, 163, 74); 
+        doc.text(`with an outstanding score of ${score}/${total} (${percentage}%).`, width/2, y, { align: "center" });
+
+        const footerY = height - 25; 
+        doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+        doc.text(`Date: ${now.toLocaleDateString('en-IN')}`, 30, footerY);
+        
+        if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
+            try { doc.addImage(authorizedSignature, 'PNG', width - 80, footerY - 15, 40, 15); } catch(err) {}
+        }
+        doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(width - 90, footerY + 1, width - 30, footerY + 1);
+        doc.text("Authorized Signature", width - 60, footerY + 6, { align: "center" });
+
+        const fileName = `Exam_Certificate_${student.name.replace(/\s+/g, '_')}.pdf`;
+        window.tempExamCertDoc = doc; 
+        window.tempExamCertFileName = fileName;
+        
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+        window.tempExamCertPhone = cleanPhone;
+        
+        window.tempExamCertMsg = `🎉 Congratulations ${student.name}!\n\nHere is your Certificate of Excellence for the *${examName}* examination.\n*Rank:* #${rank}\n*Score:* ${score}/${total} (${percentage}%)\n\nKeep up the brilliant work! 🎸🎹\n\nRegards,\n${instName}`;
+
+        Swal.close();
+        setTimeout(() => {
+            Swal.fire({
+                title: 'Certificate Ready!', 
+                icon: 'success',
+                html: `
+                <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                    <button onclick="window.shareExamCertWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px;"><i class="fab fa-whatsapp"></i> Share to WhatsApp</button>
+                    <button onclick="window.downloadExamCertOnly()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px;"><i class="fas fa-download"></i> Download PDF</button>
+                </div>`,
+                showCloseButton: true, showConfirmButton: false, allowOutsideClick: false
+            });
+        }, 100);
+
+    } catch (error) {
+        Swal.fire('Error', 'Failed to generate Certificate.', 'error');
+    }
 };
 
-window.publishExamToPortal = async function(examName) {
-    if(!window.currentExamRankings) return;
+window.shareExamCertWA = async function() {
+    const doc = window.tempExamCertDoc; const fileName = window.tempExamCertFileName;
+    const msg = window.tempExamCertMsg; const phone = window.tempExamCertPhone;
+    const pdfBlob = doc.output('blob'); const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
+    Swal.close();
     
-    // Top 3 স্টুডেন্টদের ডেটা সাজিয়ে নেওয়া
-    let top3 = window.currentExamRankings.topStudents.map((st, i) => ({
-        id: st.id, 
-        name: st.name, 
-        photo: st.photo, 
-        rank: i + 1,
-        scoreStr: `${st.percentage}%` // পোর্টালে এই পার্সেন্টেজটাই দেখাবে
-    }));
-
-    await dbSet('published_exam_leaderboard', { examName: examName, topStudents: top3 });
-    Swal.fire('Published!', 'Top 3 students are now live on the portal.', 'success');
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { 
+            await navigator.share({ 
+                files: [file], 
+                title: 'Exam Certificate', 
+                text: msg 
+            }); 
+        } 
+        catch(e) { 
+            if (e.name !== 'AbortError') {
+                doc.save(fileName); 
+                if(phone) window.confirmAndSendMsg('wa', `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, msg);
+            }
+        }
+    } else {
+        doc.save(fileName); 
+        if(phone) window.confirmAndSendMsg('wa', `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, msg);
+    }
 };
 
-window.hideExamFromPortal = async function() {
-    await dbDelete('published_exam_leaderboard');
-    Swal.fire('Hidden', 'Exam leaderboard removed from portal.', 'success');
+window.downloadExamCertOnly = function() {
+    window.tempExamCertDoc.save(window.tempExamCertFileName);
+    Swal.close();
+};
+
+window.sendExamRankMsg = function(type, studentId, rank, examName, score, total) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    let msg = `🎉 Congratulations ${student.name}!\n\nYou have secured Rank #${rank} in the *${examName}* examination with a score of ${score}/${total}!\n\nKeep up the great work. 🎸🎹\n\nRegards,\n${instName}`;
+    
+    if (type === 'wa') {
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        if(cleanPhone) window.confirmAndSendMsg('wa', `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, msg);
+        else Swal.fire('Error', 'No phone number found', 'error');
+    } else if (type === 'sms') {
+        if(student.phone) window.confirmAndSendMsg('sms', `sms:${student.phone}?body=${encodeURIComponent(msg)}`, msg);
+        else Swal.fire('Error', 'No phone number found', 'error');
+    }
 };
