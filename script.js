@@ -12377,16 +12377,16 @@ window.showInactivePeriodsDetails = function(studentId) {
     });
 };
 // ==========================================
-// 🟢 ONLINE EXAM SYSTEM (TEACHER SIDE) - UPDATED WITH SEARCH & PHOTO
+// 🟢 ONLINE EXAM SYSTEM (TEACHER SIDE) - FINAL FULL CODE
 // ==========================================
 
-window.onlineExams = []; // টেম্পোরারি এক্সাম স্টোর করার জন্য
+window.onlineExams = []; 
+window.currentExamDraft = null;
 
-// এক্সাম তৈরি করার পপ-আপ
+// ১. এক্সাম তৈরি করার পপ-আপ (First Modal)
 window.openCreateOnlineExamModal = function() {
     let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
     
-    // 🟢 আপডেট: স্টুডেন্টদের ছবি, নাম এবং সাবজেক্ট সহ লিস্ট তৈরি
     let studentCheckboxes = activeSt.map(s => {
         const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
         return `
@@ -12410,32 +12410,25 @@ window.openCreateOnlineExamModal = function() {
         html: `
             <div style="text-align: left; max-height: 70vh; overflow-y: auto; padding-right: 5px;">
                 <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Exam Name:</label>
-                <input id="exam-title" class="swal2-input" placeholder="e.g. Guitar Weekly Test" style="width:100%; margin: 5px 0 15px 0; font-size: 14px;">
+                <input id="exam-title" class="swal2-input" placeholder="e.g. Guitar Weekly Test" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
                 
                 <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Subject:</label>
-                <input id="exam-subject" class="swal2-input" placeholder="e.g. Guitar, Keyboard" style="width:100%; margin: 5px 0 15px 0; font-size: 14px;">
+                <input id="exam-subject" class="swal2-input" placeholder="e.g. Guitar, Keyboard" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
                 
                 <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Time per Question (Seconds):</label>
-                <input id="exam-timer" type="number" class="swal2-input" placeholder="e.g. 30" value="30" style="width:100%; margin: 5px 0 15px 0; font-size: 14px;">
+                <input id="exam-timer" type="number" class="swal2-input" placeholder="e.g. 30" value="30" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
 
-                <!-- 🟢 আপডেট: Assign to Students সেকশন (Search Bar সহ) -->
                 <div style="background:var(--bg-card); padding:12px; border-radius:10px; border:1px solid var(--border-color); margin-top:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                    
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <label style="font-size:13px; font-weight:800; color:var(--primary); margin:0;">Assign to Students:</label>
                         <label style="font-size:11px; font-weight:bold; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:5px; background:var(--bg-body); padding:3px 8px; border-radius:4px; border:1px solid var(--border-color);">
                             <input type="checkbox" checked onchange="window.toggleAllExamStudents(this)" style="accent-color:var(--primary); cursor:pointer;"> Select All
                         </label>
                     </div>
-                    
-                    <!-- 🟢 সার্চ বক্স (যেখানে আপনি লাল দাগ দিয়েছেন) -->
                     <input type="text" id="search-exam-student" placeholder="🔍 Search student by name..." class="swal2-input" onkeyup="window.filterExamStudentList()" style="width: 100%; margin: 0 0 10px 0; font-size: 13px; height: 38px; border-radius: 8px; box-sizing: border-box; background: var(--bg-body);">
-                    
-                    <!-- 🟢 স্টুডেন্ট লিস্ট -->
                     <div id="exam-student-list-container" style="max-height: 160px; overflow-y: auto; background: var(--bg-body); padding: 5px; border-radius: 8px; border: 1px solid var(--border-color);">
                         ${studentCheckboxes}
                     </div>
-                    
                 </div>
             </div>
         `,
@@ -12447,7 +12440,6 @@ window.openCreateOnlineExamModal = function() {
             const title = document.getElementById('exam-title').value.trim();
             const subject = document.getElementById('exam-subject').value.trim();
             const timer = parseInt(document.getElementById('exam-timer').value);
-            // যারা টিক দেওয়া আছে এবং যারা সার্চ লিস্টে দৃশ্যমান আছে, তাদের আইডি নেবে
             const assignedStudents = Array.from(document.querySelectorAll('.exam-student-cb:checked')).map(cb => parseInt(cb.value));
 
             if (!title || !subject || isNaN(timer) || assignedStudents.length === 0) {
@@ -12464,7 +12456,6 @@ window.openCreateOnlineExamModal = function() {
     });
 };
 
-// 🟢 NEW: সার্চ করার ফাংশন
 window.filterExamStudentList = function() {
     const filter = document.getElementById('search-exam-student').value.toUpperCase();
     document.querySelectorAll('.exam-student-item').forEach(item => {
@@ -12477,13 +12468,125 @@ window.filterExamStudentList = function() {
     });
 };
 
-// 🟢 NEW: সবাইকে একসাথে সিলেক্ট বা আনসিলেক্ট করার ফাংশন
 window.toggleAllExamStudents = function(source) {
     document.querySelectorAll('.exam-student-cb').forEach(cb => {
-        // শুধুমাত্র যারা সার্চে দেখা যাচ্ছে, তাদেরকেই সিলেক্ট/আনসিলেক্ট করবে
         const parentItem = cb.closest('.exam-student-item');
         if (parentItem && parentItem.style.display !== 'none') {
             cb.checked = source.checked;
+        }
+    });
+};
+
+// ২. প্রশ্ন যোগ করার পপ-আপ (Second Modal)
+window.openAddQuestionModal = function() {
+    let qCount = window.currentExamDraft.questions.length + 1;
+    
+    // টেম্পোরারি ভেরিয়েবল
+    window.tempCapturedQuestion = null;
+
+    Swal.fire({
+        title: `Question #${qCount}`,
+        html: `
+            <div style="text-align: left;">
+                <textarea id="q-text" class="swal2-textarea" placeholder="Type your question here..." style="width:100%; margin: 0 0 10px 0; font-size:14px; box-sizing: border-box; padding:10px;"></textarea>
+                
+                <input id="q-optA" class="swal2-input" placeholder="Option A *" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <input id="q-optB" class="swal2-input" placeholder="Option B *" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <input id="q-optC" class="swal2-input" placeholder="Option C (Optional)" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                <input id="q-optD" class="swal2-input" placeholder="Option D (Optional)" style="width:100%; margin: 5px 0; box-sizing: border-box;">
+                
+                <label style="font-size:12px; font-weight:bold; margin-top:10px; display:block; color:var(--text-muted);">Correct Answer:</label>
+                <select id="q-correct" class="swal2-select" style="width:100%; margin: 5px 0; box-sizing: border-box; font-weight:bold; color:var(--success);">
+                    <option value="A">Option A</option>
+                    <option value="B">Option B</option>
+                    <option value="C">Option C</option>
+                    <option value="D">Option D</option>
+                </select>
+            </div>
+        `,
+        showCancelButton: true,
+        showDenyButton: true,
+        confirmButtonText: '<i class="fas fa-plus"></i> Save & Add Next',
+        denyButtonText: '<i class="fas fa-check-double"></i> Finish & Publish',
+        cancelButtonText: 'Cancel',
+        confirmButtonColor: 'var(--primary)',
+        denyButtonColor: '#10b981',
+        cancelButtonColor: '#ef4444',
+        preConfirm: () => {
+            const text = document.getElementById('q-text').value.trim();
+            const optA = document.getElementById('q-optA').value.trim();
+            const optB = document.getElementById('q-optB').value.trim();
+            
+            if (!text || !optA || !optB) {
+                Swal.showValidationMessage('Question and at least Options A & B are required!');
+                return false;
+            }
+            
+            return {
+                questionText: text,
+                options: {
+                    A: optA,
+                    B: optB,
+                    C: document.getElementById('q-optC').value.trim(),
+                    D: document.getElementById('q-optD').value.trim()
+                },
+                correctAnswer: document.getElementById('q-correct').value
+            };
+        },
+        preDeny: () => {
+            // Deny তে ক্লিক করলে ডেটা ক্যাপচার করে রাখা হচ্ছে যাতে .then এর ভেতরে null এরর না আসে
+            const text = document.getElementById('q-text').value.trim();
+            const optA = document.getElementById('q-optA').value.trim();
+            const optB = document.getElementById('q-optB').value.trim();
+            
+            if (text && optA && optB) {
+                window.tempCapturedQuestion = {
+                    questionText: text,
+                    options: {
+                        A: optA,
+                        B: optB,
+                        C: document.getElementById('q-optC').value.trim(),
+                        D: document.getElementById('q-optD').value.trim()
+                    },
+                    correctAnswer: document.getElementById('q-correct').value
+                };
+            }
+            return true;
+        }
+    }).then(async (res) => {
+        if (res.isConfirmed && res.value) {
+            // "Save & Add Next"
+            window.currentExamDraft.questions.push(res.value);
+            window.openAddQuestionModal(); // আবার এই পপআপটাই খুলবে
+            
+        } else if (res.isDenied) {
+            // "Finish & Publish Exam"
+            if (window.tempCapturedQuestion) {
+                window.currentExamDraft.questions.push(window.tempCapturedQuestion);
+            }
+            
+            if (window.currentExamDraft.questions.length === 0) {
+                Swal.fire('Error', 'An exam must have at least 1 question to publish!', 'error');
+                return;
+            }
+
+            // ডেটাবেসে এক্সাম সেভ করা
+            const newExamId = 'EXAM_' + Date.now();
+            window.currentExamDraft.id = newExamId;
+            window.currentExamDraft.date = new Date().toISOString();
+            
+            const user = firebase.auth().currentUser;
+            const targetUid = user ? user.uid : DOC_ID;
+
+            Swal.fire({ title: 'Publishing Exam...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+            try {
+                await db.collection('music_classes').doc(targetUid).collection('active_exams').doc(newExamId).set(window.currentExamDraft);
+                Swal.fire('Success', 'Exam published to selected students successfully!', 'success');
+            } catch(e) {
+                console.error(e);
+                Swal.fire('Error', 'Failed to publish exam. Please check connection.', 'error');
+            }
         }
     });
 };
