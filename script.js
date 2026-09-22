@@ -1166,53 +1166,79 @@ window.showBadgeDetails = function(r, rType, tMins) {
 let myExamRank = null;
 let myExamData = null;
 
-// 🟢 চেক করা হচ্ছে স্টুডেন্ট এক্সামে টপ ৩-এ আছে কিনা
-if (globalData.published_exam_ranking && globalData.published_exam_ranking.topStudents) {
-    myExamData = globalData.published_exam_ranking.topStudents.find(st => String(st.id) === String(s.id));
-    if (myExamData && myExamData.rank <= 3) {
-        myExamRank = myExamData.rank;
+const examRanking = globalData?.published_exam_ranking;
+
+// 🟢 স্টুডেন্ট এক্সামে টপ ৩-এ আছে কিনা
+if (examRanking && Array.isArray(examRanking.topStudents) && s && s.id != null) {
+    const found = examRanking.topStudents.find(
+        st => st && st.id != null && String(st.id) === String(s.id)
+    );
+    const r = Number(found?.rank);
+    if (found && Number.isFinite(r) && r >= 1 && r <= 3) {
+        myExamData = found;
+        myExamRank = r;
     }
 }
 
+const sPhoto = s?.photo || 'https://via.placeholder.com/150?text=S';
+
+// 🔒 HTML escape (Swal html-এর জন্য)
+const esc = (v) => String(v ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+// 🔒 JS স্ট্রিং-এর ভিতরে নিরাপদে বসানোর জন্য
+const jsStr = (v) => String(v ?? '')
+    .replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n');
+
 let profileImageBadgeHtml = '';
-let sPhoto = s.photo || 'https://via.placeholder.com/150?text=S';
+
+// 🟢 ক্লিক হ্যান্ডলার (একবারই তৈরি)
+const pracClick = rank
+    ? `window.showBadgeDetails(${Number(rank)}, '${jsStr(rankType)}', ${Number(totalBadgeMins) || 0})`
+    : '';
+
+const examClick = myExamRank
+    ? `Swal.fire({
+        title: '<span style="font-size:20px;">Exam Champion! 🏆</span>',
+        html: '<div style="font-size:14px; color:var(--text-main); line-height:1.5;">You secured <b style="color:var(--primary); font-size:16px;">Rank #${myExamRank}</b> in<br><b style="color:#d97706;">${esc(examRanking.examName)}</b>!<br><br><div style="background: rgba(16,185,129,0.1); border: 1px dashed #10b981; padding:8px; border-radius:8px; color:#047857; font-weight:bold; display:inline-block;">Score: ${esc(myExamData.score)}/${esc(myExamData.total)} (${esc(myExamData.percentage)}%)</div></div>',
+        icon: 'success',
+        confirmButtonColor: 'var(--primary)'
+    })`
+    : '';
+
+const hint = (txt) =>
+    `<div style="font-size:10px; color:var(--text-muted); margin-top:-10px; margin-bottom:15px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">${txt}</div>`;
 
 if (rank && myExamRank) {
-    // 🟢 স্টুডেন্ট যদি প্র্যাকটিস এবং এক্সাম দুটিতেই টপ র‍্যাংক করে (দুটি ব্যাজ পাশাপাশি দেখাবে)
-    let examClick = `Swal.fire({title: '<span style="font-size: 20px;">Exam Champion! 🏆</span>', html: '<div style="font-size:14px; color:var(--text-main); line-height:1.5;">You secured <b style="color:var(--primary); font-size:16px;">Rank #${myExamRank}</b> in<br><b style="color:#d97706;">${globalData.published_exam_ranking.examName}</b>!<br><br><div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 8px; border-radius: 8px; color: #047857; font-weight: bold; display: inline-block;">Score: ${myExamData.score}/${myExamData.total} (${myExamData.percentage}%)</div></div>', icon: 'success', confirmButtonColor: 'var(--primary)'})`;
-    let pracClick = `window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})`;
-    
+    // 🟢 প্র্যাকটিস + এক্সাম দুটোতেই টপ র্যাংক
     profileImageBadgeHtml = `
-    <div style="display:flex; justify-content:center; gap:15px; margin-top: 25px; margin-bottom: 25px;">
+    <div style="display:flex; justify-content:center; gap:15px; margin-top:25px; margin-bottom:25px;">
         ${generateRoyalBadge(rank, "Practice", sPhoto, null, 'scale(0.85)', pracClick)}
         ${generateRoyalBadge(myExamRank, "Exam", sPhoto, null, 'scale(0.85)', examClick)}
     </div>
-    <div style="font-size: 10px; color: var(--text-muted); margin-top: -10px; margin-bottom: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap badges for details</div>`;
-    
+    ${hint('👆 Tap badges for details')}`;
+
 } else if (myExamRank) {
-    // 🟢 শুধুমাত্র এক্সামে টপ র‍্যাংক করলে
-    let examClick = `Swal.fire({title: '<span style="font-size: 20px;">Exam Champion! 🏆</span>', html: '<div style="font-size:14px; color:var(--text-main); line-height:1.5;">You secured <b style="color:var(--primary); font-size:16px;">Rank #${myExamRank}</b> in<br><b style="color:#d97706;">${globalData.published_exam_ranking.examName}</b>!<br><br><div style="background: rgba(16, 185, 129, 0.1); border: 1px dashed #10b981; padding: 8px; border-radius: 8px; color: #047857; font-weight: bold; display: inline-block;">Score: ${myExamData.score}/${myExamData.total} (${myExamData.percentage}%)</div></div>', icon: 'success', confirmButtonColor: 'var(--primary)'})`;
-    
+    // 🟢 শুধু এক্সামে টপ র্যাংক
     profileImageBadgeHtml = `
-    <div style="margin-top: 25px; margin-bottom: 25px;">
-        ${generateRoyalBadge(myExamRank, null, sPhoto, null, 'scale(1.1)', examClick)}
-        <div style="font-size: 10px; color: var(--text-muted); margin-top: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for Exam details</div>
+    <div style="margin-top:25px; margin-bottom:25px;">
+        ${generateRoyalBadge(myExamRank, "Exam", sPhoto, null, 'scale(1.1)', examClick)}
+        ${hint('👆 Tap photo for Exam details')}
     </div>`;
-    
+
 } else if (rank) {
-    // 🟢 শুধুমাত্র প্র্যাকটিসে টপ র‍্যাংক করলে
-    let pracClick = `window.showBadgeDetails(${rank}, '${rankType}', ${totalBadgeMins})`;
-    
+    // 🟢 শুধু প্র্যাকটিসে টপ র্যাংক
     profileImageBadgeHtml = `
-    <div style="margin-top: 25px; margin-bottom: 25px;">
-        ${generateRoyalBadge(rank, null, sPhoto, null, 'scale(1.1)', pracClick)}
-        <div style="font-size: 10px; color: var(--text-muted); margin-top: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👆 Tap photo for Practice details</div>
+    <div style="margin-top:25px; margin-bottom:25px;">
+        ${generateRoyalBadge(rank, "Practice", sPhoto, null, 'scale(1.1)', pracClick)}
+        ${hint('👆 Tap photo for Practice details')}
     </div>`;
-    
+
 } else {
-    // 🟢 কোনো র‍্যাংক না থাকলে সাধারণ ছবি
+    // 🟢 কোনো র্যাংক নেই — সাধারণ ছবি
     profileImageBadgeHtml = `
-    <div style="position:relative; display:inline-block; margin-bottom: 10px;">
+    <div style="position:relative; display:inline-block; margin-bottom:10px;">
         <img src="${sPhoto}" style="width:110px; height:110px; border-radius:50%; border:5px solid var(--bg-card); object-fit:cover; background:var(--bg-input); box-shadow:0 8px 16px rgba(0,0,0,0.1);">
     </div>`;
 }
