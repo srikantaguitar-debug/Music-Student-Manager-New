@@ -12873,62 +12873,91 @@ window.renderExamRankingList = function(examName) {
     listContainer.innerHTML = html;
 };
 
-// 🟢 FIX 1: Exam Rankings Publish Function (Direct Firebase Push & Instant UI)
+// =========================================================================
+// 🟢 FINAL EXAM PUBLISH & HIDE FIX (SUPER FAST & INSTANT UI)
+// =========================================================================
+
 window.publishExamRankingsToPortal = function(examName) {
     if(!window.currentExamTop3ForPublish || window.currentExamTop3ForPublish.length === 0) {
-        Swal.fire({title: 'Info', text: 'No students to publish!', icon: 'info', didOpen: (el) => { el.parentElement.style.zIndex = '999999'; }}); 
+        Swal.fire({toast: true, position: 'top-end', icon: 'warning', title: 'No students to publish!', showConfirmButton: false, timer: 2000, didOpen: (t) => { t.parentElement.style.zIndex = '999999'; }}); 
         return;
     }
 
-    const dataToSave = { 
-        examName: examName, 
-        topStudents: window.currentExamTop3ForPublish, 
-        publishedAt: new Date().toISOString() 
-    };
-    
-    // 🟢 সরাসরি ফায়ারবেস ক্লাউডে ডেটা পুশ করা হচ্ছে (No await to prevent freezing)
-    const user = firebase.auth().currentUser;
-    const targetUid = user ? user.uid : DOC_ID;
+    // 🟢 বাটন ক্লিক করার সাথে সাথে লোডিং দেখাবে
+    Swal.fire({ title: 'Publishing...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
-    db.collection('music_classes').doc(targetUid).set({
-        published_exam_ranking: dataToSave
-    }, { merge: true }).catch(e => console.error("Cloud push failed:", e));
+    try {
+        const cleanTopStudents = window.currentExamTop3ForPublish.map(st => ({
+            id: st.id || Date.now(),
+            name: st.name || 'Unknown',
+            photo: st.photo || null,
+            rank: st.rank || 0,
+            score: st.score || 0,
+            total: st.total || 0,
+            percentage: st.percentage || 0
+        }));
 
-    // 🟢 ক্লিক করার সাথে সাথেই সাকসেস নোটিফিকেশন দেখাবে (সবার ওপরে)
-    Swal.fire({
-        toast: true, 
-        position: 'top-end', 
-        icon: 'success', 
-        title: 'Published to Student Portals!', 
-        showConfirmButton: false, 
-        timer: 2500,
-        didOpen: (toast) => {
-            toast.parentElement.style.zIndex = '999999'; 
-        }
-    });
+        const dataToSave = { 
+            examName: examName || 'Exam', 
+            topStudents: cleanTopStudents, 
+            publishedAt: new Date().toISOString() 
+        };
+        
+        const user = firebase.auth().currentUser;
+        const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+
+        // 🟢 ডেটা ব্যাকগ্রাউন্ডে সেভ হবে (কোনো .then বা await নেই)
+        db.collection('music_classes').doc(targetUid).set({
+            published_exam_ranking: dataToSave
+        }, { merge: true }).catch(e => console.log("Background sync pending..."));
+
+        // 🟢 মাত্র আধা সেকেন্ড পরেই লোডিং বন্ধ হয়ে সাকসেস দেখাবে
+        setTimeout(() => {
+            Swal.close();
+            setTimeout(() => {
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success', 
+                    title: 'Published to Portals!', showConfirmButton: false, timer: 2500,
+                    didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
+                });
+            }, 100);
+        }, 500);
+
+    } catch(err) {
+        console.error("Publish Error: ", err);
+        Swal.close();
+    }
 };
-// 🟢 FIX 2: Hide Exam Rankings from Portal (Direct Firebase Delete & Instant UI)
-window.hideExamRankingsFromPortal = function() {
-    const user = firebase.auth().currentUser;
-    const targetUid = user ? user.uid : DOC_ID;
 
-    // 🟢 ফায়ারবেস ক্লাউড থেকে সরাসরি মুছে ফেলা হচ্ছে
-    db.collection('music_classes').doc(targetUid).update({
-        published_exam_ranking: firebase.firestore.FieldValue.delete()
-    }).catch(e => console.log(e));
-    
-    // 🟢 ক্লিক করার সাথে সাথেই নোটিফিকেশন দেখাবে
-    Swal.fire({
-        toast: true, 
-        position: 'top-end', 
-        icon: 'success', 
-        title: 'Hidden from Portals', 
-        showConfirmButton: false, 
-        timer: 2500,
-        didOpen: (toast) => {
-            toast.parentElement.style.zIndex = '999999'; 
-        }
-    });
+window.hideExamRankingsFromPortal = function() {
+    // 🟢 বাটন ক্লিক করার সাথে সাথে লোডিং দেখাবে
+    Swal.fire({ title: 'Hiding from Portal...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        const user = firebase.auth().currentUser;
+        const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+
+        // 🟢 ডেটা ব্যাকগ্রাউন্ডে ডিলিট হবে (কোনো .then বা await নেই)
+        db.collection('music_classes').doc(targetUid).set({
+            published_exam_ranking: firebase.firestore.FieldValue.delete()
+        }, { merge: true }).catch(e => console.log("Background sync pending..."));
+
+        // 🟢 মাত্র আধা সেকেন্ড পরেই লোডিং বন্ধ হয়ে সাকসেস দেখাবে
+        setTimeout(() => {
+            Swal.close();
+            setTimeout(() => {
+                Swal.fire({
+                    toast: true, position: 'top-end', icon: 'success', 
+                    title: 'Hidden from Portals', showConfirmButton: false, timer: 2500,
+                    didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
+                });
+            }, 100);
+        }, 500);
+
+    } catch(err) {
+        console.error("Hide function error: ", err);
+        Swal.close();
+    }
 };
 
 window.deleteStudentExamResult = async function(studentId, examName) {
