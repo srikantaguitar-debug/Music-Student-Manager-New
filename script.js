@@ -12715,11 +12715,11 @@ window.renderExamRankingList = function(examName) {
     });
 
     if (examResults.length === 0) {
-        listContainer.innerHTML = '<p style="text-align:center; color:gray; padding:20px;">No students have completed this exam yet.</p>';
+        listContainer.innerHTML = '<p style="text-align:center; color:gray; padding:20px; font-weight: 500;">No students have completed this exam yet.</p>';
         return;
     }
 
-    // 🟢 FIX: 'score' এর বদলে 'obtainedMarks' দিয়ে সর্ট করা হচ্ছে
+    // 🟢 'obtainedMarks' এবং Time দিয়ে সর্ট করা হচ্ছে
     examResults.sort((a, b) => {
         const scoreA = a.result.obtainedMarks !== undefined ? a.result.obtainedMarks : (a.result.score || 0);
         const scoreB = b.result.obtainedMarks !== undefined ? b.result.obtainedMarks : (b.result.score || 0);
@@ -12737,8 +12737,8 @@ window.renderExamRankingList = function(examName) {
             name: item.student.name,
             photo: item.student.photo,
             rank: index + 1,
-            score: res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0), // 🟢 FIX
-            total: res.totalMarks !== undefined ? res.totalMarks : (res.total || 0),       // 🟢 FIX
+            score: res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0),
+            total: res.totalMarks !== undefined ? res.totalMarks : (res.total || 0),
             percentage: res.percentage
         };
     });
@@ -12748,71 +12748,90 @@ window.renderExamRankingList = function(examName) {
         const s = item.student;
         const res = item.result;
         const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        
         let rankIcon = '';
         let borderStyle = 'border: 1px solid var(--border-color);';
-        
         let isTop3 = index < 3;
 
+        // 🟢 র‍্যাংকের আইকন এবং বর্ডার কালার
         if (index === 0) {
-            rankIcon = '🥇'; borderStyle = 'border: 2px solid #fbbf24; border-left: 6px solid #fbbf24;';
+            rankIcon = `<svg width="28" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#fbbf24"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
+            borderStyle = 'border: 2px solid #fbbf24; box-shadow: 0 4px 10px rgba(251, 191, 36, 0.15);';
         } else if (index === 1) {
-            rankIcon = '🥈'; borderStyle = 'border: 2px solid #cbd5e1; border-left: 6px solid #cbd5e1;';
+            rankIcon = `<svg width="28" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#94a3b8"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text></svg>`;
+            borderStyle = 'border: 2px solid #cbd5e1; box-shadow: 0 4px 10px rgba(203, 213, 225, 0.15);';
         } else if (index === 2) {
-            rankIcon = '🥉'; borderStyle = 'border: 2px solid #b45309; border-left: 6px solid #b45309;';
+            rankIcon = `<svg width="28" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#d97706"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text></svg>`;
+            borderStyle = 'border: 2px solid #b45309; box-shadow: 0 4px 10px rgba(180, 83, 9, 0.15);';
         } else {
-            rankIcon = `<span style="font-size:14px; font-weight:bold; color:gray;">#${index + 1}</span>`;
+            rankIcon = `<div style="font-size:18px; font-weight:900; color:#64748b; background:#f1f5f9; width: 34px; height: 34px; display:flex; align-items:center; justify-content:center; border-radius:50%;">#${index + 1}</div>`;
         }
 
-        // 🟢 FIX: ভেরিয়েবল নামগুলো ঠিক করা হলো
         const scoreDisplay = res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0);
         const totalDisplay = res.totalMarks !== undefined ? res.totalMarks : (res.total || 0);
-        const timeDisplay = res.timeTaken ? res.timeTaken : 'N/A'; // পুরোনো এক্সামে টাইম নেই তাই N/A দেখাবে
+        const timeDisplay = res.timeTaken ? res.timeTaken : 'N/A';
+        const percentColor = res.percentage >= 40 ? '#10b981' : '#ef4444';
 
+        // 🟢 FIX: ওভারল্যাপ আটকাতে বাটনগুলো নিচে দেওয়া হয়েছে এবং 'word-wrap: break-word' ব্যবহার করে ফুল নাম দেখানো হয়েছে
         let top3Buttons = '';
         if (isTop3) {
             top3Buttons = `
-            <div style="display:flex; gap:4px; align-items:center; margin-top:6px; flex-wrap:wrap;">
-                <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:10px; font-weight:bold; display:flex; align-items:center; gap:4px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-award"></i> Certificate</button>
-                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fab fa-whatsapp"></i></button>
-                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:6px; font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center;"><i class="fas fa-sms"></i></button>
+            <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="flex-grow: 1; background:#f59e0b; color:white; border:none; padding:10px; border-radius:10px; font-size:13px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25); white-space: nowrap;"><i class="fas fa-award" style="font-size: 15px;"></i> Certificate</button>
+            
+            <div style="display:flex; gap:10px;">
+                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(37,211,102,0.3);"><i class="fab fa-whatsapp"></i></button>
+                
+                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(59,130,246,0.3);"><i class="fas fa-sms"></i></button>
             </div>
             `;
         }
 
         html += `
-        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:var(--bg-card); border-radius:10px; margin-bottom:10px; ${borderStyle} box-shadow:0 2px 4px rgba(0,0,0,0.02);">
-            <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width:25px; text-align:center; font-size:20px;">${rankIcon}</div>
-                <img src="${photoSrc}" style="width:40px; height:40px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1;">
-                <div style="line-height:1.3;">
-                    <div style="font-weight:700; font-size:15px; color:var(--text-main);">${s.name}</div>
-                    <div style="font-size:11px; color:var(--text-muted);">${s.class || 'Music'} | Time: ${timeDisplay}</div>
-                    ${top3Buttons}
+        <div style="padding:15px; background:var(--bg-card); border-radius:12px; margin-bottom:15px; ${borderStyle}">
+            
+            <!-- টপ সেকশন: র‍্যাংক, ছবি, স্কোর, ডিলিট -->
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
+                <div style="display:flex; gap:12px; align-items:center;">
+                    <div style="width:34px; flex-shrink: 0; display:flex; justify-content:center;">${rankIcon}</div>
+                    <img src="${photoSrc}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; background: #fff;">
+                </div>
+
+                <div style="display:flex; align-items:center; gap: 15px;">
+                    <div style="text-align:right; line-height: 1.1;">
+                        <div style="font-size:22px; font-weight:900; color:#059669;">${scoreDisplay}/${totalDisplay}</div>
+                        <div style="font-size:13px; font-weight:900; color:${percentColor}; margin-top: 4px;">${res.percentage}%</div>
+                    </div>
+                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName.replace(/'/g, "\\'")}')" style="background:#fff1f2; border:1px solid #fca5a5; color:#ef4444; width:35px; height:35px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(239,68,68,0.1);" title="Delete Result">
+                        <i class="fas fa-trash-alt" style="font-size: 15px;"></i>
+                    </button>
                 </div>
             </div>
-            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:5px;">
-                <div style="text-align:right;">
-                    <div style="font-size:16px; font-weight:900; color:var(--primary);">${scoreDisplay}/${totalDisplay}</div>
-                    <div style="font-size:12px; font-weight:700; color:${res.percentage >= 40 ? 'var(--success)' : 'var(--danger)'};">${res.percentage}%</div>
+
+            <!-- মিডল সেকশন (রেড সার্কেল এরিয়া): ফুল নাম, সাবজেক্ট ও টাইম -->
+            <div style="text-align: left; padding: 5px 0 10px 0;">
+                <div style="font-weight:900; font-size:18px; color:#064e3b; word-wrap: break-word; line-height: 1.3;">${s.name}</div>
+                <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+                    <div style="font-size:13px; color:var(--text-muted); font-weight: 600;">${s.class || 'Music'}</div>
+                    <div style="font-size:12px; color:#64748b; font-weight: 500; background: var(--bg-body); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color);">⏱ Time: ${timeDisplay}</div>
                 </div>
-                <!-- 🟢 ডিলিট রেজাল্ট বাটন -->
-                <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:16px; cursor:pointer; padding:2px;" title="Delete Result to Retake">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
             </div>
+
+            <!-- বটম সেকশন: বাটনস -->
+            ${isTop3 ? `<div style="display:flex; justify-content: space-between; align-items:center; margin-top:15px; padding-top:15px; border-top:1px dashed var(--border-color); gap: 10px;">${top3Buttons}</div>` : ''}
+
         </div>
         `;
     });
 
     html += `
-    <div style="display:flex; flex-direction:column; gap:12px; margin-top:20px; border-top:1px dashed var(--border-color); padding-top:15px;">
-        <button onclick="window.publishExamRankingsToPortal('${examName}')" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:25px; border-top:2px dashed #cbd5e1; padding-top:20px;">
+        <button onclick="window.publishExamRankingsToPortal('${examName.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
             <i class="fas fa-bullhorn"></i> Publish Top 3 to Portal
         </button>
         <button onclick="window.hideExamRankingsFromPortal()" style="background: transparent; color: #ef4444; border: 2px solid #fca5a5; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
             <i class="fas fa-eye-slash"></i> Hide Exam from Portal
         </button>
-        <button onclick="window.deleteEntireExam('${examName}')" style="background: #fee2e2; color: #b91c1c; border: 1px dashed #ef4444; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top:10px;">
+        <button onclick="window.deleteEntireExam('${examName.replace(/'/g, "\\'")}')" style="background: #fee2e2; color: #b91c1c; border: 1px dashed #ef4444; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top:10px;">
             <i class="fas fa-trash"></i> Delete This Entire Exam
         </button>
     </div>
@@ -13051,20 +13070,124 @@ window.downloadExamCertOnly = function() {
     Swal.close();
 };
 
+// 🟢 FINAL: Send Exam Achievement Message (WhatsApp / SMS) with Confirmation
 window.sendExamRankMsg = function(type, studentId, rank, examName, score, total) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
-    
+
+    // ১. ফোন নম্বর চেক এবং ঠিক করা
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if (!cleanPhone) {
+        Swal.fire('Error', 'No phone number found for this student!', 'error');
+        return;
+    }
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+    // ২. মেসেজ টেমপ্লেট তৈরি
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    let msg = `🎉 Congratulations ${student.name}!\n\nYou have secured Rank #${rank} in the *${examName}* examination with a score of ${score}/${total}!\n\nKeep up the great work. 🎸🎹\n\nRegards,\n${instName}`;
-    
+    const msgBody = `🏆 Congratulations ${student.name}!\n\nYou have secured Rank #${rank} in the "${examName}" exam.\nScore: ${score}/${total}\n\nKeep up the great work! 🎸🎹\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+
+    // ৩. মেসেজ পাঠানোর লজিক (পপআপ কনফার্মেশন সহ)
     if (type === 'wa') {
-        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        if(cleanPhone) window.confirmAndSendMsg('wa', `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, msg);
-        else Swal.fire('Error', 'No phone number found', 'error');
+        const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`;
+        
+        if (typeof window.confirmAndSendMsg === 'function') {
+            window.confirmAndSendMsg('wa', waUrl, msgBody);
+        } else {
+            window.open(waUrl, '_blank'); // যদি কনফার্ম ফাংশন না থাকে, সরাসরি ওপেন হবে
+        }
     } else if (type === 'sms') {
-        if(student.phone) window.confirmAndSendMsg('sms', `sms:${student.phone}?body=${encodeURIComponent(msg)}`, msg);
-        else Swal.fire('Error', 'No phone number found', 'error');
+        const smsUrl = `sms:${student.phone}?body=${encodeURIComponent(msgBody)}`;
+        
+        if (typeof window.confirmAndSendMsg === 'function') {
+            window.confirmAndSendMsg('sms', smsUrl, msgBody);
+        } else {
+            window.open(smsUrl, '_self'); // যদি কনফার্ম ফাংশন না থাকে, সরাসরি ওপেন হবে
+        }
+    }
+};
+
+// 🟢 NEW: Generate Exam Certificate PDF
+window.generateExamCertificate = async function(studentId, rank, examName, score, total, percentage) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire('Error', 'PDF Library is loading. Please try again.', 'warning');
+        return;
+    }
+
+    Swal.fire({ title: 'Generating Certificate...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const width = doc.internal.pageSize.getWidth();
+        const height = doc.internal.pageSize.getHeight();
+        const now = new Date();
+
+        // Background and Border
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, width, height, 'F');
+        
+        if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+            doc.saveGraphicsState();
+            doc.setGState(new doc.GState({ opacity: 0.05 })); 
+            doc.addImage(instituteLogo, 'JPEG', (width / 2) - 60, (height / 2) - 60, 120, 120);
+            doc.restoreGraphicsState();
+        }
+
+        doc.setDrawColor(37, 99, 235); doc.setLineWidth(4); doc.rect(8, 8, width - 16, height - 16);
+        doc.setDrawColor(30, 41, 59); doc.setLineWidth(0.5); doc.rect(11, 11, width - 22, height - 22);
+
+        let y = 25; 
+        
+        // Institute Name
+        doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(30, 64, 175); 
+        const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
+        doc.text(instName, width/2, y, { align: "center" });
+        y += 15;
+
+        // Certificate Title
+        doc.setFontSize(24); doc.setTextColor(15, 23, 42);
+        doc.text("CERTIFICATE OF EXCELLENCE", width/2, y, { align: "center" });
+        y += 12; 
+        
+        doc.setFontSize(14); doc.setFont("helvetica", "italic"); doc.setTextColor(71, 85, 105);
+        doc.text("This certificate is proudly awarded to", width/2, y, { align: "center" });
+        y += 15; 
+        
+        // Student Name
+        doc.setFontSize(30); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+        doc.text(student.name, width/2, y, { align: "center" });
+        y += 15; 
+        
+        // Exam Details
+        doc.setFontSize(14); doc.setTextColor(51, 65, 85); doc.setFont("helvetica", "normal");
+        doc.text(`For achieving Rank #${rank} in the "${examName}" examination.`, width/2, y, { align: "center" });
+        y += 10;
+        doc.setFont("helvetica", "bold");
+        doc.text(`Score: ${score} / ${total} (${percentage}%)`, width/2, y, { align: "center" });
+
+        // Footer
+        const footerY = height - 25; 
+        doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "normal");
+        doc.text(`Date: ${now.toLocaleDateString('en-IN')}`, 30, footerY);
+        
+        if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
+            try { doc.addImage(authorizedSignature, 'PNG', width - 80, footerY - 15, 40, 15); } catch(err) {}
+        }
+        doc.setDrawColor(0); doc.setLineWidth(0.4); doc.line(width - 90, footerY + 1, width - 30, footerY + 1);
+        doc.text("Authorized Signature", width - 60, footerY + 6, { align: "center" });
+
+        // Save
+        const fileName = `Exam_Certificate_${student.name.replace(/\s+/g, '_')}.pdf`;
+        doc.save(fileName);
+        Swal.close();
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Certificate Downloaded!', showConfirmButton: false, timer: 2000 });
+
+    } catch (error) {
+        console.error("Certificate Generation Error: ", error);
+        Swal.fire('Error', 'Failed to generate Certificate.', 'error');
     }
 };
