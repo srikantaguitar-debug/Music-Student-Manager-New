@@ -12880,13 +12880,13 @@ window.publishExamRankingsToPortal = function(examName) {
         return;
     }
 
-    const dataToSave = {
-        examName: examName,
-        topStudents: window.currentExamTop3ForPublish,
-        publishedAt: new Date().toISOString()
+    const dataToSave = { 
+        examName: examName, 
+        topStudents: window.currentExamTop3ForPublish, 
+        publishedAt: new Date().toISOString() 
     };
     
-    // 🟢 সরাসরি ফায়ারবেস ক্লাউডে ডেটা পুশ করা হচ্ছে (১০০% গ্যারান্টি)
+    // 🟢 সরাসরি ফায়ারবেস ক্লাউডে ডেটা পুশ করা হচ্ছে (No await to prevent freezing)
     const user = firebase.auth().currentUser;
     const targetUid = user ? user.uid : DOC_ID;
 
@@ -12907,7 +12907,7 @@ window.publishExamRankingsToPortal = function(examName) {
         }
     });
 };
-// 🟢 FIX 2: Hide Exam Rankings from Portal (Direct Firebase Delete)
+// 🟢 FIX 2: Hide Exam Rankings from Portal (Direct Firebase Delete & Instant UI)
 window.hideExamRankingsFromPortal = function() {
     const user = firebase.auth().currentUser;
     const targetUid = user ? user.uid : DOC_ID;
@@ -12917,7 +12917,7 @@ window.hideExamRankingsFromPortal = function() {
         published_exam_ranking: firebase.firestore.FieldValue.delete()
     }).catch(e => console.log(e));
     
-    // 🟢 ক্লিক করার সাথে সাথেই নোটিফিকেশন দেখাবে (সবার ওপরে)
+    // 🟢 ক্লিক করার সাথে সাথেই নোটিফিকেশন দেখাবে
     Swal.fire({
         toast: true, 
         position: 'top-end', 
