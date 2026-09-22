@@ -586,15 +586,15 @@ window.showStudentProducts = function() {
 }).join('') : '<p style="text-align:center; color:var(--text-muted); font-size:13px;">No attendance records.</p>';
 
 // ৩. Payment Data
-                        let feeRecords = [];
-                        Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
+let feeRecords = [];
+Object.keys(globalFees).forEach(month => { if(globalFees[month][studentViewId]) feeRecords.push({ month, data: globalFees[month][studentViewId] }); });
 
-                        // 🟢 FIX: Payment History Sorting by Actual Payment Date (Latest payment at the top)
-                        feeRecords.sort((a, b) => {
-                            const dateA = new Date(a.data.date || a.month + '-01');
-                            const dateB = new Date(b.data.date || b.month + '-01');
-                            return dateB - dateA; // descending order
-                        });
+// 🟢 FIX: Payment History Sorting by Actual Payment Date (Latest payment at the top)
+feeRecords.sort((a, b) => {
+    const dateA = new Date(a.data.date || a.month + '-01');
+    const dateB = new Date(b.data.date || b.month + '-01');
+    return dateB - dateA; // descending order
+});
                         
                         let paidHtml = feeRecords.length > 0 ? feeRecords.map(rec => {
     let txnHtml = rec.data.transactionId ? `<br><span style="font-size:11px; color:var(--success); font-weight:600; display:inline-block; margin-top:6px; background:var(--bg-body); padding:4px 8px; border-radius:6px; border:1px dashed var(--success);"><i class="fas fa-hashtag"></i> Txn ID: ${rec.data.transactionId}</span>` : '';
@@ -708,6 +708,157 @@ if(totalDueAmountPortal > 0) {
     </div>`;
 }
 
+// ==========================================
+// 🟢 STUDENT PORTAL EXAM LISTENER & TIMER LOGIC
+// ==========================================
+
+window.activeExamData = null;
+window.currentQIndex = 0;
+window.examTimerInterval = null;
+window.studentAnswers = {};
+
+window.checkPendingExams = async function(studentId) {
+    const docRef = db.collection('music_classes').doc(managerUid);
+    const snap = await docRef.collection('active_exams').get();
+    
+    let pendingExamHtml = '';
+    
+    snap.forEach(doc => {
+        const exam = doc.data();
+        // স্টুডেন্টের জন্য অ্যাসাইন করা হয়েছে কি না এবং সে অলরেডি এক্সাম দিয়েছে কি না তা চেক করা
+        const hasTaken = (s.exams || []).some(e => e.examId === exam.id);
+        
+        if (exam.assignedStudents.includes(parseInt(studentId)) && !hasTaken) {
+            pendingExamHtml += `
+                <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 15px; border-radius: 12px; border: 2px dashed #f59e0b; margin-bottom: 15px; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <div style="font-weight:900; font-size:15px; color:#b45309;"><i class="fas fa-file-alt"></i> ${exam.title}</div>
+                        <div style="font-size:11px; color:#92400e; margin-top:3px;">Subject: ${exam.subject} | Timer: ${exam.timer}s/Question</div>
+                    </div>
+                    <button onclick='window.startLiveExam(${JSON.stringify(exam)})' style="background:#f59e0b; color:white; border:none; padding:10px 15px; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow: 0 4px 6px rgba(245,158,11,0.3);">
+                        Start Exam Now
+                    </button>
+                </div>
+            `;
+        }
+    });
+
+    if(pendingExamHtml) {
+        let div = document.getElementById('studentPendingExamsArea');
+        if(!div) {
+            div = document.createElement('div');
+            div.id = 'studentPendingExamsArea';
+            const portalTop = document.querySelector('.scroller-box').parentNode;
+            portalTop.insertBefore(div, portalTop.firstChild);
+        }
+        div.innerHTML = pendingExamHtml;
+    }
+};
+window.checkPendingExams(studentViewId); // ফাংশন কল করা হলো
+
+// লাইভ এক্সাম উইন্ডো
+window.startLiveExam = function(examData) {
+    window.activeExamData = examData;
+    window.currentQIndex = 0;
+    window.studentAnswers = {};
+    window.showQuestionUI();
+};
+
+window.showQuestionUI = function() {
+    const exam = window.activeExamData;
+    if (window.currentQIndex >= exam.questions.length) {
+        window.submitFinalExam();
+        return;
+    }
+
+    const q = exam.questions[window.currentQIndex];
+    let timeLeft = exam.timer;
+
+    Swal.fire({
+        title: `<div style="display:flex; justify-content:space-between; font-size:14px; color:var(--text-muted);"><span>Question ${window.currentQIndex + 1}/${exam.questions.length}</span> <span id="exam-timer-display" style="color:var(--danger); font-weight:bold;"><i class="fas fa-clock"></i> ${timeLeft}s</span></div>`,
+        html: `
+            <div style="text-align:left; background:var(--bg-card); padding:15px; border-radius:12px; font-size:16px; font-weight:bold; color:var(--text-main); margin-bottom:15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                ${q.questionText}
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                ${['A', 'B', 'C', 'D'].map(opt => q.options[opt] ? `
+                    <button onclick="window.recordAnswer('${opt}')" style="background:var(--bg-input); border:1px solid var(--border-color); padding:12px; border-radius:8px; text-align:left; font-size:14px; cursor:pointer; color:var(--text-main); transition:0.2s;">
+                        <b>${opt}.</b>${q.options[opt]}
+                    </button>
+                ` : '').join('')}
+            </div>
+        `,
+        showConfirmButton: false,
+        allowOutsideClick: false,
+        allowEscapeKey: false
+    });
+
+    // টাইমার লজিক
+    clearInterval(window.examTimerInterval);
+    window.examTimerInterval = setInterval(() => {
+        timeLeft--;
+        const timerDisplay = document.getElementById('exam-timer-display');
+        if(timerDisplay) timerDisplay.innerHTML = `<i class="fas fa-clock"></i> ${timeLeft}s`;
+        
+        if (timeLeft <= 0) {
+            clearInterval(window.examTimerInterval);
+            window.recordAnswer(null); // টাইম শেষ, উত্তর null ধরে পরের প্রশ্নে যাবে
+        }
+    }, 1000);
+};
+
+window.recordAnswer = function(selectedOpt) {
+    clearInterval(window.examTimerInterval);
+    const q = window.activeExamData.questions[window.currentQIndex];
+    window.studentAnswers[window.currentQIndex] = {
+        selected: selectedOpt,
+        isCorrect: selectedOpt === q.correctAnswer
+    };
+    window.currentQIndex++;
+    window.showQuestionUI();
+};
+
+window.submitFinalExam = async function() {
+    const exam = window.activeExamData;
+    let correctCount = 0;
+    
+    Object.values(window.studentAnswers).forEach(ans => {
+        if(ans.isCorrect) correctCount++;
+    });
+
+    const totalMarks = exam.questions.length; // প্রতিটি প্রশ্ন ১ নম্বর ধরে
+    const obtainedMarks = correctCount;
+    const percentage = ((obtainedMarks / totalMarks) * 100).toFixed(1);
+
+    const resultData = {
+        id: Date.now(),
+        examId: exam.id,
+        examName: exam.title,
+        subject: exam.subject,
+        date: new Date().toISOString().split('T')[0],
+        totalMarks: totalMarks,
+        obtainedMarks: obtainedMarks,
+        percentage: percentage,
+        remarks: percentage >= 80 ? 'Excellent' : (percentage >= 40 ? 'Passed' : 'Needs Improvement')
+    };
+
+    // ফায়ারবেসে স্টুডেন্টের প্রোফাইলে সেভ করা
+    const studentRef = db.collection('music_classes').doc(managerUid).collection('students').doc(String(studentViewId));
+    
+    await studentRef.set({
+        exams: firebase.firestore.FieldValue.arrayUnion(resultData)
+    }, { merge: true });
+
+    Swal.fire({
+        title: 'Exam Completed!',
+        html: `You scored <b>${obtainedMarks} out of ${totalMarks}</b>.<br><br>Your percentage is <b>${percentage}%</b>.`,
+        icon: percentage >= 40 ? 'success' : 'warning',
+        confirmButtonText: 'Back to Portal',
+        confirmButtonColor: 'var(--primary)'
+    }).then(() => {
+        window.location.reload(); // পেজ রিফ্রেশ করে রেজাল্ট আপডেট করা
+    });
+};
                                 // ৫. Study Materials Data
                                 let materialsHtml = '';
                                 if (s.study_materials && s.study_materials.length > 0) {
@@ -748,6 +899,7 @@ if (isStudentActive && canLogPractice) {
         if (n.includes('bass guitar') || n.includes('bass')) return '🎸';
         if (n.includes('guitar')) return '🎸';
         if (n.includes('keyboard') || n.includes('piano')) return '🎹';
+                if (n.includes('violin')) return '🎻';
         if (n.includes('mandolin')) return '🪕';
         return '🎵';
     };
@@ -1108,7 +1260,7 @@ document.body.innerHTML = `
                         <i class="fas fa-music" style="color: var(--primary); font-size: 15px; margin-top: 3px; width: 20px; text-align: center;"></i> 
                         <div>
                             <div style="font-weight: 900; color: var(--text-main); font-size: 13px; margin-bottom: 2px;">Classes:</div>
-                            <div style="color: var(--text-muted); font-size: 12px; line-height: 1.4; font-weight: 500;">Guitar, Bass Guitar, Piano,<br>Keyboard, Mandolin</div>
+                            <div style="color: var(--text-muted); font-size: 12px; line-height: 1.4; font-weight: 500;">Guitar, Bass Guitar, Piano,<br>Keyboard, Violin, Mandolin</div>
                         </div>
                     </div>
 
@@ -1641,7 +1793,7 @@ async function initApp() {
             updateYearlyChart();
         }
 
-        const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes"; 
+        const INSTITUTE_NAME = "Guitar, Bass Guitar, Piano, Keyboard, Violin, Mandolin Classes"; 
         const MY_NAME = "Srikanta Banerjee"; 
         const DEFAULT_FEE = 500, DUE_DATE = 10; 
         
@@ -1946,7 +2098,7 @@ function sendMsg(type, studentId, monthStr, amount = 0, isDue = true) {
         window.open(`mailto:${student.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msgBody)}`, '_self'); 
     } 
 }
-        function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
+        function sendBirthdayWish(type, studentId) { const student = students.find(s => s.id === studentId); if(!student) return; const msgBody = `Happy Birthday ${student.name}! Wishing you a fantastic day filled with music and joy. Best wishes from Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Violin, Mandolin Classes).`; if(type === 'wa') { let cleanPhone = student.phone.replace(/[^0-9]/g, ''); if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank'); } else if (type === 'sms') { window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self'); } else if (type === 'mail') { window.open(`mailto:${student.email}?subject=${encodeURIComponent("Happy Birthday!")}&body=${encodeURIComponent(msgBody)}`, '_self'); } }
         
 function dismissBirthday(studentId) {
     const currentYear = new Date().getFullYear();
@@ -2041,7 +2193,7 @@ async function changeAppPin() {
             const student = students.find(s => s.id === studentId);
             if (!student) return;
 
-            const msgBody = `Welcome ${student.name} to the ${student.class || 'Music'} class! We are glad to have you with us. Your classes are on ${student.class_day || 'scheduled day'} at ${student.class_time ? formatTime12H(student.class_time) : 'scheduled time'}. Regards, Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard & Mandolin Classes)`;
+            const msgBody = `Welcome ${student.name} to the ${student.class || 'Music'} class! We are glad to have you with us. Your classes are on ${student.class_day || 'scheduled day'} at ${student.class_time ? formatTime12H(student.class_time) : 'scheduled time'}. Regards, Srikanta Banerjee (Guitar, Bass Guitar, Piano, Keyboard, Violin & Mandolin Classes)`;
             
             if (type === 'wa') {
                 let cleanPhone = student.phone.replace(/[^0-9]/g, '');
@@ -2738,7 +2890,7 @@ async function saveStatusChange() {
             allowOutsideClick: false
         });
     } 
-}      
+}
 
 // 🟢 NEW: Function to send message when student status changes
 window.sendStatusMsg = function(type, studentId, isActive, note) {
@@ -3010,8 +3162,18 @@ function renderDashboard() {
     if (typeof window.renderPracticeLeaderboard === 'function') {
         window.renderPracticeLeaderboard();
     }
+    if (!document.getElementById('createExamBtn')) {
+    document.getElementById('studentStatsSummary').parentElement.insertAdjacentHTML('beforeend', '<button id="createExamBtn" onclick="window.openCreateOnlineExamModal()" style="width:100%; margin-top:10px; padding:12px; border-radius:10px; background:#10b981; color:white; font-weight:bold; border:none; cursor:pointer;"><i class="fas fa-edit"></i> Create Online Exam</button>');
+}
     const activeStudents = students.filter(s => isStudentCurrentlyActive(s)); 
     document.getElementById('studentStatsSummary').innerHTML = `<div class="clickable-stat" onclick="showCategoryList('active')"><h4>Active</h4><p class="summary-collected">${activeStudents.length}</p></div><div class="clickable-stat" onclick="showCategoryList('inactive')"><h4>Inactive</h4><p class="summary-due">${students.length - activeStudents.length}</p></div><div><h4>Total</h4><p class="summary-total" style="color:var(--text-main);">${students.length}</p></div>`; 
+    // 🟢 Add Exam Rankings Button to Dashboard
+    if (!document.getElementById('examRankBtn')) {
+        const statsSummaryDiv = document.getElementById('studentStatsSummary');
+        if(statsSummaryDiv && statsSummaryDiv.parentElement) {
+            statsSummaryDiv.parentElement.insertAdjacentHTML('beforeend', '<button id="examRankBtn" onclick="window.openExamRankingModal()" style="width:100%; margin-top:15px; padding:12px; border-radius:10px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; font-weight:bold; border:none; box-shadow:0 4px 6px rgba(139,92,246,0.3); cursor:pointer;"><i class="fas fa-trophy"></i> View Exam Rankings & Publish</button>');
+        }
+    }
     
     const birthdayBox = document.getElementById('birthdayAlertBox'); const birthdayList = document.getElementById('birthdayList'); 
     const currentYearForCheck = new Date().getFullYear();
@@ -5549,7 +5711,7 @@ function sendNoteAction(type, studentId, note, rawDate) {
                     `"${note}"\n\n` +
                     `Regards,\n` +
                     `Srikanta Banerjee\n` +
-                    `(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes)`;
+                    `(Guitar, Bass Guitar, Piano, Keyboard, Violin, Mandolin Classes)`;
     
     if (type === 'wa') {
         let cleanPhone = student.phone.replace(/[^0-9]/g, '');
@@ -7462,10 +7624,10 @@ function sendGeneralMsg(type, studentId) {
     // 🟢 চেক করা হচ্ছে স্টুডেন্ট Active নাকি Inactive
     if (window.isStudentCurrentlyActive(student)) {
         // Active স্টুডেন্টদের জন্য পোর্টাল লিংক সহ মেসেজ
-        msgBody = `Hello ${student.name},\n\nHope you are doing well and enjoying your ${student.class || 'Music'} classes! 🎵\n\nYou can check your Attendance, Fees, and Study Materials anytime from your Student Portal here:\n${portalLink}\n\nKeep practicing regularly!\n\nRegards,\nSrikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes)`;
+        msgBody = `Hello ${student.name},\n\nHope you are doing well and enjoying your ${student.class || 'Music'} classes! 🎵\n\nYou can check your Attendance, Fees, and Study Materials anytime from your Student Portal here:\n${portalLink}\n\nKeep practicing regularly!\n\nRegards,\nSrikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Violin, Mandolin Classes)`;
     } else {
         // 🟢 Inactive স্টুডেন্টদের জন্য আপনার দেওয়া নতুন মেসেজ
-        msgBody = `Hello ${student.name},\n\nHope you are doing well. Just connecting regarding the music classes updates.\n\nFrom Srikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Mandolin Classes.)`;
+        msgBody = `Hello ${student.name},\n\nHope you are doing well. Just connecting regarding the music classes updates.\n\nFrom Srikanta Banerjee\n(Guitar, Bass Guitar, Piano, Keyboard, Violin, Mandolin Classes.)`;
     }
     
     if(type === 'wa') {
@@ -11658,7 +11820,6 @@ if(!isNaN(iterDate.getTime())) {
         iterDate.setMonth(iterDate.getMonth() + 1);
     }
 }
-
                     if (dueAmt > 0) {
                         feeHTML += `<li style="margin-top: 8px; font-weight: bold; color: #ef4444; background: #fee2e2; padding: 6px; border-radius: 6px; text-align: center;">⚠️ Pending Due: ₹${dueAmt}</li>`;
                     }
@@ -12214,4 +12375,242 @@ window.showInactivePeriodsDetails = function(studentId) {
         confirmButtonText: 'Close',
         confirmButtonColor: 'var(--danger)' // লাল রঙের বাটন
     });
+};
+// ==========================================
+// 🟢 ONLINE EXAM SYSTEM (TEACHER SIDE) - UPDATED WITH SEARCH & PHOTO
+// ==========================================
+
+window.onlineExams = []; // টেম্পোরারি এক্সাম স্টোর করার জন্য
+
+// এক্সাম তৈরি করার পপ-আপ
+window.openCreateOnlineExamModal = function() {
+    let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    
+    // 🟢 আপডেট: স্টুডেন্টদের ছবি, নাম এবং সাবজেক্ট সহ লিস্ট তৈরি
+    let studentCheckboxes = activeSt.map(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        return `
+        <label class="exam-student-item" style="display:flex; align-items:center; gap:12px; padding:8px 10px; border-bottom:1px dashed var(--border-color); cursor:pointer; transition:background 0.2s;">
+            <input type="checkbox" class="exam-student-cb" value="${s.id}" checked style="width:18px; height:18px; accent-color:var(--primary); cursor:pointer; flex-shrink:0;">
+            <img src="${photoSrc}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1; flex-shrink: 0; background: #fff;">
+            <div style="line-height: 1.2; flex-grow: 1;">
+                <span class="exam-student-name" style="font-size:14px; font-weight:700; color:var(--text-main);">${s.name}</span><br>
+                <span style="font-size:11px; color:var(--text-muted); font-weight:600;">(${s.class || 'Music'})</span>
+            </div>
+        </label>
+        `;
+    }).join('');
+
+    if (activeSt.length === 0) {
+        studentCheckboxes = `<div style="padding: 15px; text-align: center; color: var(--text-muted); font-size: 13px;">No active students found</div>`;
+    }
+
+    Swal.fire({
+        title: 'Create Online Exam',
+        html: `
+            <div style="text-align: left; max-height: 70vh; overflow-y: auto; padding-right: 5px;">
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Exam Name:</label>
+                <input id="exam-title" class="swal2-input" placeholder="e.g. Guitar Weekly Test" style="width:100%; margin: 5px 0 15px 0; font-size: 14px;">
+                
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Subject:</label>
+                <input id="exam-subject" class="swal2-input" placeholder="e.g. Guitar, Keyboard" style="width:100%; margin: 5px 0 15px 0; font-size: 14px;">
+                
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Time per Question (Seconds):</label>
+                <input id="exam-timer" type="number" class="swal2-input" placeholder="e.g. 30" value="30" style="width:100%; margin: 5px 0 15px 0; font-size: 14px;">
+
+                <!-- 🟢 আপডেট: Assign to Students সেকশন (Search Bar সহ) -->
+                <div style="background:var(--bg-card); padding:12px; border-radius:10px; border:1px solid var(--border-color); margin-top:10px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <label style="font-size:13px; font-weight:800; color:var(--primary); margin:0;">Assign to Students:</label>
+                        <label style="font-size:11px; font-weight:bold; color:var(--text-main); cursor:pointer; display:flex; align-items:center; gap:5px; background:var(--bg-body); padding:3px 8px; border-radius:4px; border:1px solid var(--border-color);">
+                            <input type="checkbox" checked onchange="window.toggleAllExamStudents(this)" style="accent-color:var(--primary); cursor:pointer;"> Select All
+                        </label>
+                    </div>
+                    
+                    <!-- 🟢 সার্চ বক্স (যেখানে আপনি লাল দাগ দিয়েছেন) -->
+                    <input type="text" id="search-exam-student" placeholder="🔍 Search student by name..." class="swal2-input" onkeyup="window.filterExamStudentList()" style="width: 100%; margin: 0 0 10px 0; font-size: 13px; height: 38px; border-radius: 8px; box-sizing: border-box; background: var(--bg-body);">
+                    
+                    <!-- 🟢 স্টুডেন্ট লিস্ট -->
+                    <div id="exam-student-list-container" style="max-height: 160px; overflow-y: auto; background: var(--bg-body); padding: 5px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        ${studentCheckboxes}
+                    </div>
+                    
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Next: Add Questions <i class="fas fa-arrow-right"></i>',
+        confirmButtonColor: 'var(--primary)',
+        cancelButtonColor: '#ef4444',
+        preConfirm: () => {
+            const title = document.getElementById('exam-title').value.trim();
+            const subject = document.getElementById('exam-subject').value.trim();
+            const timer = parseInt(document.getElementById('exam-timer').value);
+            // যারা টিক দেওয়া আছে এবং যারা সার্চ লিস্টে দৃশ্যমান আছে, তাদের আইডি নেবে
+            const assignedStudents = Array.from(document.querySelectorAll('.exam-student-cb:checked')).map(cb => parseInt(cb.value));
+
+            if (!title || !subject || isNaN(timer) || assignedStudents.length === 0) {
+                Swal.showValidationMessage('Please fill all details and select at least 1 student.');
+                return false;
+            }
+            return { title, subject, timer, assignedStudents, questions: [] };
+        }
+    }).then((res) => {
+        if (res.isConfirmed) {
+            window.currentExamDraft = res.value;
+            window.openAddQuestionModal();
+        }
+    });
+};
+
+// 🟢 NEW: সার্চ করার ফাংশন
+window.filterExamStudentList = function() {
+    const filter = document.getElementById('search-exam-student').value.toUpperCase();
+    document.querySelectorAll('.exam-student-item').forEach(item => {
+        const name = item.querySelector('.exam-student-name').textContent.toUpperCase();
+        if (name.indexOf(filter) > -1) {
+            item.style.display = "flex";
+        } else {
+            item.style.display = "none";
+        }
+    });
+};
+
+// 🟢 NEW: সবাইকে একসাথে সিলেক্ট বা আনসিলেক্ট করার ফাংশন
+window.toggleAllExamStudents = function(source) {
+    document.querySelectorAll('.exam-student-cb').forEach(cb => {
+        // শুধুমাত্র যারা সার্চে দেখা যাচ্ছে, তাদেরকেই সিলেক্ট/আনসিলেক্ট করবে
+        const parentItem = cb.closest('.exam-student-item');
+        if (parentItem && parentItem.style.display !== 'none') {
+            cb.checked = source.checked;
+        }
+    });
+};
+// ==========================================
+// 🟢 EXAM RANKING & PUBLISHING LOGIC (DESIGN UPDATED)
+// ==========================================
+
+window.openExamRankingModal = function() {
+    let allExams = new Set();
+    students.forEach(s => {
+        if(s.exams) s.exams.forEach(e => allExams.add(e.examName));
+    });
+
+    let options = '<option value="" disabled selected>-- Select an Exam --</option>';
+    [...allExams].forEach(ex => {
+        options += `<option value="${ex}">${ex}</option>`;
+    });
+
+    Swal.fire({
+        title: '<div style="font-size:24px; font-weight:800; color:var(--text-main); margin-bottom:10px;"><i class="fas fa-trophy" style="color:#f59e0b; font-size:28px;"></i> Exam Rankings</div>',
+        html: `
+            <div style="padding: 10px 5px;">
+                <!-- 🟢 আপডেটেড এবং সুন্দর ড্রপডাউন ডিজাইন -->
+                <select id="exam-rank-select" onchange="window.renderExamRankingList(this.value)" style="width: 100%; padding: 14px; font-size: 16px; font-weight: 600; color: #065f46; background: #d1fae5; border: 1px solid #10b981; border-radius: 12px; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; text-align: center; box-shadow: inset 0 2px 4px rgba(16, 185, 129, 0.1), 0 2px 4px rgba(0,0,0,0.02); transition: 0.2s;">
+                    ${options}
+                </select>
+                
+                <p style="text-align:center; color:var(--text-muted); font-size:13px; font-weight:500; margin-top: 15px;">
+                    Select an exam to view student ranks.
+                </p>
+                
+                <div id="exam-rank-list" style="max-height: 300px; overflow-y: auto; text-align: left; margin-top: 15px;">
+                    <!-- র‍্যাংক লিস্ট এখানে আসবে -->
+                </div>
+            </div>
+        `,
+        showConfirmButton: false,
+        showCloseButton: true,
+        width: '95%',
+        background: 'var(--bg-card)',
+        padding: '20px 10px'
+    });
+};
+
+window.renderExamRankingList = function(examName) {
+    const listDiv = document.getElementById('exam-rank-list');
+    if(!examName) { listDiv.innerHTML = ''; return; }
+
+    let rankedStudents = [];
+    students.forEach(s => {
+        if (s.exams) {
+            let ex = s.exams.find(e => e.examName === examName);
+            if (ex) {
+                rankedStudents.push({
+                    id: s.id,
+                    name: s.name,
+                    photo: s.photo,
+                    subject: ex.subject,
+                    totalMarks: ex.totalMarks,
+                    obtainedMarks: ex.obtainedMarks,
+                    percentage: parseFloat(ex.percentage)
+                });
+            }
+        }
+    });
+
+    // র‍্যাংক অনুযায়ী (Percentage) সাজানো
+    rankedStudents.sort((a,b) => b.percentage - a.percentage);
+
+    let html = '';
+    rankedStudents.forEach((st, index) => {
+        const rank = index + 1;
+        const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+        let rankBadge = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : `#${rank}`));
+        let color = rank === 1 ? '#f59e0b' : (rank === 2 ? '#64748b' : (rank === 3 ? '#d97706' : '#1e293b'));
+
+        html += `
+            <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-body); padding:10px; border-radius:8px; border:1px solid var(--border-color); margin-bottom:8px; border-left: 4px solid ${color};">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <div style="font-size:20px; font-weight:bold; width: 25px; text-align:center;">${rankBadge}</div>
+                    <img src="${photoSrc}" style="width:35px; height:35px; border-radius:50%; object-fit:cover;">
+                    <div>
+                        <div style="font-size:14px; font-weight:bold; color:var(--text-main);">${st.name}</div>
+                        <div style="font-size:11px; color:var(--text-muted);">${st.subject || 'Music'}</div>
+                    </div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-size:14px; font-weight:900; color:var(--success);">${st.obtainedMarks}/${st.totalMarks}</div>
+                    <div style="font-size:11px; font-weight:bold; color:var(--info);">${st.percentage}%</div>
+                </div>
+            </div>
+        `;
+    });
+
+    if (rankedStudents.length > 0) {
+        html += `
+            <button onclick="window.publishExamToPortal('${examName}')" style="width:100%; margin-top:15px; padding:10px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; box-shadow:0 4px 6px rgba(139,92,246,0.3);">
+                <i class="fas fa-bullhorn"></i> Publish Top 3 to Portal
+            </button>
+            <button onclick="window.hideExamFromPortal()" style="width:100%; margin-top:8px; padding:10px; background:transparent; color:var(--danger); border:1px solid var(--danger); border-radius:8px; font-weight:bold; cursor:pointer;">
+                <i class="fas fa-eye-slash"></i> Hide Exam from Portal
+            </button>
+        `;
+    }
+
+    listDiv.innerHTML = html;
+    // পাবলিশ করার জন্য ডেটা টেম্পোরারি সেভ করে রাখা
+    window.currentExamRankings = { examName: examName, topStudents: rankedStudents.slice(0, 3) };
+};
+
+window.publishExamToPortal = async function(examName) {
+    if(!window.currentExamRankings) return;
+    
+    // Top 3 স্টুডেন্টদের ডেটা সাজিয়ে নেওয়া
+    let top3 = window.currentExamRankings.topStudents.map((st, i) => ({
+        id: st.id, 
+        name: st.name, 
+        photo: st.photo, 
+        rank: i + 1,
+        scoreStr: `${st.percentage}%` // পোর্টালে এই পার্সেন্টেজটাই দেখাবে
+    }));
+
+    await dbSet('published_exam_leaderboard', { examName: examName, topStudents: top3 });
+    Swal.fire('Published!', 'Top 3 students are now live on the portal.', 'success');
+};
+
+window.hideExamFromPortal = async function() {
+    await dbDelete('published_exam_leaderboard');
+    Swal.fire('Hidden', 'Exam leaderboard removed from portal.', 'success');
 };
