@@ -12873,24 +12873,62 @@ window.renderExamRankingList = function(examName) {
     listContainer.innerHTML = html;
 };
 
-window.publishExamRankingsToPortal = async function(examName) {
+// 🟢 FIX 1: Exam Rankings Publish Function (Direct Firebase Push & Instant UI)
+window.publishExamRankingsToPortal = function(examName) {
     if(!window.currentExamTop3ForPublish || window.currentExamTop3ForPublish.length === 0) {
-        Swal.fire('Info', 'No students to publish!', 'info'); return;
+        Swal.fire({title: 'Info', text: 'No students to publish!', icon: 'info', didOpen: (el) => { el.parentElement.style.zIndex = '999999'; }}); 
+        return;
     }
-    Swal.fire({ title: 'Publishing...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    const dataToSave = { examName: examName, topStudents: window.currentExamTop3ForPublish, publishedAt: new Date().toISOString() };
-    try {
-        await dbSet('published_exam_ranking', dataToSave);
-        Swal.fire('Published!', 'Exam rankings are now visible on student portals.', 'success');
-    } catch(e) { Swal.fire('Error', 'Failed to publish.', 'error'); }
-};
 
-window.hideExamRankingsFromPortal = async function() {
-    Swal.fire({ title: 'Hiding...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    try {
-        await dbDelete('published_exam_ranking');
-        Swal.fire('Hidden', 'Exam rankings removed from student portals.', 'success');
-    } catch(e) { Swal.fire('Error', 'Failed to hide.', 'error'); }
+    const dataToSave = {
+        examName: examName,
+        topStudents: window.currentExamTop3ForPublish,
+        publishedAt: new Date().toISOString()
+    };
+    
+    // 🟢 সরাসরি ফায়ারবেস ক্লাউডে ডেটা পুশ করা হচ্ছে (১০০% গ্যারান্টি)
+    const user = firebase.auth().currentUser;
+    const targetUid = user ? user.uid : DOC_ID;
+
+    db.collection('music_classes').doc(targetUid).set({
+        published_exam_ranking: dataToSave
+    }, { merge: true }).catch(e => console.error("Cloud push failed:", e));
+
+    // 🟢 ক্লিক করার সাথে সাথেই সাকসেস নোটিফিকেশন দেখাবে (সবার ওপরে)
+    Swal.fire({
+        toast: true, 
+        position: 'top-end', 
+        icon: 'success', 
+        title: 'Published to Student Portals!', 
+        showConfirmButton: false, 
+        timer: 2500,
+        didOpen: (toast) => {
+            toast.parentElement.style.zIndex = '999999'; 
+        }
+    });
+};
+// 🟢 FIX 2: Hide Exam Rankings from Portal (Direct Firebase Delete)
+window.hideExamRankingsFromPortal = function() {
+    const user = firebase.auth().currentUser;
+    const targetUid = user ? user.uid : DOC_ID;
+
+    // 🟢 ফায়ারবেস ক্লাউড থেকে সরাসরি মুছে ফেলা হচ্ছে
+    db.collection('music_classes').doc(targetUid).update({
+        published_exam_ranking: firebase.firestore.FieldValue.delete()
+    }).catch(e => console.log(e));
+    
+    // 🟢 ক্লিক করার সাথে সাথেই নোটিফিকেশন দেখাবে (সবার ওপরে)
+    Swal.fire({
+        toast: true, 
+        position: 'top-end', 
+        icon: 'success', 
+        title: 'Hidden from Portals', 
+        showConfirmButton: false, 
+        timer: 2500,
+        didOpen: (toast) => {
+            toast.parentElement.style.zIndex = '999999'; 
+        }
+    });
 };
 
 window.deleteStudentExamResult = async function(studentId, examName) {
