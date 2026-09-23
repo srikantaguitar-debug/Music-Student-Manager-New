@@ -12792,6 +12792,9 @@ window.openExamRankingModal = function() {
     });
 };
 
+// ==========================================
+// 🟢 EXAM RANKING LIST (WITH LIVE STATUS BADGE)
+// ==========================================
 window.renderExamRankingList = function(examName) {
     const listContainer = document.getElementById('exam-rank-list');
     if (!listContainer) return;
@@ -12811,12 +12814,10 @@ window.renderExamRankingList = function(examName) {
         return;
     }
 
-    // 🟢 'obtainedMarks' এবং Time দিয়ে সর্ট করা হচ্ছে
     examResults.sort((a, b) => {
         const scoreA = a.result.obtainedMarks !== undefined ? a.result.obtainedMarks : (a.result.score || 0);
         const scoreB = b.result.obtainedMarks !== undefined ? b.result.obtainedMarks : (b.result.score || 0);
         if (scoreB !== scoreA) return scoreB - scoreA;
-        
         const timeA = a.result.timeTakenSeconds || 999999;
         const timeB = b.result.timeTakenSeconds || 999999;
         return timeA - timeB;
@@ -12825,17 +12826,35 @@ window.renderExamRankingList = function(examName) {
     window.currentExamTop3ForPublish = examResults.slice(0, 3).map((item, index) => {
         const res = item.result;
         return {
-            id: item.student.id,
-            name: item.student.name,
-            photo: item.student.photo,
-            rank: index + 1,
-            score: res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0),
-            total: res.totalMarks !== undefined ? res.totalMarks : (res.total || 0),
-            percentage: res.percentage
+            id: item.student.id, name: item.student.name, photo: item.student.photo,
+            rank: index + 1, score: res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0),
+            total: res.totalMarks !== undefined ? res.totalMarks : (res.total || 0), percentage: res.percentage
         };
     });
 
-    let html = '';
+    // 🟢 ম্যাজিক: চেক করা হচ্ছে এই এক্সামটি পোর্টালে পাবলিশ আছে কিনা
+    let isPublished = false;
+    if (typeof globalData !== 'undefined' && globalData.published_exam_ranking) {
+        if (globalData.published_exam_ranking.examName === examName) {
+            isPublished = true;
+        }
+    }
+
+    // 🟢 লাইভ স্ট্যাটাস ব্যাজ ডিজাইন
+    let statusBadgeHtml = isPublished 
+        ? `<div style="text-align:center; margin-bottom: 20px; animation: fadeIn 0.3s;">
+               <span style="background: #dcfce7; color: #166534; padding: 6px 15px; border-radius: 20px; font-size: 13px; font-weight: 800; border: 1px solid #bbf7d0; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(22, 101, 52, 0.1);">
+                   <i class="fas fa-globe" style="color: #10b981;"></i> Published to Student Portal
+               </span>
+           </div>`
+        : `<div style="text-align:center; margin-bottom: 20px; animation: fadeIn 0.3s;">
+               <span style="background: #fef2f2; color: #991b1b; padding: 6px 15px; border-radius: 20px; font-size: 13px; font-weight: 800; border: 1px solid #fecaca; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 2px 5px rgba(153, 27, 27, 0.1);">
+                   <i class="fas fa-eye-slash" style="color: #ef4444;"></i> Hidden from Portal
+               </span>
+           </div>`;
+
+    let html = statusBadgeHtml; // ব্যাজটি সবার ওপরে যোগ করা হলো
+
     examResults.forEach((item, index) => {
         const s = item.student;
         const res = item.result;
@@ -12845,18 +12864,17 @@ window.renderExamRankingList = function(examName) {
         let borderStyle = 'border: 1px solid var(--border-color);';
         let isTop3 = index < 3;
 
-        // 🟢 র‍্যাংকের আইকন এবং বর্ডার কালার
         if (index === 0) {
-            rankIcon = `<svg width="28" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#fbbf24"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
+            rankIcon = `<svg width="24" height="28" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#fbbf24"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">1</text></svg>`;
             borderStyle = 'border: 2px solid #fbbf24; box-shadow: 0 4px 10px rgba(251, 191, 36, 0.15);';
         } else if (index === 1) {
-            rankIcon = `<svg width="28" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#94a3b8"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text></svg>`;
+            rankIcon = `<svg width="24" height="28" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#94a3b8"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">2</text></svg>`;
             borderStyle = 'border: 2px solid #cbd5e1; box-shadow: 0 4px 10px rgba(203, 213, 225, 0.15);';
         } else if (index === 2) {
-            rankIcon = `<svg width="28" height="32" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#d97706"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text></svg>`;
+            rankIcon = `<svg width="24" height="28" viewBox="0 0 24 28" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 0 L12 12 L20 0 H24 L12 16 L0 0 H4 Z" fill="#3b82f6"/><circle cx="12" cy="18" r="8" fill="#d97706"/><text x="12" y="21.5" fill="white" font-size="10" font-weight="bold" font-family="sans-serif" text-anchor="middle">3</text></svg>`;
             borderStyle = 'border: 2px solid #b45309; box-shadow: 0 4px 10px rgba(180, 83, 9, 0.15);';
         } else {
-            rankIcon = `<div style="font-size:18px; font-weight:900; color:#64748b; background:#f1f5f9; width: 34px; height: 34px; display:flex; align-items:center; justify-content:center; border-radius:50%;">#${index + 1}</div>`;
+            rankIcon = `<div style="font-size:16px; font-weight:900; color:#64748b; background:#f1f5f9; width: 30px; height: 30px; display:flex; align-items:center; justify-content:center; border-radius:50%;">#${index + 1}</div>`;
         }
 
         const scoreDisplay = res.obtainedMarks !== undefined ? res.obtainedMarks : (res.score || 0);
@@ -12864,67 +12882,58 @@ window.renderExamRankingList = function(examName) {
         const timeDisplay = res.timeTaken ? res.timeTaken : 'N/A';
         const percentColor = res.percentage >= 40 ? '#10b981' : '#ef4444';
 
-        // 🟢 FIX: ওভারল্যাপ আটকাতে বাটনগুলো নিচে দেওয়া হয়েছে এবং 'word-wrap: break-word' ব্যবহার করে ফুল নাম দেখানো হয়েছে
-        // 🟢 FIX: Certificate লেখা এক লাইনে রাখার জন্য min-width এবং flex-shrink অ্যাড করা হয়েছে
         let top3Buttons = '';
         if (isTop3) {
             top3Buttons = `
-            <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="flex-grow: 1; background:#f59e0b; color:white; border:none; padding:8px 10px; border-radius:10px; font-size:12.5px; font-weight:900; display:flex; align-items:center; justify-content:center; gap:5px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25); white-space: nowrap; min-width: max-content;"><i class="fas fa-award" style="font-size: 14px;"></i> Certificate</button>
-            
-            <div style="display:flex; gap:10px; flex-shrink: 0;">
-                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(37,211,102,0.3);"><i class="fab fa-whatsapp"></i></button>
+            <div style="display:flex; justify-content: space-between; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-color);">
+                <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25);"><i class="fas fa-award" style="font-size: 14px;"></i> Certificate</button>
                 
-                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; width:40px; height:40px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(59,130,246,0.3);"><i class="fas fa-sms"></i></button>
+                <div style="display:flex; gap:10px;">
+                    <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; width:35px; height:35px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(37,211,102,0.3);"><i class="fab fa-whatsapp"></i></button>
+                    <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; width:35px; height:35px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(59,130,246,0.3);"><i class="fas fa-sms"></i></button>
+                </div>
             </div>
             `;
         }
 
         html += `
         <div style="padding:15px; background:var(--bg-card); border-radius:12px; margin-bottom:15px; ${borderStyle}">
-            
-            <!-- টপ সেকশন: র‍্যাংক, ছবি, স্কোর, ডিলিট -->
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; margin-bottom: 10px;">
-                <div style="display:flex; gap:12px; align-items:center;">
-                    <div style="width:34px; flex-shrink: 0; display:flex; justify-content:center;">${rankIcon}</div>
-                    <img src="${photoSrc}" style="width:50px; height:50px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; background: #fff;">
-                </div>
-
-                <div style="display:flex; align-items:center; gap: 15px;">
-                    <div style="text-align:right; line-height: 1.1;">
-                        <div style="font-size:22px; font-weight:900; color:#059669;">${scoreDisplay}/${totalDisplay}</div>
-                        <div style="font-size:13px; font-weight:900; color:${percentColor}; margin-top: 4px;">${res.percentage}%</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px;">
+                <div style="display:flex; gap:10px; align-items:center; flex: 1; min-width: 0;">
+                    <div style="width:30px; display:flex; justify-content:center; flex-shrink: 0;">${rankIcon}</div>
+                    <img src="${photoSrc}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; flex-shrink: 0; background: #fff;">
+                    <div style="line-height:1.3; flex: 1; min-width: 0;">
+                        <div style="font-weight:900; font-size:16px; color:#064e3b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.name}</div>
+                        <div style="font-size:11px; color:var(--text-muted); font-weight: 500; margin-top: 3px;">${s.class || 'Music'} | Time: ${timeDisplay}</div>
                     </div>
-                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName.replace(/'/g, "\\'")}')" style="background:#fff1f2; border:1px solid #fca5a5; color:#ef4444; width:35px; height:35px; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(239,68,68,0.1);" title="Delete Result">
-                        <i class="fas fa-trash-alt" style="font-size: 15px;"></i>
-                    </button>
+                </div>
+                <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink: 0;">
+                    <div style="font-size:18px; font-weight:900; color:var(--primary); line-height: 1;">${scoreDisplay}/${totalDisplay}</div>
+                    <div style="font-size:13px; font-weight:900; color:${percentColor}; margin-top: 4px;">${res.percentage}%</div>
+                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:14px; cursor:pointer; padding:5px 0 0 0; margin-top: 5px;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
                 </div>
             </div>
-
-            <!-- মিডল সেকশন (রেড সার্কেল এরিয়া): ফুল নাম, সাবজেক্ট ও টাইম -->
-            <div style="text-align: left; padding: 5px 0 10px 0;">
-                <div style="font-weight:900; font-size:18px; color:#064e3b; word-wrap: break-word; line-height: 1.3;">${s.name}</div>
-                <div style="display:flex; justify-content: space-between; align-items: center; margin-top: 6px;">
-                    <div style="font-size:13px; color:var(--text-muted); font-weight: 600;">${s.class || 'Music'}</div>
-                    <div style="font-size:12px; color:#64748b; font-weight: 500; background: var(--bg-body); padding: 2px 8px; border-radius: 6px; border: 1px solid var(--border-color);">⏱ Time: ${timeDisplay}</div>
-                </div>
-            </div>
-
-            <!-- বটম সেকশন: বাটনস -->
-            ${isTop3 ? `<div style="display:flex; justify-content: space-between; align-items:center; margin-top:15px; padding-top:15px; border-top:1px dashed var(--border-color); gap: 10px;">${top3Buttons}</div>` : ''}
-
+            ${top3Buttons}
         </div>
         `;
     });
 
-    html += `
-    <div style="display:flex; flex-direction:column; gap:12px; margin-top:25px; border-top:2px dashed #cbd5e1; padding-top:20px;">
-        <button onclick="window.publishExamRankingsToPortal('${examName.replace(/'/g, "\\'")}')" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
+    // 🟢 বাটনগুলো ডাইনামিক করা হয়েছে
+    let publishBtnHtml = isPublished 
+        ? `<button onclick="window.showFastToast('Already Published!', true)" style="background: #9ca3af; color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: not-allowed; display:flex; align-items:center; justify-content:center; gap:8px;">
+            <i class="fas fa-check-circle"></i> Already Published
+           </button>`
+        : `<button onclick="window.publishExamRankingsToPortal('${examName}')" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 10px rgba(139, 92, 246, 0.3); display:flex; align-items:center; justify-content:center; gap:8px;">
             <i class="fas fa-bullhorn"></i> Publish Top 3 to Portal
-        </button>
+           </button>`;
+
+    html += `
+    <div style="display:flex; flex-direction:column; gap:12px; margin-top:25px; border-top:1px dashed var(--border-color); padding-top:20px;">
+        ${publishBtnHtml}
         <button onclick="window.hideExamRankingsFromPortal()" style="background: transparent; color: #ef4444; border: 2px solid #fca5a5; padding: 14px; border-radius: 12px; font-size: 15px; font-weight: bold; cursor: pointer; display:flex; align-items:center; justify-content:center; gap:8px;">
             <i class="fas fa-eye-slash"></i> Hide Exam from Portal
         </button>
-        <button onclick="window.deleteEntireExam('${examName.replace(/'/g, "\\'")}')" style="background: #fee2e2; color: #b91c1c; border: 1px dashed #ef4444; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top:10px;">
+        <button onclick="window.deleteEntireExam('${examName}')" style="background: #fee2e2; color: #b91c1c; border: 1px dashed #ef4444; padding: 10px; border-radius: 12px; font-size: 13px; font-weight: bold; cursor: pointer; margin-top:10px;">
             <i class="fas fa-trash"></i> Delete This Entire Exam
         </button>
     </div>
@@ -12954,79 +12963,61 @@ window.showFastToast = function(msg, isError = false) {
 };
 
 // =========================================================================
-// 🟢 PUBLISH EXAM TO PORTAL (Local Memory Sync + Firebase)
+// 🟢 PUBLISH EXAM TO PORTAL (INSTANT OFFLINE QUEUE)
 // =========================================================================
 window.publishExamRankingsToPortal = function(examName) {
     if(!window.currentExamTop3ForPublish || window.currentExamTop3ForPublish.length === 0) {
-        Swal.fire({toast: true, position: 'top-end', icon: 'warning', title: 'No students to publish!', showConfirmButton: false, timer: 2000}); 
+        window.showFastToast('No students to publish!', true); 
         return;
     }
 
     const cleanTopStudents = window.currentExamTop3ForPublish.map(st => ({
-        id: st.id || Date.now(),
-        name: st.name || 'Unknown',
-        photo: st.photo || null,
-        rank: st.rank || 0,
-        score: st.score || 0,
-        total: st.total || 0,
-        percentage: st.percentage || 0
+        id: st.id || Date.now(), name: st.name || 'Unknown', photo: st.photo || null,
+        rank: st.rank || 0, score: st.score || 0, total: st.total || 0, percentage: st.percentage || 0
     }));
 
-    const dataToSave = { 
-        examName: examName || 'Exam', 
-        topStudents: cleanTopStudents, 
-        publishedAt: new Date().toISOString() 
-    };
+    const dataToSave = { examName: examName || 'Exam', topStudents: cleanTopStudents, publishedAt: new Date().toISOString() };
     
-    // 🟢 ১. লোকাল মেমোরি আপডেট (যাতে রিফ্রেশ ছাড়াই পোর্টালে সাথে সাথে শো করে)
-    if (typeof globalData !== 'undefined') {
-        globalData.published_exam_ranking = dataToSave;
-    }
+    // ১. লোকাল মেমোরি আপডেট
+    if (typeof globalData === 'undefined') window.globalData = {};
+    window.globalData.published_exam_ranking = dataToSave;
 
-    // 🟢 ২. সাকসেস মেসেজ
-    Swal.fire({ 
-        toast: true, position: 'top-end', icon: 'success', 
-        title: 'Published to Portals!', showConfirmButton: false, timer: 2500,
-        didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
-    });
+    // ২. UI রিফ্রেশ এবং সাকসেস মেসেজ
+    window.renderExamRankingList(examName);
+    window.showFastToast('Published to Portals successfully!');
 
-    // 🟢 ৩. ফায়ারবেসে আপডেট
+    // ৩. 🟢 সরাসরি ফায়ারবেসে কমান্ড (কোনো setTimeout বা Delay ছাড়া)
     const targetUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
-    db.collection('music_classes').doc(targetUid).set({ 
-        published_exam_ranking: dataToSave 
-    }, { merge: true }).catch(e => console.log(e));
+    db.collection('music_classes').doc(targetUid).set({ published_exam_ranking: dataToSave }, { merge: true }).catch(e => console.log(e));
 };
 
 // =========================================================================
-// 🟢 HIDE EXAM FROM PORTAL (Local Memory Sync + Firebase)
+// 🟢 HIDE EXAM FROM PORTAL (INSTANT OFFLINE QUEUE)
 // =========================================================================
 window.hideExamRankingsFromPortal = function() {
     
-    // 🟢 ১. লোকাল মেমোরি আপডেট (যাতে রিফ্রেশ ছাড়াই পোর্টাল থেকে গায়েব হয়ে যায়)
+    // ১. লোকাল মেমোরি আপডেট
     if (typeof globalData !== 'undefined') {
-        delete globalData.published_exam_ranking;
+        delete window.globalData.published_exam_ranking;
     }
 
-    // 🟢 ২. সাকসেস মেসেজ
-    Swal.fire({ 
-        toast: true, position: 'top-end', icon: 'success', 
-        title: 'Hidden from Portals', showConfirmButton: false, timer: 2500,
-        didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
-    });
+    // ২. UI রিফ্রেশ এবং সাকসেস মেসেজ
+    const currentExam = document.getElementById('exam-rank-select').value;
+    if(currentExam) window.renderExamRankingList(currentExam);
+    window.showFastToast('Hidden from Portals successfully!');
 
-    // 🟢 ৩. ফায়ারবেসে আপডেট (বুলেটপ্রুফ লজিক)
+    // ৩. 🟢 সরাসরি ফায়ারবেসে কমান্ড (কোনো Delay ছাড়া)
     const targetUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
-    
     db.collection('music_classes').doc(targetUid).update({
         published_exam_ranking: firebase.firestore.FieldValue.delete()
     }).catch(e => {
-        // যদি update কাজ না করে, তবে Set দিয়ে মুছে দেবে (Fallback Security)
-        db.collection('music_classes').doc(targetUid).set({ 
-            published_exam_ranking: null 
-        }, { merge: true }).catch(err => console.log(err));
+        db.collection('music_classes').doc(targetUid).set({ published_exam_ranking: null }, { merge: true }).catch(err => console.log(err));
     });
 };
 
+// =========================================================================
+// 🟢 DELETE ENTIRE EXAM (INSTANT OFFLINE QUEUE)
+// =========================================================================
 window.deleteEntireExam = function(examName) {
      Swal.fire({
         title: 'Delete Entire Exam?',
@@ -13039,67 +13030,56 @@ window.deleteEntireExam = function(examName) {
     }).then((result) => {
         if (result.isConfirmed) {
             
-            // 🟢 ১. ক্লিক করার সাথেই সাকসেস মেসেজ!
-            Swal.fire({ 
-                toast: true, position: 'top-end', icon: 'success', 
-                title: 'Exam Deleted Successfully!', showConfirmButton: false, timer: 2500, 
-                didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; } 
-            });
+            // ১. সাকসেস মেসেজ
+            window.showFastToast('Exam Deleted Successfully!');
             
             const user = firebase.auth().currentUser;
             const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
 
-            // 🟢 ২. লোকাল মেমোরি থেকে মুছে ফেলা হলো
+            // ২. লোকাল মেমোরি থেকে ডিলিট
             students.forEach(s => {
                 if (s.exams !== undefined) {
                     s.exams = s.exams.filter(e => e.examName !== examName);
                 }
             });
 
-            // 🟢 ৩. স্ক্রিন রিফ্রেশ (চোখের পলকে এক্সাম লিস্ট থেকে মুছে যাবে)
+            // ৩. স্ক্রিন রিফ্রেশ
             if(typeof window.openExamRankingModal === 'function') {
                 window.openExamRankingModal(); 
             }
 
-            // 🟢 ৪. ফায়ারবেসে ডিলিট হবে (বুলেটপ্রুফ লজিক)
-            setTimeout(() => {
-                
-                // Active Exams কালেকশন থেকে ডিলিট (Title ফিল্টার)
-                db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
-                .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
-                
-                // Active Exams কালেকশন থেকে ডিলিট (examName ফিল্টার - এক্সট্রা সেফটি)
-                db.collection('music_classes').doc(targetUid).collection('active_exams').where('examName', '==', examName).get()
-                .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
+            // ৪. 🟢 সরাসরি ফায়ারবেস অফলাইন কিউ (Queue) এ পাঠানো (কোনো setTimeout ছাড়া)
+            
+            // Active Exams কালেকশন থেকে ডিলিট
+            db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
+            .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
+            
+            db.collection('music_classes').doc(targetUid).collection('active_exams').where('examName', '==', examName).get()
+            .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
 
-                // পোর্টাল পাবলিশ থেকে হাইড
-                db.collection('music_classes').doc(targetUid).update({
-                    published_exam_ranking: firebase.firestore.FieldValue.delete()
-                }).catch(e=>console.log(e));
+            // পোর্টাল থেকে হাইড
+            db.collection('music_classes').doc(targetUid).update({
+                published_exam_ranking: firebase.firestore.FieldValue.delete()
+            }).catch(e=>console.log(e));
 
-                // 🟢 স্টুডেন্টদের প্রোফাইল আপডেট (Update এর বদলে Set + Merge ব্যবহার করা হলো যাতে ক্র্যাশ না করে)
-                let batch = db.batch();
-                let count = 0;
-                
-                students.forEach(s => {
-                    if (s.exams !== undefined) {
-                        const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
-                        batch.set(studentRef, { exams: s.exams }, { merge: true });
-                        count++;
-                        
-                        if(count === 400) {
-                            batch.commit().catch(e=>console.log("Batch Error:", e));
-                            batch = db.batch();
-                            count = 0;
-                        }
+            // স্টুডেন্ট প্রোফাইল আপডেট
+            let batch = db.batch();
+            let count = 0;
+            students.forEach(s => {
+                if (s.exams !== undefined) {
+                    const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
+                    batch.set(studentRef, { exams: s.exams }, { merge: true });
+                    count++;
+                    if(count === 400) {
+                        batch.commit().catch(e=>console.log(e));
+                        batch = db.batch();
+                        count = 0;
                     }
-                });
-                
-                if(count > 0) {
-                    batch.commit().catch(e=>console.log("Batch Error:", e));
                 }
-                
-            }, 300); // ব্যাকগ্রাউন্ড প্রসেস
+            });
+            if(count > 0) {
+                batch.commit().catch(e=>console.log(e));
+            }
         }
     });
 };
