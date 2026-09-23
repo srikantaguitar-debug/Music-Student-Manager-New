@@ -12934,67 +12934,65 @@ window.renderExamRankingList = function(examName) {
 };
 
 // =========================================================================
+// 🟢 CUSTOM FAST TOAST MESSAGE (Swal.fire Overload Fix)
+// =========================================================================
+window.showFastToast = function(msg, isError = false) {
+    let bg = isError ? '#ef4444' : '#10b981';
+    let icon = isError ? 'fa-exclamation-circle' : 'fa-check-circle';
+    let toast = document.createElement('div');
+    toast.innerHTML = `<i class="fas ${icon}"></i> ${msg}`;
+    toast.style.cssText = `position:fixed; top:20px; right:20px; background:${bg}; color:white; padding:12px 20px; border-radius:8px; font-family:'Poppins', sans-serif; font-weight:bold; font-size:14px; box-shadow:0 4px 15px rgba(0,0,0,0.3); z-index:9999999; transition: transform 0.3s ease, opacity 0.3s ease; transform: translateX(100%); opacity: 0; display:flex; align-items:center; gap:8px; pointer-events:none;`;
+    document.body.appendChild(toast);
+    
+    // অ্যানিমেশন দিয়ে স্লাইড করে আসবে
+    setTimeout(() => { toast.style.transform = 'translateX(0)'; toast.style.opacity = '1'; }, 50);
+    // আড়াই সেকেন্ড পর চলে যাবে
+    setTimeout(() => { 
+        toast.style.transform = 'translateX(100%)'; toast.style.opacity = '0'; 
+        setTimeout(() => toast.remove(), 300); 
+    }, 2500);
+};
+
+// =========================================================================
 // 🟢 FINAL EXAM PUBLISH & HIDE FIX (ULTRA FAST & OFFLINE SUPPORTED)
 // =========================================================================
 
 window.publishExamRankingsToPortal = function(examName) {
     if(!window.currentExamTop3ForPublish || window.currentExamTop3ForPublish.length === 0) {
-        Swal.fire({toast: true, position: 'top-end', icon: 'warning', title: 'No students to publish!', showConfirmButton: false, timer: 2000, didOpen: (t) => { t.parentElement.style.zIndex = '999999'; }}); 
+        window.showFastToast('No students to publish!', true); 
         return;
     }
 
-    // 🟢 ১. কোনো ওয়েটিং ছাড়াই সাথে সাথে সাকসেস পপআপ!
-    Swal.fire({
-        toast: true, position: 'top-end', icon: 'success', 
-        title: 'Published to Portals!', showConfirmButton: false, timer: 2500,
-        didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
-    });
+    // 🟢 ১. কোনো ওয়েটিং ছাড়াই সাথে সাথে সাকসেস মেসেজ!
+    window.showFastToast('Published to Portals successfully!');
 
     const cleanTopStudents = window.currentExamTop3ForPublish.map(st => ({
-        id: st.id || Date.now(),
-        name: st.name || 'Unknown',
-        photo: st.photo || null,
-        rank: st.rank || 0,
-        score: st.score || 0,
-        total: st.total || 0,
-        percentage: st.percentage || 0
+        id: st.id || Date.now(), name: st.name || 'Unknown', photo: st.photo || null,
+        rank: st.rank || 0, score: st.score || 0, total: st.total || 0, percentage: st.percentage || 0
     }));
 
-    const dataToSave = { 
-        examName: examName || 'Exam', 
-        topStudents: cleanTopStudents, 
-        publishedAt: new Date().toISOString() 
-    };
-    
-    const user = firebase.auth().currentUser;
-    const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+    const dataToSave = { examName: examName || 'Exam', topStudents: cleanTopStudents, publishedAt: new Date().toISOString() };
+    const targetUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
 
     // 🟢 ২. অ্যাপ কেটে দিলেও সেভ হবে (Background Sync)
     setTimeout(() => {
-        db.collection('music_classes').doc(targetUid).set({ published_exam_ranking: dataToSave }, { merge: true }).catch(e => console.log("Offline sync pending..."));
-    }, 100);
+        db.collection('music_classes').doc(targetUid).set({ published_exam_ranking: dataToSave }, { merge: true }).catch(e => console.log(e));
+    }, 50);
 };
 
-
 window.hideExamRankingsFromPortal = function() {
-    // 🟢 ১. কোনো ওয়েটিং ছাড়াই সাথে সাথে সাকসেস পপআপ!
-    Swal.fire({
-        toast: true, position: 'top-end', icon: 'success', 
-        title: 'Hidden from Portals', showConfirmButton: false, timer: 2500,
-        didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
-    });
+    // 🟢 ১. কোনো ওয়েটিং ছাড়াই সাথে সাথে সাকসেস মেসেজ!
+    window.showFastToast('Hidden from Portals successfully!');
 
-    const user = firebase.auth().currentUser;
-    const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+    const targetUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
 
     // 🟢 ২. অ্যাপ কেটে দিলেও হাইড হবে (Background Sync)
     setTimeout(() => {
         db.collection('music_classes').doc(targetUid).update({
             published_exam_ranking: firebase.firestore.FieldValue.delete()
-        }).catch(e => console.log("Offline sync pending..."));
-    }, 100);
+        }).catch(e => console.log(e));
+    }, 50);
 };
-
 
 window.deleteEntireExam = function(examName) {
      Swal.fire({
@@ -13008,67 +13006,52 @@ window.deleteEntireExam = function(examName) {
     }).then((result) => {
         if (result.isConfirmed) {
             
-            // 🟢 ১. ক্লিক করার সাথেই সাকসেস মেসেজ!
-            Swal.fire({ 
-                toast: true, position: 'top-end', icon: 'success', 
-                title: 'Exam Deleted Successfully!', showConfirmButton: false, timer: 2500, 
-                didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; } 
-            });
-            
-            const user = firebase.auth().currentUser;
-            const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
-
-            // 🟢 ২. লোকাল মেমোরি থেকে মুছে ফেলা হলো
+            // 🟢 ১. লোকাল মেমোরি থেকে মুছে ফেলা হলো (যাতে লিস্ট থেকে সাথে সাথে গায়েব হয়ে যায়)
             students.forEach(s => {
-                if (s.exams !== undefined) {
+                if (s.exams) {
                     s.exams = s.exams.filter(e => e.examName !== examName);
                 }
             });
 
-            // 🟢 ৩. স্ক্রিন রিফ্রেশ (চোখের পলকে এক্সাম লিস্ট থেকে মুছে যাবে)
+            // 🟢 ২. স্ক্রিন রিফ্রেশ (চোখের পলকে এক্সাম গায়েব হবে)
             if(typeof window.openExamRankingModal === 'function') {
                 window.openExamRankingModal(); 
             }
 
-            // 🟢 ৪. ফায়ারবেসে ডিলিট হবে (বুলেটপ্রুফ লজিক)
+            // 🟢 ৩. স্ক্রিনের ডান কোণায় কাস্টম সাকসেস মেসেজ আসবে
             setTimeout(() => {
-                
-                // Active Exams কালেকশন থেকে ডিলিট (Title ফিল্টার)
-                db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
-                .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
-                
-                // Active Exams কালেকশন থেকে ডিলিট (examName ফিল্টার - এক্সট্রা সেফটি)
-                db.collection('music_classes').doc(targetUid).collection('active_exams').where('examName', '==', examName).get()
-                .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
+                window.showFastToast('Exam Deleted Successfully!');
+            }, 300);
 
+            // 🟢 ৪. আপনি অ্যাপ কেটে দিলেও ব্যাকগ্রাউন্ডে ডিলিট হয়ে যাবে!
+            const targetUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+            setTimeout(() => {
+                // Active Exams কালেকশন থেকে ডিলিট
+                db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
+                .then(snap => {
+                    snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e)));
+                }).catch(e=>console.log(e));
+                
                 // পোর্টাল পাবলিশ থেকে হাইড
                 db.collection('music_classes').doc(targetUid).update({
                     published_exam_ranking: firebase.firestore.FieldValue.delete()
                 }).catch(e=>console.log(e));
 
-                // 🟢 স্টুডেন্টদের প্রোফাইল আপডেট (Update এর বদলে Set + Merge ব্যবহার করা হলো যাতে ক্র্যাশ না করে)
+                // স্টুডেন্টদের প্রোফাইল আপডেট (৪০০ করে ব্যাচ, হ্যাং করবে না)
                 let batch = db.batch();
                 let count = 0;
-                
                 students.forEach(s => {
-                    if (s.exams !== undefined) {
-                        const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
-                        batch.set(studentRef, { exams: s.exams }, { merge: true });
-                        count++;
-                        
-                        if(count === 400) {
-                            batch.commit().catch(e=>console.log("Batch Error:", e));
-                            batch = db.batch();
-                            count = 0;
-                        }
+                    const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
+                    batch.update(studentRef, { exams: s.exams });
+                    count++;
+                    if(count === 400) {
+                        batch.commit().catch(e=>console.log(e));
+                        batch = db.batch();
+                        count = 0;
                     }
                 });
-                
-                if(count > 0) {
-                    batch.commit().catch(e=>console.log("Batch Error:", e));
-                }
-                
-            }, 300); // ব্যাকগ্রাউন্ড প্রসেস
+                if(count > 0) batch.commit().catch(e=>console.log(e));
+            }, 500); 
         }
     });
 };
