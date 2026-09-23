@@ -13039,52 +13039,67 @@ window.deleteEntireExam = function(examName) {
     }).then((result) => {
         if (result.isConfirmed) {
             
-            // 🟢 ১. লোকাল মেমোরি থেকে মুছে ফেলা হলো (যাতে লিস্ট থেকে সাথে সাথে গায়েব হয়ে যায়)
+            // 🟢 ১. ক্লিক করার সাথেই সাকসেস মেসেজ!
+            Swal.fire({ 
+                toast: true, position: 'top-end', icon: 'success', 
+                title: 'Exam Deleted Successfully!', showConfirmButton: false, timer: 2500, 
+                didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; } 
+            });
+            
+            const user = firebase.auth().currentUser;
+            const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+
+            // 🟢 ২. লোকাল মেমোরি থেকে মুছে ফেলা হলো
             students.forEach(s => {
-                if (s.exams) {
+                if (s.exams !== undefined) {
                     s.exams = s.exams.filter(e => e.examName !== examName);
                 }
             });
 
-            // 🟢 ২. স্ক্রিন রিফ্রেশ (চোখের পলকে এক্সাম গায়েব হবে)
+            // 🟢 ৩. স্ক্রিন রিফ্রেশ (চোখের পলকে এক্সাম লিস্ট থেকে মুছে যাবে)
             if(typeof window.openExamRankingModal === 'function') {
                 window.openExamRankingModal(); 
             }
 
-            // 🟢 ৩. স্ক্রিনের ডান কোণায় কাস্টম সাকসেস মেসেজ আসবে
+            // 🟢 ৪. ফায়ারবেসে ডিলিট হবে (বুলেটপ্রুফ লজিক)
             setTimeout(() => {
-                window.showFastToast('Exam Deleted Successfully!');
-            }, 300);
-
-            // 🟢 ৪. আপনি অ্যাপ কেটে দিলেও ব্যাকগ্রাউন্ডে ডিলিট হয়ে যাবে!
-            const targetUid = firebase.auth().currentUser ? firebase.auth().currentUser.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
-            setTimeout(() => {
-                // Active Exams কালেকশন থেকে ডিলিট
-                db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
-                .then(snap => {
-                    snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e)));
-                }).catch(e=>console.log(e));
                 
+                // Active Exams কালেকশন থেকে ডিলিট (Title ফিল্টার)
+                db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
+                .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
+                
+                // Active Exams কালেকশন থেকে ডিলিট (examName ফিল্টার - এক্সট্রা সেফটি)
+                db.collection('music_classes').doc(targetUid).collection('active_exams').where('examName', '==', examName).get()
+                .then(snap => { snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e))); }).catch(e=>console.log(e));
+
                 // পোর্টাল পাবলিশ থেকে হাইড
                 db.collection('music_classes').doc(targetUid).update({
                     published_exam_ranking: firebase.firestore.FieldValue.delete()
                 }).catch(e=>console.log(e));
 
-                // স্টুডেন্টদের প্রোফাইল আপডেট (৪০০ করে ব্যাচ, হ্যাং করবে না)
+                // 🟢 স্টুডেন্টদের প্রোফাইল আপডেট (Update এর বদলে Set + Merge ব্যবহার করা হলো যাতে ক্র্যাশ না করে)
                 let batch = db.batch();
                 let count = 0;
+                
                 students.forEach(s => {
-                    const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
-                    batch.update(studentRef, { exams: s.exams });
-                    count++;
-                    if(count === 400) {
-                        batch.commit().catch(e=>console.log(e));
-                        batch = db.batch();
-                        count = 0;
+                    if (s.exams !== undefined) {
+                        const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
+                        batch.set(studentRef, { exams: s.exams }, { merge: true });
+                        count++;
+                        
+                        if(count === 400) {
+                            batch.commit().catch(e=>console.log("Batch Error:", e));
+                            batch = db.batch();
+                            count = 0;
+                        }
                     }
                 });
-                if(count > 0) batch.commit().catch(e=>console.log(e));
-            }, 500); 
+                
+                if(count > 0) {
+                    batch.commit().catch(e=>console.log("Batch Error:", e));
+                }
+                
+            }, 300); // ব্যাকগ্রাউন্ড প্রসেস
         }
     });
 };
