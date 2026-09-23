@@ -12872,7 +12872,7 @@ window.renderExamRankingList = function(examName) {
                </span>
            </div>`;
 
-    let html = statusBadgeHtml; // ব্যাজটি সবার ওপরে যোগ করা হলো
+    let html = statusBadgeHtml; //ব্যাজটি সবার ওপরে যোগ করা হলো
 
     examResults.forEach((item, index) => {
         const s = item.student;
@@ -12917,20 +12917,27 @@ window.renderExamRankingList = function(examName) {
 
         html += `
         <div style="padding:15px; background:var(--bg-card); border-radius:12px; margin-bottom:15px; ${borderStyle}">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px;">
-                <div style="display:flex; gap:10px; align-items:center; flex: 1; min-width: 0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px; flex-wrap: wrap;">
+                
+                <!-- 🟢 Left: Rank, Photo, Name & Subject -->
+                <div style="display:flex; gap:12px; align-items:center; flex: 1; min-width: 150px;">
                     <div style="width:30px; display:flex; justify-content:center; flex-shrink: 0;">${rankIcon}</div>
-                    <img src="${photoSrc}" style="width:45px; height:45px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; flex-shrink: 0; background: #fff;">
-                    <div style="line-height:1.3; flex: 1; min-width: 0;">
-                        <div style="font-weight:900; font-size:16px; color:#064e3b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${s.name}</div>
-                        <div style="font-size:11px; color:var(--text-muted); font-weight: 500; margin-top: 3px;">${s.class || 'Music'} | Time: ${timeDisplay}</div>
+                    <img src="${photoSrc}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; flex-shrink: 0; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <div style="flex: 1;">
+                        <div style="font-weight:900; font-size:16px; color:#064e3b; word-wrap: break-word; white-space: normal; line-height: 1.3;">${s.name}</div>
+                        <div style="font-size:12px; color:var(--text-muted); font-weight: 700; margin-top: 4px;">${s.class || 'Music'}</div>
+                        <div style="font-size:11px; color:var(--text-muted); font-weight: 600; margin-top: 2px;"><i class="far fa-clock"></i> Time: ${timeDisplay}</div>
                     </div>
                 </div>
-                <div style="display:flex; flex-direction:column; align-items:flex-end; flex-shrink: 0;">
-                    <div style="font-size:18px; font-weight:900; color:var(--primary); line-height: 1;">${scoreDisplay}/${totalDisplay}</div>
-                    <div style="font-size:13px; font-weight:900; color:${percentColor}; margin-top: 4px;">${res.percentage}%</div>
-                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:14px; cursor:pointer; padding:5px 0 0 0; margin-top: 5px;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
+
+                <!-- 🟢 Right: Marks & Delete Button -->
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink: 0; background: #f8fafc; padding: 10px 15px; border-radius: 10px; border: 1px dashed #cbd5e1; min-width: 70px;">
+                    <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Marks</div>
+                    <div style="font-size:22px; font-weight:900; color:var(--primary); line-height: 1;">${scoreDisplay}<span style="font-size:14px; color:#64748b;">/${totalDisplay}</span></div>
+                    <div style="font-size:12px; font-weight:900; color:${percentColor}; margin-top: 6px; background: #fff; padding: 3px 8px; border-radius: 6px; border: 1px solid ${percentColor}40;">${res.percentage}%</div>
+                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:16px; cursor:pointer; padding:8px 0 0 0; margin-top: 5px;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
                 </div>
+                
             </div>
             ${top3Buttons}
         </div>
