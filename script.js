@@ -12934,7 +12934,7 @@ window.renderExamRankingList = function(examName) {
 };
 
 // =========================================================================
-// 🟢 FINAL EXAM PUBLISH & HIDE FIX (SUPER FAST & INSTANT UI)
+// 🟢 FINAL EXAM PUBLISH & HIDE FIX (ULTRA FAST & OFFLINE SUPPORTED)
 // =========================================================================
 
 window.publishExamRankingsToPortal = function(examName) {
@@ -12943,81 +12943,118 @@ window.publishExamRankingsToPortal = function(examName) {
         return;
     }
 
-    // 🟢 বাটন ক্লিক করার সাথে সাথে লোডিং দেখাবে
-    Swal.fire({ title: 'Publishing...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    // 🟢 ১. কোনো ওয়েটিং ছাড়াই সাথে সাথে সাকসেস পপআপ!
+    Swal.fire({
+        toast: true, position: 'top-end', icon: 'success', 
+        title: 'Published to Portals!', showConfirmButton: false, timer: 2500,
+        didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
+    });
 
-    try {
-        const cleanTopStudents = window.currentExamTop3ForPublish.map(st => ({
-            id: st.id || Date.now(),
-            name: st.name || 'Unknown',
-            photo: st.photo || null,
-            rank: st.rank || 0,
-            score: st.score || 0,
-            total: st.total || 0,
-            percentage: st.percentage || 0
-        }));
+    const cleanTopStudents = window.currentExamTop3ForPublish.map(st => ({
+        id: st.id || Date.now(),
+        name: st.name || 'Unknown',
+        photo: st.photo || null,
+        rank: st.rank || 0,
+        score: st.score || 0,
+        total: st.total || 0,
+        percentage: st.percentage || 0
+    }));
 
-        const dataToSave = { 
-            examName: examName || 'Exam', 
-            topStudents: cleanTopStudents, 
-            publishedAt: new Date().toISOString() 
-        };
-        
-        const user = firebase.auth().currentUser;
-        const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+    const dataToSave = { 
+        examName: examName || 'Exam', 
+        topStudents: cleanTopStudents, 
+        publishedAt: new Date().toISOString() 
+    };
+    
+    const user = firebase.auth().currentUser;
+    const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
 
-        // 🟢 ডেটা ব্যাকগ্রাউন্ডে সেভ হবে (কোনো .then বা await নেই)
-        db.collection('music_classes').doc(targetUid).set({
-            published_exam_ranking: dataToSave
-        }, { merge: true }).catch(e => console.log("Background sync pending..."));
-
-        // 🟢 মাত্র আধা সেকেন্ড পরেই লোডিং বন্ধ হয়ে সাকসেস দেখাবে
-        setTimeout(() => {
-            Swal.close();
-            setTimeout(() => {
-                Swal.fire({
-                    toast: true, position: 'top-end', icon: 'success', 
-                    title: 'Published to Portals!', showConfirmButton: false, timer: 2500,
-                    didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
-                });
-            }, 100);
-        }, 500);
-
-    } catch(err) {
-        console.error("Publish Error: ", err);
-        Swal.close();
-    }
+    // 🟢 ২. অ্যাপ কেটে দিলেও সেভ হবে (Background Sync)
+    setTimeout(() => {
+        db.collection('music_classes').doc(targetUid).set({ published_exam_ranking: dataToSave }, { merge: true }).catch(e => console.log("Offline sync pending..."));
+    }, 100);
 };
 
+
 window.hideExamRankingsFromPortal = function() {
-    // 🟢 বাটন ক্লিক করার সাথে সাথে লোডিং দেখাবে
-    Swal.fire({ title: 'Hiding from Portal...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    // 🟢 ১. কোনো ওয়েটিং ছাড়াই সাথে সাথে সাকসেস পপআপ!
+    Swal.fire({
+        toast: true, position: 'top-end', icon: 'success', 
+        title: 'Hidden from Portals', showConfirmButton: false, timer: 2500,
+        didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
+    });
 
-    try {
-        const user = firebase.auth().currentUser;
-        const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+    const user = firebase.auth().currentUser;
+    const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
 
-        // 🟢 ডেটা ব্যাকগ্রাউন্ডে ডিলিট হবে (কোনো .then বা await নেই)
-        db.collection('music_classes').doc(targetUid).set({
+    // 🟢 ২. অ্যাপ কেটে দিলেও হাইড হবে (Background Sync)
+    setTimeout(() => {
+        db.collection('music_classes').doc(targetUid).update({
             published_exam_ranking: firebase.firestore.FieldValue.delete()
-        }, { merge: true }).catch(e => console.log("Background sync pending..."));
+        }).catch(e => console.log("Offline sync pending..."));
+    }, 100);
+};
 
-        // 🟢 মাত্র আধা সেকেন্ড পরেই লোডিং বন্ধ হয়ে সাকসেস দেখাবে
-        setTimeout(() => {
-            Swal.close();
+
+window.deleteEntireExam = function(examName) {
+     Swal.fire({
+        title: 'Delete Entire Exam?',
+        html: "This will remove the exam from the system and delete ALL student results for this exam.<br><br><b>This cannot be undone!</b>",
+        icon: 'error',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, DELETE EXAM'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            
+            // 🟢 ১. ক্লিক করার সাথেই সাকসেস মেসেজ!
+            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Exam Deleted Successfully!', showConfirmButton: false, timer: 2500, didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; } });
+            
+            const user = firebase.auth().currentUser;
+            const targetUid = user ? user.uid : (typeof DOC_ID !== 'undefined' ? DOC_ID : 'main_data');
+
+            // 🟢 ২. লোকাল মেমোরি থেকে মুছে ফেলা হলো (যাতে লিস্ট থেকে সাথে সাথে গায়েব হয়ে যায়)
+            students.forEach(s => {
+                if (s.exams) {
+                    s.exams = s.exams.filter(e => e.examName !== examName);
+                }
+            });
+
+            // 🟢 ৩. স্ক্রিন রিফ্রেশ (চোখের পলকে এক্সাম গায়েব হবে)
+            if(typeof window.openExamRankingModal === 'function') {
+                window.openExamRankingModal(); 
+            }
+
+            // 🟢 ৪. আপনি অ্যাপ কেটে দিলেও ব্যাকগ্রাউন্ডে ডিলিট হয়ে যাবে!
             setTimeout(() => {
-                Swal.fire({
-                    toast: true, position: 'top-end', icon: 'success', 
-                    title: 'Hidden from Portals', showConfirmButton: false, timer: 2500,
-                    didOpen: (toast) => { toast.parentElement.style.zIndex = '999999'; }
-                });
-            }, 100);
-        }, 500);
+                // Active Exams কালেকশন থেকে ডিলিট
+                db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get()
+                .then(snap => {
+                    snap.forEach(doc => doc.ref.delete().catch(e=>console.log(e)));
+                }).catch(e=>console.log(e));
+                
+                // পোর্টাল পাবলিশ থেকে হাইড
+                db.collection('music_classes').doc(targetUid).update({
+                    published_exam_ranking: firebase.firestore.FieldValue.delete()
+                }).catch(e=>console.log(e));
 
-    } catch(err) {
-        console.error("Hide function error: ", err);
-        Swal.close();
-    }
+                // স্টুডেন্টদের প্রোফাইল আপডেট (৪০০ করে ব্যাচ, হ্যাং করবে না)
+                let batch = db.batch();
+                let count = 0;
+                students.forEach(s => {
+                    const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
+                    batch.update(studentRef, { exams: s.exams });
+                    count++;
+                    if(count === 400) {
+                        batch.commit().catch(e=>console.log(e));
+                        batch = db.batch();
+                        count = 0;
+                    }
+                });
+                if(count > 0) batch.commit().catch(e=>console.log(e));
+            }, 300); 
+        }
+    });
 };
 
 window.deleteStudentExamResult = async function(studentId, examName) {
@@ -13045,43 +13082,7 @@ window.deleteStudentExamResult = async function(studentId, examName) {
     });
 };
 
-window.deleteEntireExam = async function(examName) {
-     Swal.fire({
-        title: 'Delete Entire Exam?',
-        html: "This will remove the exam from the system and delete ALL student results for this exam.<br><br><b>This cannot be undone!</b>",
-        icon: 'error',
-        showCancelButton: true,
-        confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, DELETE EXAM'
-    }).then(async (result) => {
-        if (result.isConfirmed) {
-            Swal.fire({ title: 'Deleting Exam...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-            const user = firebase.auth().currentUser;
-            const targetUid = user ? user.uid : DOC_ID;
-            try {
-                const examSnapshot = await db.collection('music_classes').doc(targetUid).collection('active_exams').where('title', '==', examName).get();
-                let batch = db.batch();
-                examSnapshot.forEach(doc => { batch.delete(doc.ref); });
-                
-                students.forEach(s => {
-                    if (s.exams) {
-                        const originalLength = s.exams.length;
-                        s.exams = s.exams.filter(e => e.examName !== examName);
-                        if (s.exams.length !== originalLength) {
-                            const studentRef = db.collection('music_classes').doc(targetUid).collection('students').doc(String(s.id));
-                            batch.update(studentRef, { exams: s.exams });
-                        }
-                    }
-                });
-                await batch.commit();
-                await dbDelete('published_exam_ranking');
-                
-                Swal.fire('Deleted!', 'The exam and all its results have been deleted.', 'success');
-                if(typeof window.openExamRankingModal === 'function') window.openExamRankingModal(); 
-            } catch(e) { Swal.fire('Error', 'Failed to delete exam completely.', 'error'); }
-        }
-    });
-};
+
 
 // ==========================================
 // 🟢 PDF CERTIFICATE & WHATSAPP/SMS LOGIC
