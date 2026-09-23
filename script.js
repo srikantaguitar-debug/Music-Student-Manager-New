@@ -13402,11 +13402,18 @@ window.generateExamCertificate = async function(studentId, rank, examName, score
 
         let y = 22; 
         
-        // 🟢 Institute Name
-        doc.setFont("helvetica", "bold"); doc.setFontSize(22); doc.setTextColor(5, 150, 105); 
+        // 🟢 Institute Name (Text Wrapping Fix)
+        doc.setFont("helvetica", "bold"); 
+        doc.setFontSize(18); // লেখা যাতে বর্ডারে ভালো ফিট হয় তাই সাইজ একটু কমানো হলো
+        doc.setTextColor(5, 150, 105); 
         const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
-        doc.text(instName, width/2, y, { align: "center" });
-        y += 10; 
+        
+        // বর্ডারের ভেতরে রাখার জন্য টেক্সটকে ভেঙে একাধিক লাইনে করার কোড
+        const maxTextWidth = width - 45; // বর্ডারের ভেতর নিরাপদ জায়গা (Margin)
+        const titleLines = doc.splitTextToSize(instName, maxTextWidth);
+        doc.text(titleLines, width/2, y, { align: "center" });
+        
+        y += (titleLines.length * 8) + 2; // লাইন সংখ্যা অনুযায়ী Y পজিশন নিজে থেকেই বাড়বে 
         
         if (typeof instituteLogo !== 'undefined' && instituteLogo) {
             try { doc.addImage(instituteLogo, 'JPEG', width/2 - 10, y, 20, 20); y += 30; } catch(err) { y += 15; }
