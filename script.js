@@ -862,13 +862,24 @@ window.recordAnswer = function(selectedOpt) {
     window.showQuestionUI();
 };
 
-// 🟢 FIX 3: Safe Exam Submission
+// 🟢 FIX 3: Safe Exam Submission (With Detailed Q&A Log)
 window.submitFinalExam = async function() {
     const exam = window.activeExamData;
     let correctCount = 0;
     
-    Object.values(window.studentAnswers).forEach(ans => {
+    let detailedLog = []; // 🟢 নতুন: স্টুডেন্টের বিস্তারিত উত্তর সেভ করার জন্য
+
+    exam.questions.forEach((q, idx) => {
+        const ans = window.studentAnswers[idx] || { selected: null, isCorrect: false };
         if(ans.isCorrect) correctCount++;
+        
+        detailedLog.push({
+            qText: q.questionText,
+            options: q.options,
+            correct: q.correctAnswer,
+            selected: ans.selected,
+            isCorrect: ans.isCorrect
+        });
     });
 
     const totalMarks = exam.questions.length;
@@ -893,10 +904,10 @@ window.submitFinalExam = async function() {
         percentage: percentage,
         timeTaken: timeTakenStr,
         timeTakenSeconds: timeTakenSeconds,
+        detailedLog: detailedLog, // 🟢 স্টুডেন্ট কী উত্তর দিয়েছে তা এখানে সেভ হলো
         remarks: percentage >= 80 ? 'Excellent' : (percentage >= 40 ? 'Passed' : 'Needs Improvement')
     };
 
-    // 🟢 Safe ID Fetching
     const urlParams = new URLSearchParams(window.location.search);
     const safeManagerUid = urlParams.get('manager') || localStorage.getItem('saved_manager_id');
     const safeStudentId = urlParams.get('student') || localStorage.getItem('saved_student_id');
@@ -12901,45 +12912,55 @@ window.renderExamRankingList = function(examName) {
         const timeDisplay = res.timeTaken ? res.timeTaken : 'N/A';
         const percentColor = res.percentage >= 40 ? '#10b981' : '#ef4444';
 
-        let top3Buttons = '';
-        if (isTop3) {
-            top3Buttons = `
-            <div style="display:flex; justify-content: space-between; align-items:center; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-color);">
-                <button onclick="window.generateExamCertificate(${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay}, ${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:8px 12px; border-radius:8px; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:6px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25);"><i class="fas fa-award" style="font-size: 14px;"></i> Certificate</button>
+       // 🟢 বাটন ডিজাইন (দুটি সারি - Row 1 ও Row 2)
+        let actionButtons = `
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:12px; padding-top:12px; border-top:1px dashed var(--border-color); width:100%; box-sizing:border-box;">
+            
+            <!-- Row 1: Certificate ও Marksheet -->
+            <div style="display:flex; gap:10px; width: 100%;">
+                ${isTop3 ? `<button onclick="window.generateExamCertificate(${s.id},${index+1}, '${examName.replace(/'/g, "\\'")}',${scoreDisplay}, ${totalDisplay},${res.percentage})" style="background:#f59e0b; color:white; border:none; padding:10px 0; border-radius:8px; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 4px 6px rgba(245,158,11,0.25); flex:1; white-space:nowrap; overflow:hidden;"><i class="fas fa-award"></i> Certificate</button>` : ''}
                 
-                <div style="display:flex; gap:10px;">
-                    <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; width:35px; height:35px; border-radius:50%; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(37,211,102,0.3);"><i class="fab fa-whatsapp"></i></button>
-                    <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName}', ${scoreDisplay}, ${totalDisplay})" style="background:#3b82f6; color:white; border:none; width:35px; height:35px; border-radius:50%; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(59,130,246,0.3);"><i class="fas fa-sms"></i></button>
-                </div>
+                <button onclick="window.generateMarksheetPDF(${s.id}, '${examName.replace(/'/g, "\\'")}')" style="background:#3b82f6; color:white; border:none; padding:10px 0; border-radius:8px; font-size:13px; font-weight:bold; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; box-shadow:0 4px 6px rgba(59,130,246,0.25); flex:1; white-space:nowrap; overflow:hidden;"><i class="fas fa-file-pdf"></i> Marksheet</button>
             </div>
-            `;
-        }
+            
+            <!-- Row 2: WhatsApp ও SMS -->
+            <div style="display:flex; gap:10px; width: 100%;">
+                <button onclick="window.sendExamRankMsg('wa', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#25D366; color:white; border:none; padding:10px 0; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 4px 6px rgba(37,211,102,0.3); flex:1;" title="Send WhatsApp"><i class="fab fa-whatsapp" style="font-size:16px;"></i> WhatsApp</button>
+
+                <button onclick="window.sendExamRankMsg('sms', ${s.id}, ${index+1}, '${examName.replace(/'/g, "\\'")}', ${scoreDisplay}, ${totalDisplay})" style="background:#0ea5e9; color:white; border:none; padding:10px 0; border-radius:8px; font-size:13px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; box-shadow:0 4px 6px rgba(14,165,233,0.3); flex:1;" title="Send SMS"><i class="fas fa-sms"></i> SMS</button>
+            </div>
+            
+        </div>
+        `;
 
         html += `
-        <div style="padding:15px; background:var(--bg-card); border-radius:12px; margin-bottom:15px; ${borderStyle}">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap: 10px; flex-wrap: wrap;">
-                
-                <!-- 🟢 Left: Rank, Photo, Name & Subject -->
-                <div style="display:flex; gap:12px; align-items:center; flex: 1; min-width: 150px;">
-                    <div style="width:30px; display:flex; justify-content:center; flex-shrink: 0;">${rankIcon}</div>
-                    <img src="${photoSrc}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; flex-shrink: 0; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                    <div style="flex: 1;">
-                        <div style="font-weight:900; font-size:16px; color:#064e3b; word-wrap: break-word; white-space: normal; line-height: 1.3;">${s.name}</div>
-                        <div style="font-size:12px; color:var(--text-muted); font-weight: 700; margin-top: 4px;">${s.class || 'Music'}</div>
-                        <div style="font-size:11px; color:var(--text-muted); font-weight: 600; margin-top: 2px;"><i class="far fa-clock"></i> Time: ${timeDisplay}</div>
-                    </div>
+        <div style="padding:15px; background:var(--bg-card); border-radius:12px; margin-bottom:15px; ${borderStyle} box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+            
+            <!-- 🟢 Top Row: Rank, Photo, Name & Subject -->
+            <div style="display:flex; gap:12px; align-items:center; width: 100%;">
+                <div style="width:30px; display:flex; justify-content:center; flex-shrink: 0;">${rankIcon}</div>
+                <img src="${photoSrc}" style="width:55px; height:55px; border-radius:50%; object-fit:cover; border:2px solid #cbd5e1; flex-shrink: 0; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                <div style="flex: 1; min-width: 0;">
+                    <div style="font-weight:900; font-size:16px; color:#064e3b; word-wrap: break-word; white-space: normal; line-height: 1.3;">${s.name}</div>
+                    <div style="font-size:12px; color:var(--text-muted); font-weight: 700; margin-top: 4px;">${s.class || 'Music'}</div>
+                    <div style="font-size:11px; color:var(--text-muted); font-weight: 600; margin-top: 2px;"><i class="far fa-clock"></i> Time: ${timeDisplay}</div>
                 </div>
-
-                <!-- 🟢 Right: Marks & Delete Button -->
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink: 0; background: #f8fafc; padding: 10px 15px; border-radius: 10px; border: 1px dashed #cbd5e1; min-width: 70px;">
-                    <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase; margin-bottom:4px;">Marks</div>
-                    <div style="font-size:22px; font-weight:900; color:var(--primary); line-height: 1;">${scoreDisplay}<span style="font-size:14px; color:#64748b;">/${totalDisplay}</span></div>
-                    <div style="font-size:12px; font-weight:900; color:${percentColor}; margin-top: 6px; background: #fff; padding: 3px 8px; border-radius: 6px; border: 1px solid ${percentColor}40;">${res.percentage}%</div>
-                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName}')" style="background:none; border:none; color:#ef4444; font-size:16px; cursor:pointer; padding:8px 0 0 0; margin-top: 5px;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
-                </div>
-                
             </div>
-            ${top3Buttons}
+
+            <!-- 🟢 Middle Row: Compact Marks & Delete Button -->
+            <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-body); padding: 10px 15px; border-radius: 10px; border: 1px dashed var(--border-color); margin-top: 15px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Marks:</div>
+                    <div style="font-size:20px; font-weight:900; color:var(--primary); line-height: 1;">${scoreDisplay}<span style="font-size:14px; color:#64748b;">/${totalDisplay}</span></div>
+                </div>
+                <div style="display:flex; align-items:center; gap:15px;">
+                    <div style="font-size:13px; font-weight:900; color:${percentColor}; background: #fff; padding: 4px 8px; border-radius: 6px; border: 1px solid ${percentColor}40;">${res.percentage}%</div>
+                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; font-size:18px; cursor:pointer; padding:0;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
+                </div>
+            </div>
+
+            <!-- 🟢 Bottom Row: Action Buttons -->
+            ${actionButtons}
         </div>
         `;
     });
@@ -13542,4 +13563,142 @@ window.shareExamCertWA = async function() {
 window.downloadExamCertOnly = function() {
     window.tempExamCertDoc.save(window.tempExamCertFileName);
     Swal.close();
+};
+
+// =========================================================================
+// 🟢 GENERATE DETAILED MARKSHEET PDF (With Correct & Wrong Answers)
+// =========================================================================
+window.generateMarksheetPDF = async function(studentId, examName) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+    
+    const res = student.exams.find(e => e.examName === examName);
+    if (!res) {
+        Swal.fire('Error', 'Result data not found!', 'error');
+        return;
+    }
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+        Swal.fire('Error', 'PDF Library is loading. Try again.', 'warning');
+        return;
+    }
+
+    Swal.fire({ title: 'Generating Marksheet...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+
+    setTimeout(() => {
+        try {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            let y = 20;
+
+            // 🟢 Header (Institute & Marksheet Title)
+            doc.setFontSize(18); doc.setTextColor(5, 150, 105); doc.setFont("helvetica", "bold");
+            const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
+            const instLines = doc.splitTextToSize(instName, pageWidth - 30);
+            doc.text(instLines, pageWidth / 2, y, { align: 'center' });
+            y += (instLines.length * 7) + 5;
+
+            doc.setFontSize(22); doc.setTextColor(15, 23, 42);
+            doc.text("EXAM MARKSHEET", pageWidth / 2, y, { align: 'center' });
+            y += 12;
+            
+            // 🟢 Student & Exam Details Box
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.5);
+            doc.rect(15, y, pageWidth - 30, 25, 'FD');
+            
+            doc.setFontSize(12); doc.setTextColor(71, 85, 105); doc.setFont("helvetica", "bold");
+            doc.text(`Student Name: ${student.name}`, 20, y + 8);
+            doc.text(`Subject: ${res.subject || 'Music'}`, 20, y + 15);
+            doc.text(`Exam Name: ${res.examName}`, 20, y + 22);
+            
+            doc.setTextColor(15, 23, 42);
+            doc.text(`Score: ${res.obtainedMarks}/${res.totalMarks}`, pageWidth - 20, y + 12, { align: 'right' });
+            doc.setTextColor(res.percentage >= 40 ? 16 : 239, res.percentage >= 40 ? 185 : 68, res.percentage >= 40 ? 129 : 68);
+            doc.text(`Percentage: ${res.percentage}%`, pageWidth - 20, y + 20, { align: 'right' });
+            
+            y += 35;
+
+            doc.setFontSize(14); doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold");
+            doc.text("Detailed Question & Answer Analysis", 15, y);
+            y += 8;
+            doc.line(15, y, pageWidth - 15, y);
+            y += 8;
+
+            // 🟢 Questions Loop (উত্তরসহ)
+            if (res.detailedLog && res.detailedLog.length > 0) {
+                res.detailedLog.forEach((log, idx) => {
+                    if (y > 275) { doc.addPage(); y = 20; }
+                    
+                    // Question Text
+                    doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+                    const qText = `Q${idx + 1}. ${log.qText}`;
+                    const qLines = doc.splitTextToSize(qText, pageWidth - 30);
+                    doc.text(qLines, 15, y);
+                    y += (qLines.length * 6);
+
+                    doc.setFontSize(10); doc.setFont("helvetica", "normal");
+                    
+                    // Student Answer
+                    let studentAnsTxt = log.selected ? `${log.selected}. ${log.options[log.selected]}` : 'Not Answered / Time Up';
+                    
+                    if (log.isCorrect) {
+                        doc.setTextColor(16, 185, 129); // Green Correct
+                        doc.text(`Your Answer: ${studentAnsTxt} (Correct ✅)`, 20, y);
+                        y += 8;
+                    } else {
+                        doc.setTextColor(239, 68, 68); // Red Wrong
+                        doc.text(`Your Answer: ${studentAnsTxt} (Wrong ❌)`, 20, y);
+                        y += 6;
+                        
+                        // Show Correct Answer below if wrong
+                        doc.setTextColor(16, 185, 129); // Green Correct Answer
+                        let correctAnsTxt = log.correct ? `${log.correct}. ${log.options[log.correct]}` : 'N/A';
+                        doc.text(`Correct Answer: ${correctAnsTxt}`, 20, y);
+                        y += 8;
+                    }
+                    
+                    doc.setDrawColor(241, 245, 249); // Very light gray separator line
+                    doc.line(15, y - 2, pageWidth - 15, y - 2);
+                    y += 3; // Gap for next question
+                });
+            } else {
+                doc.setFontSize(11); doc.setTextColor(239, 68, 68);
+                doc.text("Detailed Question-Answer log is not available for this older exam.", pageWidth / 2, y, { align: 'center' });
+            }
+
+            // 🟢 WhatsApp Sharing Setup
+            const cleanExamName = examName.replace(/[^a-zA-Z0-9]/g, '_');
+            const fileName = `Marksheet_${student.name.replace(/\s+/g, '_')}_${cleanExamName}.pdf`;
+            
+            window.tempExamCertDoc = doc; 
+            window.tempExamCertFileName = fileName;
+            
+            let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+            if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; 
+            window.tempExamCertPhone = cleanPhone;
+            
+            window.tempExamCertMsg = `Hello ${student.name},\n\nHere is your detailed Marksheet for the *${examName}*.\n*Score:* ${res.obtainedMarks}/${res.totalMarks} (${res.percentage}%)\n\nPlease check the attached PDF to see your correct and incorrect answers.\n\nKeep practicing! 🎸🎹\n\nRegards,\nSrikanta Banerjee`;
+
+            Swal.close();
+            setTimeout(() => {
+                Swal.fire({
+                    title: 'Marksheet Ready!', 
+                    icon: 'success',
+                    html: `
+                    <div style="display:flex; flex-direction:column; gap:10px; margin-top:15px;">
+                        <button onclick="window.shareExamCertWA()" style="background:#25D366; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;"><i class="fab fa-whatsapp" style="font-size:18px;"></i> Direct Share to WhatsApp</button>
+                        <button onclick="window.downloadExamCertOnly()" style="background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;"><i class="fas fa-download"></i> Download PDF Only</button>
+                    </div>`,
+                    showCloseButton: true, showConfirmButton: false, allowOutsideClick: false
+                });
+            }, 100);
+
+        } catch(error) {
+            console.error(error);
+            Swal.fire('Error', 'Failed to generate Marksheet PDF.', 'error');
+        }
+    }, 500);
 };
