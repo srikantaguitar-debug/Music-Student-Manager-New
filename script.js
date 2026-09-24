@@ -12949,14 +12949,24 @@ window.renderExamRankingList = function(examName) {
 
             <!-- 🟢 Middle Row: Compact Marks & Delete Button -->
             <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-body); padding: 10px 15px; border-radius: 10px; border: 1px dashed var(--border-color); margin-top: 15px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">Marks:</div>
-                    <div style="font-size:20px; font-weight:900; color:var(--primary); line-height: 1;">${scoreDisplay}<span style="font-size:14px; color:#64748b;">/${totalDisplay}</span></div>
-                </div>
+                
                 <div style="display:flex; align-items:center; gap:15px;">
-                    <div style="font-size:13px; font-weight:900; color:${percentColor}; background: #fff; padding: 4px 8px; border-radius: 6px; border: 1px solid ${percentColor}40;">${res.percentage}%</div>
-                    <button onclick="window.deleteStudentExamResult(${s.id}, '${examName.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; font-size:18px; cursor:pointer; padding:0;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
+                    <!-- Marks Block -->
+                    <div style="text-align:center;">
+                        <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">MARKS</div>
+                        <div style="font-size:20px; font-weight:900; color:var(--primary); line-height: 1.2;">${scoreDisplay}<span style="font-size:14px; color:#64748b;">/${totalDisplay}</span></div>
+                    </div>
+                    
+                    <!-- Percentage Block -->
+                    <div style="text-align:center;">
+                        <div style="font-size:11px; font-weight:800; color:var(--text-muted); text-transform:uppercase;">%</div>
+                        <div style="font-size:14px; font-weight:900; color:${percentColor}; background: #fff; padding: 3px 8px; border-radius: 6px; border: 1px solid ${percentColor}40; margin-top: 2px;">${res.percentage}%</div>
+                    </div>
                 </div>
+
+                <!-- Delete Button -->
+                <button onclick="window.deleteStudentExamResult(${s.id}, '${examName.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#ef4444; font-size:18px; cursor:pointer; padding:0;" title="Delete Result"><i class="fas fa-trash-alt"></i></button>
+            </div>
             </div>
 
             <!-- 🟢 Bottom Row: Action Buttons -->
@@ -13566,7 +13576,7 @@ window.downloadExamCertOnly = function() {
 };
 
 // =========================================================================
-// 🟢 GENERATE DETAILED MARKSHEET PDF (With Correct & Wrong Answers)
+// 🟢 GENERATE DETAILED MARKSHEET PDF (With Photo, Logo, Watermark & Signature)
 // =========================================================================
 window.generateMarksheetPDF = async function(studentId, examName) {
     const student = students.find(s => s.id === studentId);
@@ -13590,47 +13600,94 @@ window.generateMarksheetPDF = async function(studentId, examName) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             const pageWidth = doc.internal.pageSize.getWidth();
-            let y = 20;
+            const pageHeight = doc.internal.pageSize.getHeight();
+            let y = 15;
 
-            // 🟢 Header (Institute & Marksheet Title)
+            // 🟢 ফাংশন: ব্যাকগ্রাউন্ডে জলছাপ (Watermark) দেওয়া
+            const addWatermark = () => {
+                if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+                    doc.saveGraphicsState();
+                    doc.setGState(new doc.GState({ opacity: 0.08 })); // হালকা অপাসিটি
+                    const imgDim = 140;
+                    doc.addImage(instituteLogo, 'JPEG', (pageWidth - imgDim) / 2, (pageHeight - imgDim) / 2, imgDim, imgDim);
+                    doc.restoreGraphicsState();
+                }
+            };
+
+            // প্রথম পেজে জলছাপ দেওয়া হলো
+            addWatermark();
+
+            // 🟢 Header (Institution Logo)
+            if (typeof instituteLogo !== 'undefined' && instituteLogo) {
+                try {
+                    doc.addImage(instituteLogo, 'JPEG', (pageWidth / 2) - 12, y, 24, 24);
+                    y += 28;
+                } catch(e) {}
+            } else {
+                y += 5;
+            }
+
+            // 🟢 Header (Institute Name & Marksheet Title)
             doc.setFontSize(18); doc.setTextColor(5, 150, 105); doc.setFont("helvetica", "bold");
             const instName = (typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes').toUpperCase();
             const instLines = doc.splitTextToSize(instName, pageWidth - 30);
             doc.text(instLines, pageWidth / 2, y, { align: 'center' });
-            y += (instLines.length * 7) + 5;
+            y += (instLines.length * 7) + 3;
 
             doc.setFontSize(22); doc.setTextColor(15, 23, 42);
             doc.text("EXAM MARKSHEET", pageWidth / 2, y, { align: 'center' });
-            y += 12;
+            y += 10;
             
             // 🟢 Student & Exam Details Box
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(203, 213, 225);
             doc.setLineWidth(0.5);
-            doc.rect(15, y, pageWidth - 30, 25, 'FD');
+            doc.rect(15, y, pageWidth - 30, 32, 'FD'); // বক্স একটু চওড়া করা হলো
             
-            doc.setFontSize(12); doc.setTextColor(71, 85, 105); doc.setFont("helvetica", "bold");
-            doc.text(`Student Name: ${student.name}`, 20, y + 8);
-            doc.text(`Subject: ${res.subject || 'Music'}`, 20, y + 15);
-            doc.text(`Exam Name: ${res.examName}`, 20, y + 22);
+            // 🟢 Student Photo (বক্সের বাঁ দিকে)
+            if (student.photo) {
+                try {
+                    doc.addImage(student.photo, 'JPEG', 20, y + 4, 24, 24);
+                    doc.setDrawColor(16, 185, 129); doc.setLineWidth(0.5);
+                    doc.rect(20, y + 4, 24, 24);
+                } catch(e) {}
+            } else {
+                doc.setFillColor(226, 232, 240);
+                doc.rect(20, y + 4, 24, 24, 'F');
+                doc.setFontSize(8); doc.setTextColor(100);
+                doc.text("No Photo", 32, y + 16, {align:'center'});
+            }
+
+            // 🟢 Student Info (বক্সের মাঝে)
+            doc.setFontSize(11); doc.setTextColor(71, 85, 105); doc.setFont("helvetica", "bold");
+            doc.text(`Student Name: ${student.name}`, 50, y + 10);
+            doc.text(`Subject: ${res.subject || 'Music'}`, 50, y + 17);
+            const truncatedExamName = res.examName.length > 30 ? res.examName.substring(0,30) + '...' : res.examName;
+            doc.text(`Exam Name: ${truncatedExamName}`, 50, y + 24);
             
+            // 🟢 Score & Percentage (বক্সের ডান দিকে)
             doc.setTextColor(15, 23, 42);
-            doc.text(`Score: ${res.obtainedMarks}/${res.totalMarks}`, pageWidth - 20, y + 12, { align: 'right' });
+            doc.text(`Score: ${res.obtainedMarks}/${res.totalMarks}`, pageWidth - 20, y + 14, { align: 'right' });
             doc.setTextColor(res.percentage >= 40 ? 16 : 239, res.percentage >= 40 ? 185 : 68, res.percentage >= 40 ? 129 : 68);
-            doc.text(`Percentage: ${res.percentage}%`, pageWidth - 20, y + 20, { align: 'right' });
+            doc.text(`Percentage: ${res.percentage}%`, pageWidth - 20, y + 22, { align: 'right' });
             
-            y += 35;
+            y += 45;
 
             doc.setFontSize(14); doc.setTextColor(15, 23, 42); doc.setFont("helvetica", "bold");
             doc.text("Detailed Question & Answer Analysis", 15, y);
-            y += 8;
+            y += 6;
+            doc.setDrawColor(203, 213, 225);
             doc.line(15, y, pageWidth - 15, y);
             y += 8;
 
-            // 🟢 Questions Loop (উত্তরসহ)
+            // 🟢 Questions Loop (উত্তরসহ বিশ্লেষণ)
             if (res.detailedLog && res.detailedLog.length > 0) {
                 res.detailedLog.forEach((log, idx) => {
-                    if (y > 275) { doc.addPage(); y = 20; }
+                    if (y > pageHeight - 50) { // পেজ শেষ হলে নতুন পেজ নেবে এবং জলছাপ দেবে
+                        doc.addPage(); 
+                        addWatermark(); // নতুন পেজেও জলছাপ
+                        y = 20; 
+                    }
                     
                     // Question Text
                     doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
@@ -13662,12 +13719,30 @@ window.generateMarksheetPDF = async function(studentId, examName) {
                     
                     doc.setDrawColor(241, 245, 249); // Very light gray separator line
                     doc.line(15, y - 2, pageWidth - 15, y - 2);
-                    y += 3; // Gap for next question
+                    y += 4; // Gap for next question
                 });
             } else {
                 doc.setFontSize(11); doc.setTextColor(239, 68, 68);
                 doc.text("Detailed Question-Answer log is not available for this older exam.", pageWidth / 2, y, { align: 'center' });
+                y += 10;
             }
+
+            // 🟢 Footer (Date at Left & Signature at Right)
+            const footerY = pageHeight - 30; 
+            
+            // Left Side: Exam Date
+            doc.setFontSize(11); doc.setTextColor(0, 0, 0); doc.setFont("helvetica", "bold");
+            const examDate = res.date ? new Date(res.date).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN');
+            doc.text(`Exam Date: ${examDate}`, 20, footerY + 17);
+            
+            // Right Side: Authorized Signature
+            if (typeof authorizedSignature !== 'undefined' && authorizedSignature) {
+                try { doc.addImage(authorizedSignature, 'PNG', pageWidth - 60, footerY - 5, 40, 15); } catch(err) {}
+            }
+            doc.setDrawColor(0); doc.setLineWidth(0.4); 
+            doc.line(pageWidth - 65, footerY + 12, pageWidth - 15, footerY + 12);
+            doc.setFontSize(10); doc.setFont("helvetica", "bold");
+            doc.text("Authorized Signature", pageWidth - 40, footerY + 17, { align: "center" });
 
             // 🟢 WhatsApp Sharing Setup
             const cleanExamName = examName.replace(/[^a-zA-Z0-9]/g, '_');
