@@ -3285,6 +3285,115 @@ function renderReminders() {
     if(reminders.length === 0) { 
         listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:12px; margin-top:20px;">No reminders set.</p>'; 
     } 
+    // 🟢 NEW: Custom Dropdown Selection Logic
+    window.selectCustomDay = function(value, displayText) {
+        // মেইন বক্সে টেক্সট আপডেট করা
+        const textElement = document.getElementById('selectedDayText');
+        textElement.innerHTML = displayText;
+        
+        // কালার চেঞ্জ করা (Tomorrow হলে প্রাইমারি কালার, অন্য দিন হলে সাধারণ টেক্সট কালার)
+        if(value === 'tomorrow') {
+            textElement.style.color = 'var(--primary)';
+        } else {
+            textElement.style.color = 'var(--text-main)';
+        }
+
+        // অপশনগুলোর হাইলাইট ঠিক করা
+        document.querySelectorAll('.custom-day-option').forEach(el => {
+            el.style.borderColor = 'var(--border-color)';
+            el.style.color = 'var(--text-main)';
+        });
+        event.currentTarget.style.borderColor = 'var(--primary)';
+        event.currentTarget.style.color = 'var(--primary)';
+
+        // পপআপ বন্ধ করা এবং ডেটা লোড করা
+        document.getElementById('customDaySelectorModal').style.display = 'none';
+        window.renderDayWiseClasses(value);
+    };
+    // 🟢 NEW: Day-wise Classes Logic
+    window.renderDayWiseClasses = function(dayValue) {
+        const listContainer = document.getElementById('tomorrowClassList');
+        const countSpan = document.getElementById('tomorrowClassCount');
+        
+        if (!listContainer) return;
+
+        let targetDayName = dayValue;
+
+        // "tomorrow" সিলেক্ট করা থাকলে আগামীকালের দিন (Day) অটোমেটিক বের করবে
+        if (dayValue === 'tomorrow') {
+            const today = new Date();
+            const tomorrow = new Date(today);
+            tomorrow.setDate(today.getDate() + 1);
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            targetDayName = days[tomorrow.getDay()];
+        }
+
+        // যারা অ্যাক্টিভ এবং যাদের নির্দিষ্ট দিনে ক্লাস আছে তাদের ফিল্টার করা
+        let upcomingStudents = students.filter(s => window.isStudentCurrentlyActive(s) && s.class_day === targetDayName);
+        
+        // ক্লাসের সময় অনুযায়ী (Time) সর্ট করা (সকাল থেকে রাত)
+        upcomingStudents.sort((a, b) => {
+            const timeA = a.class_time || "23:59";
+            const timeB = b.class_time || "23:59";
+            return timeA.localeCompare(timeB);
+        });
+
+        if (upcomingStudents.length > 0) {
+            listContainer.innerHTML = '';
+            if (countSpan) countSpan.textContent = upcomingStudents.length;
+            
+            upcomingStudents.forEach(s => {
+                const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+                let timeDisplay = s.class_time ? window.formatTime12H(s.class_time) : 'Time not set';
+                
+                let phoneStr = s.phone ? s.phone.replace(/[^0-9]/g, '') : '';
+                let waPhone = (phoneStr.length === 10) ? '91' + phoneStr : phoneStr;
+                
+                // মেসেজে ডায়নামিকভাবে দিনের নাম বসবে (যেমন "Monday" বা "Tomorrow")
+                let msgDayText = dayValue === 'tomorrow' ? 'tomorrow' : `on ${targetDayName}`;
+                const msgBody = `Reminder: Hello ${s.name}, you have a ${s.class || 'Music'} class ${msgDayText} at ${timeDisplay}. Please be on time. Regards, Srikanta Banerjee.`;
+
+                let contactButtons = '';
+                if (phoneStr) {
+                    contactButtons = `
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
+                            
+                            <a href="https://wa.me/${waPhone}?text=${encodeURIComponent(msgBody)}" target="_blank" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></a>
+                            
+                            <a href="sms:${phoneStr}?body=${encodeURIComponent(msgBody)}" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></a>
+                        </div>
+                    `;
+                }
+
+                listContainer.innerHTML += `
+                    <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); border-left: 4px solid var(--info); box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
+                        <div style="display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer;" onclick="showStudentDetails(${s.id})">
+                            <img src="${photoSrc}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;">
+                            <div style="line-height: 1.3;">
+                                <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${s.name}</div>
+                                <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px;">
+                                    ${s.class || 'Music'} | <span style="color: var(--primary);"><i class="far fa-clock"></i> ${timeDisplay}</span>
+                                </div>
+                            </div>
+                        </div>
+                        ${contactButtons}
+                    </div>
+                `;
+            });
+        } else {
+            if (countSpan) countSpan.textContent = '0';
+            let emptyMsg = dayValue === 'tomorrow' ? 'No classes scheduled for tomorrow.' : `No classes scheduled for ${targetDayName}.`;
+            listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; font-weight: bold;">${emptyMsg}</div>`;
+        }
+    };
+    
+    // পেজ লোড হওয়ার সাথে সাথে ডিফল্টভাবে 'tomorrow' সিলেক্ট করে লিস্ট দেখানো
+    const daySelector = document.getElementById('classDaySelector');
+    if (daySelector) {
+        daySelector.value = 'tomorrow';
+        window.renderDayWiseClasses('tomorrow');
+    }
 }
 
 function renderDashboard() { 
@@ -13776,4 +13885,14 @@ window.generateMarksheetPDF = async function(studentId, examName) {
             Swal.fire('Error', 'Failed to generate Marksheet PDF.', 'error');
         }
     }, 500);
+};
+// 🟢 FIX: Ensure Dropdown Modal Opens Properly
+window.openCustomDaySelector = function() {
+    const modal = document.getElementById('customDaySelectorModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.style.zIndex = '999999'; // সবার উপরে দেখানোর জন্য
+    } else {
+        console.error("Custom Day Selector Modal not found in HTML!");
+    }
 };
