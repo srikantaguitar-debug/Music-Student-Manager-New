@@ -2672,7 +2672,18 @@ async function saveData() {
     await dbSet('studentSerialCounter', studentSerialCounter); 
 }
 
-function loadAllData() { renderDashboard(); loadStudentsList(); renderAttendance(); renderFees(); renderReminders(); }
+function loadAllData() { 
+    renderDashboard(); 
+    loadStudentsList(); 
+    renderAttendance(); 
+    renderFees(); 
+    renderReminders(); 
+    
+    // 🟢 অ্যাপ লোড হওয়ার সাথে সাথেই Tomorrow's Classes লোড হবে
+    if (typeof window.renderDayWiseClasses === 'function') {
+        window.renderDayWiseClasses('tomorrow');
+    }
+}
         
 async function exportData() { 
     const currentPin = localStorage.getItem('app_pin') || await dbGet('app_pin') || '1234';
@@ -3310,83 +3321,86 @@ function renderReminders() {
         document.getElementById('customDaySelectorModal').style.display = 'none';
         window.renderDayWiseClasses(value);
     };
-    // 🟢 NEW: Day-wise Classes Logic
-    window.renderDayWiseClasses = function(dayValue) {
-        const listContainer = document.getElementById('tomorrowClassList');
-        const countSpan = document.getElementById('tomorrowClassCount');
+    // 🟢 NEW: Day-wise Classes Logic & Custom Reminder
+window.renderDayWiseClasses = function(dayValue = 'tomorrow') {
+    const listContainer = document.getElementById('tomorrowClassList');
+    const countSpan = document.getElementById('tomorrowClassCount');
+    
+    if (!listContainer) return;
+
+    let targetDayName = dayValue;
+
+    // "tomorrow" সিলেক্ট করা থাকলে আগামীকালের দিন (Day) অটোমেটিক বের করবে
+    if (dayValue === 'tomorrow') {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        targetDayName = days[tomorrow.getDay()];
+    }
+
+    // যারা অ্যাক্টিভ এবং যাদের নির্দিষ্ট দিনে ক্লাস আছে তাদের ফিল্টার করা
+    let upcomingStudents = students.filter(s => window.isStudentCurrentlyActive(s) && s.class_day === targetDayName);
+    
+    // ক্লাসের সময় অনুযায়ী (Time) সর্ট করা (সকাল থেকে রাত)
+    upcomingStudents.sort((a, b) => {
+        const timeA = a.class_time || "23:59";
+        const timeB = b.class_time || "23:59";
+        return timeA.localeCompare(timeB);
+    });
+
+    if (upcomingStudents.length > 0) {
+        listContainer.innerHTML = '';
+        if (countSpan) countSpan.textContent = upcomingStudents.length;
         
-        if (!listContainer) return;
+        // 🟢 ইনস্টিটিউটের নাম সেট করা
+        const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
 
-        let targetDayName = dayValue;
-
-        // "tomorrow" সিলেক্ট করা থাকলে আগামীকালের দিন (Day) অটোমেটিক বের করবে
-        if (dayValue === 'tomorrow') {
-            const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(today.getDate() + 1);
-            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-            targetDayName = days[tomorrow.getDay()];
-        }
-
-        // যারা অ্যাক্টিভ এবং যাদের নির্দিষ্ট দিনে ক্লাস আছে তাদের ফিল্টার করা
-        let upcomingStudents = students.filter(s => window.isStudentCurrentlyActive(s) && s.class_day === targetDayName);
-        
-        // ক্লাসের সময় অনুযায়ী (Time) সর্ট করা (সকাল থেকে রাত)
-        upcomingStudents.sort((a, b) => {
-            const timeA = a.class_time || "23:59";
-            const timeB = b.class_time || "23:59";
-            return timeA.localeCompare(timeB);
-        });
-
-        if (upcomingStudents.length > 0) {
-            listContainer.innerHTML = '';
-            if (countSpan) countSpan.textContent = upcomingStudents.length;
+        upcomingStudents.forEach(s => {
+            const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+            let timeDisplay = s.class_time ? window.formatTime12H(s.class_time) : 'your scheduled time';
             
-            upcomingStudents.forEach(s => {
-                const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
-                let timeDisplay = s.class_time ? window.formatTime12H(s.class_time) : 'Time not set';
-                
-                let phoneStr = s.phone ? s.phone.replace(/[^0-9]/g, '') : '';
-                let waPhone = (phoneStr.length === 10) ? '91' + phoneStr : phoneStr;
-                
-                // মেসেজে ডায়নামিকভাবে দিনের নাম বসবে (যেমন "Monday" বা "Tomorrow")
-                let msgDayText = dayValue === 'tomorrow' ? 'tomorrow' : `on ${targetDayName}`;
-                const msgBody = `Reminder: Hello ${s.name}, you have a ${s.class || 'Music'} class ${msgDayText} at ${timeDisplay}. Please be on time. Regards, Srikanta Banerjee.`;
+            let phoneStr = s.phone ? s.phone.replace(/[^0-9]/g, '') : '';
+            let waPhone = (phoneStr.length === 10) ? '91' + phoneStr : phoneStr;
+            
+            // 🟢 আপনার দেওয়া নতুন রিমাইন্ডার মেসেজ ফরম্যাট (Regards, Srikanta Banerjee + Institute Name)
+            let msgDayText = dayValue === 'tomorrow' ? 'tomorrow' : `on ${targetDayName}`;
+            const msgBody = `Reminder: Hello ${s.name}, you have a ${s.class || 'Music'} class ${msgDayText} at ${timeDisplay}. Please be on time.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
 
-                let contactButtons = '';
-                if (phoneStr) {
-                    contactButtons = `
-                        <div style="display:flex; gap:6px; align-items:center;">
-                            <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
-                            
-                            <a href="https://wa.me/${waPhone}?text=${encodeURIComponent(msgBody)}" target="_blank" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></a>
-                            
-                            <a href="sms:${phoneStr}?body=${encodeURIComponent(msgBody)}" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></a>
-                        </div>
-                    `;
-                }
-
-                listContainer.innerHTML += `
-                    <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); border-left: 4px solid var(--info); box-shadow: 0 2px 5px rgba(0,0,0,0.03);">
-                        <div style="display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer;" onclick="showStudentDetails(${s.id})">
-                            <img src="${photoSrc}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;">
-                            <div style="line-height: 1.3;">
-                                <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${s.name}</div>
-                                <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px;">
-                                    ${s.class || 'Music'} | <span style="color: var(--primary);"><i class="far fa-clock"></i> ${timeDisplay}</span>
-                                </div>
-                            </div>
-                        </div>
-                        ${contactButtons}
+            let contactButtons = '';
+            if (phoneStr) {
+                contactButtons = `
+                    <div style="display:flex; gap:6px; align-items:center;">
+                        <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
+                        
+                        <a href="https://wa.me/${waPhone}?text=${encodeURIComponent(msgBody)}" target="_blank" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></a>
+                        
+                        <a href="sms:${phoneStr}?body=${encodeURIComponent(msgBody)}" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></a>
                     </div>
                 `;
-            });
-        } else {
-            if (countSpan) countSpan.textContent = '0';
-            let emptyMsg = dayValue === 'tomorrow' ? 'No classes scheduled for tomorrow.' : `No classes scheduled for ${targetDayName}.`;
-            listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; font-weight: bold;">${emptyMsg}</div>`;
-        }
-    };
+            }
+
+            listContainer.innerHTML += `
+                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); padding: 10px; border-radius: 10px; border: 1px solid var(--border-color); border-left: 4px solid var(--info); box-shadow: 0 2px 5px rgba(0,0,0,0.03); margin-bottom: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1; cursor: pointer;" onclick="showStudentDetails(${s.id})">
+                        <img src="${photoSrc}" style="width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;">
+                        <div style="line-height: 1.3;">
+                            <div style="font-weight: 700; font-size: 14px; color: var(--text-main);">${s.name}</div>
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px;">
+                                ${s.class || 'Music'} | <span style="color: var(--primary);"><i class="far fa-clock"></i> ${timeDisplay}</span>
+                            </div>
+                        </div>
+                    </div>
+                    ${contactButtons}
+                </div>
+            `;
+        });
+    } else {
+        if (countSpan) countSpan.textContent = '0';
+        let emptyMsg = dayValue === 'tomorrow' ? 'No classes scheduled for tomorrow.' : `No classes scheduled for ${targetDayName}.`;
+        listContainer.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 13px; font-weight: bold;">${emptyMsg}</div>`;
+    }
+};
     
     // পেজ লোড হওয়ার সাথে সাথে ডিফল্টভাবে 'tomorrow' সিলেক্ট করে লিস্ট দেখানো
     const daySelector = document.getElementById('classDaySelector');
