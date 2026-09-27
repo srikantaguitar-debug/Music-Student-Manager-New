@@ -3255,7 +3255,28 @@ async function addReminder() {
     saveData().catch(e => console.log("Background sync pending")); 
 }
 
-async function deleteReminder(id) { reminders = reminders.filter(r => r.id !== id); await saveData(); renderReminders(); }
+// 🟢 NEW: Instant Delete Reminder
+window.deleteReminder = function(id) { 
+    // ১. সাথে সাথে Array থেকে রিমাইন্ডার ডিলিট
+    reminders = reminders.filter(r => r.id !== id); 
+    
+    // ২. চোখের পলকে UI (স্ক্রিন) আপডেট
+    renderReminders(); 
+    if(typeof renderDashboard === 'function') renderDashboard();
+
+    // ৩. ছোট্ট এবং সুন্দর নোটিফিকেশন
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Reminder deleted!',
+        showConfirmButton: false,
+        timer: 1500
+    });
+
+    // ৪. ব্যাকগ্রাউন্ডে সেভ হবে, কোনো 'await' বা অপেক্ষা ছাড়াই
+    saveData().catch(e => console.log("Background sync pending for reminder")); 
+};
 
 function renderReminders() { 
     const listContainer = document.getElementById('reminderListContainer'); 
@@ -13909,4 +13930,29 @@ window.openCustomDaySelector = function() {
     } else {
         console.error("Custom Day Selector Modal not found in HTML!");
     }
+};
+
+// 🟢 NEW: Instant Mark Reminder as Done (Dashboard)
+window.markReminderDone = function(id) {
+    // ১. সাথে সাথে Array থেকে রিমাইন্ডার সরিয়ে ফেলা (Done মানেই ডিলিট)
+    reminders = reminders.filter(r => r.id !== id);
+    
+    // ২. চোখের পলকে ড্যাশবোর্ড আপডেট
+    renderDashboard();
+    if(typeof renderReminders === 'function') renderReminders();
+
+    // ৩. সুন্দর কমপ্লিট নোটিফিকেশন
+    Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: 'success',
+        title: 'Task Completed! ✅',
+        showConfirmButton: false,
+        timer: 1500,
+        background: '#ecfdf5',
+        color: '#059669'
+    });
+
+    // ৪. ব্যাকগ্রাউন্ডে সেভ হবে
+    saveData().catch(e => console.log("Background sync pending for reminder"));
 };
