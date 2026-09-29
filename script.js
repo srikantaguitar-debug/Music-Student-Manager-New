@@ -8238,28 +8238,31 @@ window.calculateSaleDue = function() {
     let cartTotal = 0;
     window.saleCart.forEach(item => cartTotal += item.price);
     
+    // 🟢 Discount Calculation
+    const discVal = document.getElementById('saleDiscount')?.value;
+    const discount = discVal ? parseFloat(discVal) : 0;
+    const finalPayable = cartTotal - discount;
+    
     const paidVal = document.getElementById('amountPaid').value;
     const paid = paidVal === '' ? 0 : parseFloat(paidVal);
-    const due = cartTotal - paid;
+    const due = finalPayable - paid;
     
     const display = document.getElementById('saleDueDisplay');
     if(display) {
-        // 🟢 কার্ট ফাঁকা থাকলে একদম ক্লিন ভিউ দেখাবে
         if (window.saleCart.length === 0) {
             display.innerHTML = `Due: <span style="color:var(--success);">₹0</span>`;
             display.style.background = 'rgba(16, 185, 129, 0.1)';
         } 
         else if (due > 0) {
-            display.innerHTML = `Current Due: <span style="color:var(--danger);">₹${due}</span>`;
+            display.innerHTML = `<span style="font-size:11px; color:var(--text-muted);">Bill: ₹${cartTotal} | Dis: ₹${discount}</span><br>Current Due: <span style="color:var(--danger); font-size:16px;">₹${due}</span>`;
             display.style.background = 'rgba(239, 68, 68, 0.1)';
         } 
         else if (due < 0) {
-            // যদি কাস্টমার বেশি টাকা দেয়, তবে Return Change দেখাবে
-            display.innerHTML = `Return Change: <span style="color:var(--warning);">₹${Math.abs(due)}</span>`;
+            display.innerHTML = `<span style="font-size:11px; color:var(--text-muted);">Bill: ₹${cartTotal} | Dis: ₹${discount}</span><br>Return Change: <span style="color:var(--warning); font-size:16px;">₹${Math.abs(due)}</span>`;
             display.style.background = 'rgba(245, 158, 11, 0.1)';
         } 
         else {
-            display.innerHTML = `Current Due: <span style="color:var(--success);">₹0 (Fully Paid)</span>`;
+            display.innerHTML = `<span style="font-size:11px; color:var(--text-muted);">Bill: ₹${cartTotal} | Dis: ₹${discount}</span><br>Current Due: <span style="color:var(--success); font-size:16px;">₹0 (Fully Paid)</span>`;
             display.style.background = 'rgba(16, 185, 129, 0.1)';
         }
     }
@@ -8447,8 +8450,6 @@ window.renderSalesUI = function() {
     else if (selectedMonth === 'All') periodText = selectedYear;
     else periodText = document.querySelector(`#salesMonthFilter option[value="${selectedMonth}"]`).text + ' ' + selectedYear;
     
-    // 🟢 ম্যাজিক ফিক্স: Sales বক্সে ক্লিক করলে Search বক্স ক্লিয়ার হবে এবং Profit বক্সে ক্লিক করলে ডিটেইলড রিপোর্ট আসবে
-    // 🟢 ম্যাজিক ফিক্স: Sales বক্সে ক্লিক করলে এখন showSalesBreakdown পপআপ ওপেন হবে
     profitDash.innerHTML = `
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <div onclick="window.showSalesBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 15px; border-radius: 12px; border: 1px solid #7dd3fc; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
@@ -8494,28 +8495,44 @@ window.renderSalesUI = function() {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
         const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
         
-        // 🟢 নতুন: ডিউ থাকলে সবুজ রঙের Pay বাটন দেখাবে
         let payDueBtnHtml = '';
         if (s.due > 0) {
             payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-rupee-sign"></i></button>`;
         }
         
+        // 🟢 Payment History (Installments) UI Generator
+        let historyHtml = '';
+        if (s.paymentHistory && s.paymentHistory.length > 0) {
+            historyHtml += `<div style="margin-top: 8px; font-size: 11px; color: var(--text-muted); background: var(--bg-body); padding: 6px 8px; border-radius: 6px; border: 1px dashed var(--border-color);">`;
+            s.paymentHistory.forEach((hist, idx) => {
+                const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+                historyHtml += `<div style="margin-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
+                    <span><i class="fas fa-check-circle" style="color:var(--success); font-size:10px;"></i> Pay ${idx+1} (${pDate})</span>
+                    <span style="font-weight:bold; color:var(--text-main);">₹${hist.amount}</span>
+                </div>`;
+            });
+            historyHtml += `</div>`;
+        }
+        
         list.innerHTML += `
             <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
-                <td style="padding: 2px 5px; vertical-align: middle;">
+                <td style="padding: 10px 5px; vertical-align: middle;">
                     <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:14.5px; color:var(--text-main); cursor:pointer;">${s.studentName}</strong>
                     <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;">
                         <span style="color:#0ea5e9; font-weight:600;">${s.item}</span> &nbsp;|&nbsp; 📅 ${dateStr}
                     </div>
+                    ${historyHtml} <!-- 🟢 কিস্তির হিসাব এখানে অ্যাড হবে -->
                 </td>
-                <td style="padding: 4px 5px 2px 5px; font-size:13px; vertical-align: middle;">
+                <td style="padding: 10px 5px; font-size:13px; vertical-align: middle;">
                     <strong>Total: ₹${s.price}</strong>
                 </td>
-                <td style="padding: 2px 5px; font-size:12.5px; vertical-align: middle; display:flex; gap:10px; align-items:center;">
-                    <span style="color:var(--success); font-weight:600;">Paid: ₹${s.paid}</span>
-                    <span style="color:${statusClr}; font-weight:800; background:rgba(${s.due > 0 ? '239, 68, 68' : '16, 185, 129'}, 0.1); padding:2px 6px; border-radius:4px;">Due: ₹${s.due}</span>
+                <td style="padding: 10px 5px; font-size:12.5px; vertical-align: middle;">
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                        <span style="color:var(--success); font-weight:600;">Paid: ₹${s.paid}</span>
+                        <span style="color:${statusClr}; font-weight:800; background:rgba(${s.due > 0 ? '239, 68, 68' : '16, 185, 129'}, 0.1); padding:2px 6px; border-radius:4px; display:inline-block; width:fit-content;">Due: ₹${s.due}</span>
+                    </div>
                 </td>
-                <td class="action-buttons" style="padding: 8px 5px 2px 5px; vertical-align: middle;">
+                <td class="action-buttons" style="padding: 10px 5px; vertical-align: middle;">
                     <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                        ${payDueBtnHtml}
                        <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-file-pdf"></i></button>
@@ -8968,6 +8985,9 @@ window.processSale = function() {
     const sId = sIdInput ? sIdInput.value : '';
     const editId = document.getElementById('editSaleId').value;
     const paid = parseFloat(document.getElementById('amountPaid').value) || 0;
+    
+    const discVal = document.getElementById('saleDiscount')?.value;
+    const discountAmount = discVal ? parseFloat(discVal) : 0;
 
     if (window.saleCart.length === 0) { 
         Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Cart is empty!', showConfirmButton: false, timer: 2000}); 
@@ -8982,14 +9002,14 @@ window.processSale = function() {
     });
 
     const finalItemName = combinedNamesArray.join(', '); 
-    const due = cartTotal - paid;
-    const currentYear = document.getElementById('salesYearFilter').value;
+    const finalPriceAfterDiscount = cartTotal - discountAmount; 
+    const due = finalPriceAfterDiscount - paid;
+    const currentDateStr = new Date().toISOString().split('T')[0];
     
     let finalStudentId, finalStudentName;
     let isGuest = false;
     let guestPhone = '', guestAddress = '';
 
-    // 🟢 এডিট মোড: সরাসরি ডাটাবেস থেকে ডেটা নেবে, ইনপুট বক্স ফাঁকা থাকলেও এরর দেবে না!
     if (editId) {
         const existingSale = salesDataArray.find(s => String(s.id) === String(editId));
         if (!existingSale) { Swal.fire('Error', 'Sale record not found!', 'error'); return; }
@@ -8998,23 +9018,13 @@ window.processSale = function() {
         finalStudentName = existingSale.studentName;
         guestPhone = existingSale.guestPhone || '';
         guestAddress = existingSale.guestAddress || '';
-        
-        if (String(finalStudentId) === '0' || finalStudentId === 'guest' || !finalStudentId) {
-            finalStudentId = 0;
-            isGuest = true;
-        }
-    } 
-    // 🟢 নতুন সেল মোড
-    else {
-        // নতুন সেলের ক্ষেত্রে কাস্টমার সিলেক্ট করা বাধ্যতামূলক
+        if (String(finalStudentId) === '0' || finalStudentId === 'guest' || !finalStudentId) { finalStudentId = 0; isGuest = true; }
+    } else {
         if (!sId || sId.trim() === '') { 
-            Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); 
-            return; 
+            Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Select a customer!', showConfirmButton: false, timer: 2000}); return; 
         }
-
         if (sId === 'guest') {
-            finalStudentId = 0; 
-            isGuest = true;
+            finalStudentId = 0; isGuest = true;
             try {
                 const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
                 const gData = gDataStr ? JSON.parse(gDataStr) : {};
@@ -9022,9 +9032,7 @@ window.processSale = function() {
                 finalStudentName = gData.name || displayFallback || 'Walk-in Customer';
                 guestPhone = gData.phone || '';
                 guestAddress = gData.address || '';
-            } catch(e) {
-                finalStudentName = 'Walk-in Customer';
-            }
+            } catch(e) { finalStudentName = 'Walk-in Customer'; }
         } else {
             const student = students.find(s => String(s.id) === String(sId));
             if(!student) { Swal.fire('Error', 'Student not found', 'error'); return; }
@@ -9033,61 +9041,54 @@ window.processSale = function() {
         }
     }
 
-    // 🟢 ডেটা সেভ বা আপডেট করা
+    // 🟢 Payment History Array (Installment Logic)
+    let paymentHistory = [];
+    if (paid > 0) {
+        paymentHistory.push({ date: currentDateStr, amount: paid });
+    }
+
+    const newSaleData = {
+        studentId: finalStudentId, studentName: finalStudentName, 
+        item: finalItemName, cart: [...window.saleCart], 
+        originalPrice: cartTotal, discount: discountAmount, price: finalPriceAfterDiscount, 
+        paid: paid, due: due, date: currentDateStr,
+        guestPhone: guestPhone, guestAddress: guestAddress,
+        paymentHistory: paymentHistory // 🟢 সেভ করা হলো
+    };
+
     if (editId) {
         const index = salesDataArray.findIndex(s => String(s.id) === String(editId));
-        if(index > -1) {
-            salesDataArray[index] = { 
-                ...salesDataArray[index], 
-                studentId: finalStudentId, 
-                studentName: finalStudentName, 
-                item: finalItemName, 
-                cart: [...window.saleCart], 
-                price: cartTotal, 
-                paid: paid, 
-                due: due,
-                guestPhone: guestPhone, 
-                guestAddress: guestAddress 
-            };
+        if(index > -1) { 
+            const oldHistory = salesDataArray[index].paymentHistory || [];
+            newSaleData.paymentHistory = oldHistory.length > 0 ? oldHistory : paymentHistory;
+            salesDataArray[index] = { ...salesDataArray[index], ...newSaleData }; 
         }
         if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, parseInt(editId), finalItemName, due); 
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
     } else {
         const newSaleId = Date.now();
-        const saleData = {
-            id: newSaleId, studentId: finalStudentId, studentName: finalStudentName, 
-            item: finalItemName, cart: [...window.saleCart], price: cartTotal, 
-            paid: paid, due: due, date: new Date().toISOString().split('T')[0],
-            guestPhone: guestPhone, guestAddress: guestAddress
-        };
-        salesDataArray.unshift(saleData);
+        const saleRecord = { id: newSaleId, ...newSaleData };
+        salesDataArray.unshift(saleRecord);
         if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, newSaleId, finalItemName, due); 
         
         let stockUpdated = false;
         window.saleCart.forEach(cartItem => {
             const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === cartItem.name.toLowerCase());
             if (stockItem && stockItem.qty >= cartItem.qty) {
-                stockItem.qty -= cartItem.qty; 
-                stockUpdated = true;
+                stockItem.qty -= cartItem.qty; stockUpdated = true;
             }
         });
-        
         if (stockUpdated) {
             window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
             dbSet('stockData', window.stockInventory).catch(e=>{}); 
-            window.renderStockTable(); 
-            window.renderInventoryDropdown();
+            window.renderStockTable(); window.renderInventoryDropdown();
         }
-
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Completed!', showConfirmButton: false, timer: 1500});
         
         const pdfStudentData = isGuest ? { name: finalStudentName, phone: guestPhone, class: 'Guest Customer' } : students.find(s => s.id == finalStudentId);
-        setTimeout(() => window.generateSalePDF(saleData, pdfStudentData), 500);
+        setTimeout(() => window.generateSalePDF(saleRecord, pdfStudentData), 500);
     }
-
-    window.renderSalesUI();
-    window.cancelSaleEdit();
-    window.syncSalesToFirebase();
+    window.renderSalesUI(); window.cancelSaleEdit(); window.syncSalesToFirebase();
 };
 
 window.cancelSaleEdit = function() {
@@ -9095,17 +9096,15 @@ window.cancelSaleEdit = function() {
     const nameEl = document.getElementById('saleSelectedName');
     nameEl.textContent = '🔍 Click here to search student...';
     nameEl.style.color = 'var(--text-muted)';
-    nameEl.dataset.guestData = ''; // 🟢 ক্লিয়ার করা হলো
-    
+    nameEl.dataset.guestData = ''; 
     document.getElementById('saleSelectedPhoto').style.display = 'none';
     document.getElementById('itemName').value = '';
     document.getElementById('saleQty').value = '1'; 
     document.getElementById('itemPrice').value = '';
     document.getElementById('amountPaid').value = '';
+    if(document.getElementById('saleDiscount')) document.getElementById('saleDiscount').value = ''; // 🟢 Clear Discount
     document.getElementById('editSaleId').value = '';
-    window.currentUnitPrice = 0;
-    window.saleCart = []; 
-    window.renderCart();
+    window.currentUnitPrice = 0; window.saleCart = []; window.renderCart();
     
     document.getElementById('saleProcessBtn').innerHTML = '<i class="fas fa-check-circle"></i> Checkout & Send Receipt';
     document.getElementById('saleProcessBtn').className = 'btn-primary';
@@ -9119,62 +9118,46 @@ window.editSaleRecord = function(saleId) {
     const sIdInput = document.getElementById('saleStudentId');
     const nameEl = document.getElementById('saleSelectedName');
     const imgEl = document.getElementById('saleSelectedPhoto');
-
     const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
 
     if (isGuest) {
         if(sIdInput) sIdInput.value = 'guest';
-        
         const gName = sale.studentName || 'Walk-in Customer';
         if(nameEl) {
             nameEl.dataset.guestData = JSON.stringify({name: gName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
             nameEl.innerHTML = `<span style="color: var(--text-main); font-weight: bold;">${gName}</span> <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align: middle;">Guest</span>`;
         }
-        
-        if(imgEl) {
-            imgEl.src = 'https://via.placeholder.com/40?text=G';
-            imgEl.style.display = 'block';
-        }
+        if(imgEl) { imgEl.src = 'https://via.placeholder.com/40?text=G'; imgEl.style.display = 'block'; }
     } else {
         const student = students.find(st => String(st.id) === String(sale.studentId));
         if(student) {
             if(sIdInput) sIdInput.value = student.id;
-            if(nameEl) {
-                nameEl.textContent = student.name;
-                nameEl.style.color = "var(--text-main)";
-                nameEl.dataset.guestData = ''; 
-            }
-            if(imgEl) {
-                imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
-                imgEl.style.display = 'block';
-            }
+            if(nameEl) { nameEl.textContent = student.name; nameEl.style.color = "var(--text-main)"; nameEl.dataset.guestData = ''; }
+            if(imgEl) { imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S'; imgEl.style.display = 'block'; }
         }
     }
 
-    if (sale.cart && Array.isArray(sale.cart)) {
-        window.saleCart = [...sale.cart];
-    } else {
+    if (sale.cart && Array.isArray(sale.cart)) { window.saleCart = [...sale.cart]; } 
+    else {
         let extractedName = sale.item; let extractedQty = 1;
         const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
         if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
-        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
+        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.originalPrice || sale.price }];
     }
     
     window.renderCart();
     
     const paidInput = document.getElementById('amountPaid');
-    if(paidInput) {
-        paidInput.value = sale.paid || 0; // 🟢 এডিট মোডে রিয়েল পেইড অ্যামাউন্ট দেখাবে
-    }
+    if(paidInput) paidInput.value = sale.paid || 0;
     
+    const discInput = document.getElementById('saleDiscount');
+    if(discInput) discInput.value = sale.discount || ''; // 🟢 Load Discount
+
     const editIdInput = document.getElementById('editSaleId');
     if(editIdInput) editIdInput.value = sale.id;
 
     const btn = document.getElementById('saleProcessBtn');
-    if(btn) {
-        btn.innerHTML = '<i class="fas fa-save"></i> Update Sale';
-        btn.className = 'btn-warning';
-    }
+    if(btn) { btn.innerHTML = '<i class="fas fa-save"></i> Update Sale'; btn.className = 'btn-warning'; }
     const cancelBtn = document.getElementById('saleCancelEditBtn');
     if(cancelBtn) cancelBtn.style.display = 'block';
     
@@ -9183,23 +9166,21 @@ window.editSaleRecord = function(saleId) {
 
 window.generateSalePDF = async function(sale, student) {
     Swal.fire({ title: 'Generating Receipt...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-
     const { jsPDF } = window.jspdf;
     
     let estLines = 0;
-    if (sale.cart && Array.isArray(sale.cart)) {
-        sale.cart.forEach(item => { estLines += Math.ceil(item.name.length / 25); });
-    } else {
-        estLines = Math.ceil(sale.item.length / 25);
-    }
-    const pageHeight = Math.max(148, 120 + (estLines * 6)); 
+    if (sale.cart && Array.isArray(sale.cart)) { sale.cart.forEach(item => { estLines += Math.ceil(item.name.length / 25); }); } 
+    else { estLines = Math.ceil(sale.item.length / 25); }
+    
+    // 🟢 Payment History থাকলে সাইজ বড় হবে
+    const historyLines = (sale.paymentHistory && sale.paymentHistory.length > 1) ? sale.paymentHistory.length : 0;
+    const pageHeight = Math.max(148, 120 + (estLines * 6) + (historyLines * 6) + (sale.discount > 0 ? 15 : 0)); 
+    
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [105, pageHeight] });
 
     if (typeof instituteLogo !== 'undefined' && instituteLogo) {
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.08 }));
-        doc.addImage(instituteLogo, 'JPEG', 12.5, (pageHeight/2)-40, 80, 80);
-        doc.restoreGraphicsState();
+        doc.saveGraphicsState(); doc.setGState(new doc.GState({ opacity: 0.08 }));
+        doc.addImage(instituteLogo, 'JPEG', 12.5, (pageHeight/2)-40, 80, 80); doc.restoreGraphicsState();
     }
 
     doc.setDrawColor(0); doc.setLineWidth(0.5); doc.rect(5, 5, 95, pageHeight - 10);
@@ -9213,7 +9194,6 @@ window.generateSalePDF = async function(sale, student) {
     y += (titleLines.length * 5) + 2;
 
     doc.setFontSize(10); doc.setFont("helvetica", "normal");
-    // 🟢 এখানে CASH MEMO পরিবর্তন করে MONEY RECEIPT করা হয়েছে
     doc.text("ACCESSORIES MONEY RECEIPT", 52.5, y, {align: "center"});
     doc.setLineWidth(0.2); doc.line(25, y+1, 80, y+1); y += 8; 
 
@@ -9222,51 +9202,59 @@ window.generateSalePDF = async function(sale, student) {
     
     doc.text(`Student:`, 12, y); doc.setFont("helvetica", "bold"); 
     const nameLines = doc.splitTextToSize(student.name, 60);
-    doc.text(nameLines, 32, y); 
-    doc.setFont("helvetica", "normal"); 
-    y += (nameLines.length * 4) + 4;
+    doc.text(nameLines, 32, y); doc.setFont("helvetica", "normal"); y += (nameLines.length * 4) + 4;
 
-    doc.setFillColor(240, 240, 240);
-    doc.rect(10, y, 85, 6, 'F');
+    doc.setFillColor(240, 240, 240); doc.rect(10, y, 85, 6, 'F');
     doc.setFont("helvetica", "bold");
     doc.text(`Item Name`, 12, y+4); doc.text(`Qty`, 65, y+4); doc.text(`Price`, 80, y+4);
-    doc.setFont("helvetica", "normal");
-    y += 10;
+    doc.setFont("helvetica", "normal"); y += 10;
 
     if (sale.cart && Array.isArray(sale.cart)) {
         sale.cart.forEach(item => {
             const itemLines = doc.splitTextToSize(item.name, 50); 
-            doc.text(itemLines, 12, y); 
-            doc.text(`x${item.qty}`, 65, y); 
-            doc.text(`Rs.${item.price}`, 80, y); 
+            doc.text(itemLines, 12, y); doc.text(`x${item.qty}`, 65, y); doc.text(`Rs.${item.price}`, 80, y); 
             y += (itemLines.length * 4) + 3; 
         });
     } else {
         const itemLines = doc.splitTextToSize(sale.item, 50);
-        doc.text(itemLines, 12, y); 
-        doc.text(`Rs.${sale.price}`, 80, y); 
-        y += (itemLines.length * 4) + 3;
+        doc.text(itemLines, 12, y); doc.text(`Rs.${sale.originalPrice || sale.price}`, 80, y); y += (itemLines.length * 4) + 3;
     }
     
     doc.line(10, y, 95, y); y += 6;
 
+    // 🟢 Price & Discount Layout
     doc.setFont("helvetica", "bold");
-    doc.text(`Grand Total:`, 48, y); doc.text(`Rs. ${sale.price}/-`, 75, y); y += 6;
+    const origP = sale.originalPrice || sale.price;
+    doc.text(`Sub Total:`, 48, y); doc.text(`Rs. ${origP}/-`, 75, y); y += 6;
+    
+    if(sale.discount > 0) {
+        doc.setTextColor(0, 102, 204); 
+        doc.text(`Discount:`, 48, y); doc.text(`- Rs. ${sale.discount}/-`, 75, y); y += 6;
+        doc.setTextColor(0);
+        doc.text(`Final Payable:`, 48, y); doc.text(`Rs. ${sale.price}/-`, 75, y); y += 6;
+    }
+    
     doc.setTextColor(0, 128, 0); 
-    doc.text(`Paid Amount:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
+    doc.text(`Total Paid:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
+
+    // 🟢 Installment History (কবে কত পে করেছে)
+    if(sale.paymentHistory && sale.paymentHistory.length > 0) {
+        doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(80, 80, 80);
+        sale.paymentHistory.forEach((hist, index) => {
+            const payDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+            doc.text(`Pay ${index+1} (${payDate}): Rs. ${hist.amount}`, 50, y);
+            y += 5;
+        });
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0); y += 1;
+    }
 
     if(sale.due > 0) {
-        doc.setTextColor(200, 0, 0); doc.text(`Current Due:`, 48, y); doc.text(`Rs. ${sale.due}/-`, 75, y); doc.setTextColor(0);
-        y += 6; 
+        doc.setTextColor(200, 0, 0); doc.text(`Current Due:`, 48, y); doc.text(`Rs. ${sale.due}/-`, 75, y); doc.setTextColor(0); y += 6; 
     }
     y += 6;
 
-    // Signature
-    let sigBaseY = pageHeight - 10; // 🟢 'Authorized Signature' লেখাটির Y পজিশন
-    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { 
-        // 🟢 সিগনেচারের ছবিটি 'Authorized Signature' লেখাটির ঠিক উপরে (y পজিশন কমিয়ে) বসানো হলো
-        doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 12, 35, 10); 
-    }
+    let sigBaseY = pageHeight - 10; 
+    if (typeof authorizedSignature !== 'undefined' && authorizedSignature) { doc.addImage(authorizedSignature, 'PNG', 55, sigBaseY - 12, 35, 10); }
     doc.setFontSize(8); doc.setFont("helvetica", "bold"); doc.text(`Authorized Signature`, 72, sigBaseY, {align:"center"});
 
     const safeItemName = sale.cart && sale.cart.length > 0 ? "Multiple_Items" : sale.item.replace(/\s+/g, '_');
@@ -9277,10 +9265,19 @@ window.generateSalePDF = async function(sale, student) {
     if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.tempSalePhone = cleanPhone;
     
     let itemsNamesWA = sale.cart ? sale.cart.map(i => `${i.name} (x${i.qty})`).join(', ') : sale.item;
-    
     let dueMsg = sale.due > 0 ? `\nDue: ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-    // 🟢 মেসেজে "Money Receipt" লেখা যোগ করা হয়েছে
-    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for *${itemsNamesWA}*.\nTotal: ₹${sale.price}\nPaid: ₹${sale.paid}${dueMsg}\n\nThank You!`;
+    let discMsg = sale.discount > 0 ? `\nDiscount: ₹${sale.discount}` : '';
+    
+    // 🟢 History text for WhatsApp
+    let historyText = "";
+    if(sale.paymentHistory && sale.paymentHistory.length > 0) {
+        historyText = "\n*Payment History:*\n";
+        sale.paymentHistory.forEach((h, i) => {
+            historyText += `Pay ${i+1} (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
+        });
+    }
+    
+    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for *${itemsNamesWA}*.\nTotal Bill: ₹${origP}${discMsg}\nFinal Payable: ₹${sale.price}\nTotal Paid: ₹${sale.paid}${historyText}${dueMsg}\n\nThank You!`;
 
     Swal.close();
     setTimeout(() => {
@@ -9308,32 +9305,30 @@ window.sendSaleWhatsApp = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
     if(!sale) return;
     
-    let phone = '';
-    if(sale.studentId !== 0 && sale.studentId !== 'guest') {
-        const student = students.find(st => st.id == sale.studentId);
-        if(student) phone = student.phone || '';
-    } else {
-        phone = sale.guestPhone || ''; // 🟢 গেস্টের সেভ করা নম্বর নিলো
-    }
-
+    let phone = sale.studentId !== 0 && sale.studentId !== 'guest' ? (students.find(st => st.id == sale.studentId)?.phone || '') : (sale.guestPhone || '');
     if(!phone) {
-        const { value: guestPhone } = await Swal.fire({
-            title: 'Enter WhatsApp Number',
-            input: 'tel',
-            inputPlaceholder: 'e.g. 9876543210',
-            showCancelButton: true,
-            confirmButtonColor: '#25D366'
-        });
-        if(!guestPhone) return;
-        phone = guestPhone;
+        const { value: guestPhone } = await Swal.fire({ title: 'Enter WhatsApp Number', input: 'tel', showCancelButton: true });
+        if(!guestPhone) return; phone = guestPhone;
     }
 
     let cleanPhone = phone.replace(/[^0-9]/g, '');
     if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+    
+    const origPrice = sale.originalPrice || sale.price;
+    let discountMsg = sale.discount > 0 ? `*Discount Given:* ₹${sale.discount}\n` : '';
     let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
     
+    // 🟢 History text for WhatsApp
+    let historyText = "";
+    if(sale.paymentHistory && sale.paymentHistory.length > 0) {
+        historyText = "\n*Payment History:*\n";
+        sale.paymentHistory.forEach((h, i) => {
+            historyText += `Pay ${i+1} (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
+        });
+    }
+    
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Price:* ₹${sale.price}\n*Amount Paid:* ₹${sale.paid}${dueMsg}\n\nRegards,\n*${instName}*`;
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Bill:* ₹${origPrice}\n${discountMsg}*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nRegards,\n*${instName}*`;
     
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
@@ -9342,24 +9337,25 @@ window.sendSaleSMS = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
     if(!sale) return;
     
-    let phone = '';
-    if(sale.studentId !== 0 && sale.studentId !== 'guest') {
-        const student = students.find(st => st.id == sale.studentId);
-        if(student) phone = student.phone || '';
-    } else {
-        phone = sale.guestPhone || ''; // 🟢 গেস্টের সেভ করা নম্বর নিলো
-    }
-    
-    if (!phone) {
-        Swal.fire('Error', 'Customer phone number is missing!', 'error');
-        return;
-    }
+    let phone = sale.studentId !== 0 && sale.studentId !== 'guest' ? (students.find(st => st.id == sale.studentId)?.phone || '') : (sale.guestPhone || '');
+    if (!phone) { Swal.fire('Error', 'Customer phone number is missing!', 'error'); return; }
 
     let cleanPhone = phone.replace(/[^0-9]/g, '');
-    let dueMsg = sale.due > 0 ? `\nCurrent Due: Rs.${sale.due}\nPlease clear your due amount of Rs.${sale.due} as soon as possible.` : '';
+    const origPrice = sale.originalPrice || sale.price;
+    let discountMsg = sale.discount > 0 ? `Discount: Rs.${sale.discount}\n` : '';
+    let dueMsg = sale.due > 0 ? `\nCurrent Due: Rs.${sale.due}\nPlease clear your due amount as soon as possible.` : '';
+    
+    // 🟢 History text for SMS
+    let historyText = "";
+    if(sale.paymentHistory && sale.paymentHistory.length > 0) {
+        historyText = "\nPayment History:\n";
+        sale.paymentHistory.forEach((h, i) => {
+            historyText += `Pay ${i+1} (${new Date(h.date).toLocaleDateString('en-IN')}): Rs.${h.amount}\n`;
+        });
+    }
     
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for ${sale.item}.\n\nTotal Price: Rs.${sale.price}\nAmount Paid: Rs.${sale.paid}${dueMsg}\n\nRegards,\n${instName}`;
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for ${sale.item}.\n\nTotal Bill: Rs.${origPrice}\n${discountMsg}Final Payable: Rs.${sale.price}\nTotal Paid: Rs.${sale.paid}${historyText}${dueMsg}\n\nRegards,\n${instName}`;
     
     window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
 };
@@ -9413,7 +9409,6 @@ window.downloadSaleReceiptOnly = function() {
     Swal.close();
 };
 
-// 🟢 NEW: Accessory Due Popup Function (Mobile Responsive & Fixed)
 window.showSalesDuesPopup = function() {
     let dueRecords = salesDataArray.filter(s => s.due > 0);
     
@@ -9429,39 +9424,74 @@ window.showSalesDuesPopup = function() {
         const photoSrc = student && student.photo ? student.photo : (sale.studentId == 0 || sale.studentId == 'guest' ? 'https://via.placeholder.com/50?text=G' : 'https://via.placeholder.com/50?text=S');
         const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
         
+        // 🟢 কন্টাক্ট বাটনগুলো তৈরি করা হচ্ছে
+        let contactBtnsHtml = '';
+        let phone = '';
+        if(sale.studentId !== 0 && sale.studentId !== 'guest') {
+            phone = student ? student.phone || '' : '';
+        } else {
+            phone = sale.guestPhone || ''; 
+        }
+
+        if (phone) {
+            let cleanPhone = phone.replace(/[^0-9]/g, '');
+            if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+            
+            // ডিউ মেসেজ টেমপ্লেট
+            const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+            const dueMsg = `Hello ${sale.studentName},\n\nThis is a gentle reminder that an amount of Rs. ${sale.due} is pending for the purchase of ${sale.item}.\n\nPlease clear the due amount as soon as possible.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+            
+            const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(dueMsg)}`;
+            const smsUrl = `sms:${phone}?body=${encodeURIComponent(dueMsg)}`;
+            const callUrl = `tel:${phone}`;
+
+            // 🟢 বাটনগুলোকে কার্ডের ভেতরে এবং Pay Now এর ঠিক নিচে বসানোর ডিজাইন
+            contactBtnsHtml = `
+                <div style="display:flex; gap:10px; align-items:center; margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 12px;">
+                    <a href="${callUrl}" title="Call" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:8px; text-decoration:none; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
+                    <a href="${waUrl}" target="_blank" title="WhatsApp" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:8px; text-decoration:none; font-size: 18px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp"></i></a>
+                    <a href="${smsUrl}" title="SMS" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:8px; text-decoration:none; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></a>
+                </div>
+            `;
+        }
+
         listHtml += `
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 12px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
                 
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <img src="${photoSrc}" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1; flex-shrink: 0;">
-                    <div style="flex-grow: 1; word-break: break-word;">
-                        <div style="font-weight: 700; font-size: 15px; color: var(--text-main);">${sale.studentName}</div>
-                        <div style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-                            <strong>Date:</strong> ${dateStr}
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <img src="${photoSrc}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1; flex-shrink: 0;">
+                    <div style="word-break: break-word; flex: 1;">
+                        <div style="font-weight: 800; font-size: 15px; color: var(--text-main);">${sale.studentName}</div>
+                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px;">
+                            Date: <span style="color:var(--text-main);">${dateStr}</span>
                         </div>
                     </div>
                 </div>
 
-                <div style="font-size: 13px; color: var(--text-main); line-height: 1.5; background: var(--bg-body); padding: 8px; border-radius: 8px;">
-                    <strong>Item:</strong> <span style="color:#0284c7;">${sale.item}</span>
+                <div style="font-size: 13px; color: var(--text-main); line-height: 1.4; background: var(--bg-body); padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--border-color);">
+                    <strong>Item:</strong> <span style="color:#0284c7; font-weight: 600;">${sale.item}</span>
                 </div>
 
-                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff1f2; padding: 12px; border-radius: 8px; border: 1px dashed #fecaca;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff1f2; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; box-shadow: inset 0 2px 4px rgba(225,29,72,0.05);">
                     <div>
-                        <div style="font-size: 11px; color: #be123c; font-weight: bold; text-transform: uppercase;">Total Due</div>
-                        <div style="font-weight: 900; font-size: 18px; color: #e11d48;">₹${sale.due}</div>
+                        <div style="font-size: 10px; color: #be123c; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">Total Due</div>
+                        <div style="font-weight: 900; font-size: 20px; color: #e11d48; margin-top: 2px;">₹${sale.due}</div>
                     </div>
-                    <button onclick="Swal.close(); setTimeout(() => { window.paySaleDue(${sale.id}); }, 300);" style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.2);">
-                        Pay Now
+                    <button onclick="Swal.close(); setTimeout(() => { window.paySaleDue(${sale.id}); }, 300);" style="background: #10b981; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 6px rgba(16,185,129,0.25); display:flex; align-items:center; gap:6px;">
+                        Pay Now <i class="fas fa-chevron-right" style="font-size:11px;"></i>
                     </button>
                 </div>
+                
+                <!-- 🟢 বাটনগুলো ঠিক এখানে, পে-নাউ সেকশনের নিচে বসানো হলো -->
+                ${contactBtnsHtml}
+
             </div>
         `;
     });
     listHtml += '</div>';
 
     Swal.fire({
-        title: 'Pending Accessory Dues',
+        title: '<div style="color: var(--danger); font-size: 20px; font-weight: 900;"><i class="fas fa-exclamation-circle"></i> Pending Accessory Dues</div>',
         html: listHtml,
         showConfirmButton: true,
         confirmButtonText: 'Close',
@@ -11086,7 +11116,6 @@ window.paySaleDue = async function(saleId) {
     const sale = salesDataArray.find(s => String(s.id) === String(saleId));
     if(!sale || sale.due <= 0) return;
 
-    // 🟢 sale.due মানে হলো "বাকি থাকা টাকা"। যদি আগে কিছু পে না করে থাকে, তবে এটি ফুল অ্যামাউন্ট হবে।
     const exactDueAmount = sale.due; 
 
     const { value: payAmount } = await Swal.fire({
@@ -11101,8 +11130,6 @@ window.paySaleDue = async function(saleId) {
                 </div>
             </div>
             <label style="font-size: 12px; font-weight: bold; color: var(--text-main); display: block; margin-bottom: 5px; text-align: left; padding-left: 5%;">Amount paying now (₹):</label>
-            
-            <!-- 🟢 ম্যাজিক ফিক্স: value এ exactDueAmount দেওয়া হলো, যাতে বাকি থাকা টাকাটাই বসে -->
             <input type="number" id="swal-due-pay" class="swal2-input" value="${exactDueAmount}" style="font-size: 16px; font-weight: bold; text-align: center; max-width: 90%; margin-top: 0;">
         `,
         focusConfirm: false,
@@ -11110,13 +11137,6 @@ window.paySaleDue = async function(saleId) {
         confirmButtonText: '<i class="fas fa-plus-circle"></i> Add Payment',
         confirmButtonColor: 'var(--success)',
         cancelButtonColor: '#ef4444',
-        didOpen: () => {
-            const dueInput = document.getElementById('swal-due-pay');
-            if (dueInput) {
-                dueInput.value = exactDueAmount; // পপআপ খুললেই বাকি থাকা টাকাটা বসে যাবে
-                dueInput.select(); // টাকাটা অটোমেটিক সিলেক্ট হয়ে থাকবে
-            }
-        },
         preConfirm: () => {
             const amt = parseFloat(document.getElementById('swal-due-pay').value);
             if (isNaN(amt) || amt <= 0) {
@@ -11135,6 +11155,13 @@ window.paySaleDue = async function(saleId) {
         sale.paid += payAmount;
         sale.due = sale.price - sale.paid;
         
+        // 🟢 পেমেন্ট হিস্ট্রি আপডেট করা (নতুন ডেট ও অ্যামাউন্ট)
+        if(!sale.paymentHistory) sale.paymentHistory = [];
+        sale.paymentHistory.push({
+            date: new Date().toISOString().split('T')[0],
+            amount: payAmount
+        });
+        
         const index = salesDataArray.findIndex(s => String(s.id) === String(saleId));
         if(index > -1) salesDataArray[index] = sale;
 
@@ -11151,12 +11178,10 @@ window.paySaleDue = async function(saleId) {
             showConfirmButton: false, timer: 2000
         });
         
-        if (sale.due <= 0) {
-            setTimeout(() => {
-                const student = sale.studentId !== 'guest' && sale.studentId !== 0 ? students.find(st => st.id == sale.studentId) : { name: sale.studentName, phone: sale.guestPhone, class: 'Guest Customer' };
-                window.generateSalePDF(sale, student);
-            }, 1000);
-        }
+        setTimeout(() => {
+            const student = sale.studentId !== 'guest' && sale.studentId !== 0 ? students.find(st => st.id == sale.studentId) : { name: sale.studentName, phone: sale.guestPhone, class: 'Guest Customer' };
+            window.generateSalePDF(sale, student);
+        }, 1000);
     }
 };
 
