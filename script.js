@@ -9340,7 +9340,7 @@ window.sendSaleWhatsApp = async function(saleId) {
     let discountMsg = sale.discount > 0 ? `*Discount Given:* ₹${sale.discount}\n` : '';
     let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n_Please clear your due amount of ₹${sale.due} as soon as possible._` : '';
     
-    // 🟢 History text for WhatsApp
+    // 🟢 Payment History text for WhatsApp
     let historyText = "";
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         historyText = "\n\n*Payment History:*\n";
@@ -9349,14 +9349,23 @@ window.sendSaleWhatsApp = async function(saleId) {
         });
     }
     
-    // 🟢 Add Rate next to Items
-    let itemsNamesWA = sale.cart ? sale.cart.map(i => `*${i.name}* (x${i.qty} @ ₹${i.price/i.qty})`).join('\n') : `*${sale.item}* (₹${sale.originalPrice || sale.price})`;
+    // 🟢 NEW: Product List Format -> ItemName (x Qty @ Rate) = Total
+    let itemsNamesWA = '';
+    if (sale.cart && sale.cart.length > 0) {
+        itemsNamesWA = sale.cart.map(i => {
+            let rate = i.price / i.qty; // ১ পিসের দাম বের করা হচ্ছে
+            return `*${i.name}* (x ${i.qty} @ ₹${rate}) = ₹${i.price}`;
+        }).join('\n');
+    } else {
+        itemsNamesWA = `*${sale.item}* = ₹${sale.originalPrice || sale.price}`;
+    }
     
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
     const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origPrice}\n${discountMsg}*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nRegards,\n*${instName}*`;
     
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
+
 
 window.sendSaleSMS = async function(saleId) {
     const sale = salesDataArray.find(s => s.id === saleId);
@@ -9370,7 +9379,7 @@ window.sendSaleSMS = async function(saleId) {
     let discountMsg = sale.discount > 0 ? `Discount: Rs.${sale.discount}\n` : '';
     let dueMsg = sale.due > 0 ? `\nCurrent Due: Rs.${sale.due}\nPlease clear your due amount as soon as possible.` : '';
     
-    // 🟢 History text for SMS
+    // 🟢 Payment History text for SMS
     let historyText = "";
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         historyText = "\n\nPayment History:\n";
@@ -9379,8 +9388,16 @@ window.sendSaleSMS = async function(saleId) {
         });
     }
     
-    // 🟢 Add Rate next to Items for SMS
-    let itemsNamesSMS = sale.cart ? sale.cart.map(i => `${i.name} (x${i.qty} @ Rs.${i.price/i.qty})`).join('\n') : `${sale.item} (Rs.${sale.originalPrice || sale.price})`;
+    // 🟢 NEW: Product List Format -> ItemName (x Qty @ Rate) = Total
+    let itemsNamesSMS = '';
+    if (sale.cart && sale.cart.length > 0) {
+        itemsNamesSMS = sale.cart.map(i => {
+            let rate = i.price / i.qty; // ১ পিসের দাম বের করা হচ্ছে
+            return `${i.name} (x ${i.qty} @ Rs.${rate}) = Rs.${i.price}`;
+        }).join('\n');
+    } else {
+        itemsNamesSMS = `${sale.item} = Rs.${sale.originalPrice || sale.price}`;
+    }
     
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
     const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesSMS}\n\nTotal Bill: Rs.${origPrice}\n${discountMsg}Final Payable: Rs.${sale.price}\nTotal Paid: Rs.${sale.paid}${historyText}${dueMsg}\n\nRegards,\n${instName}`;
