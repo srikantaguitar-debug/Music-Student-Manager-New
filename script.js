@@ -8493,54 +8493,78 @@ window.renderSalesUI = function() {
     
     filteredSales.forEach(s => {
         const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
-        const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+        const statusBg = s.due > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)';
+        const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
         
         let payDueBtnHtml = '';
         if (s.due > 0) {
-            payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-rupee-sign"></i></button>`;
+            payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:14px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);"><i class="fas fa-rupee-sign"></i></button>`;
         }
         
-        // 🟢 Payment History (Installments) UI Generator
+        // 🟢 আইটেম লিস্ট (ক্লিকেবল এবং রেট সহ)
+        let itemsHtml = '';
+        if (s.cart && s.cart.length > 0) {
+            let itemSpans = s.cart.map(cItem => {
+                const safeName = cItem.name.replace(/'/g, "\\'");
+                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cItem.price}', '')" style="color:#0ea5e9; font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: rgba(14,165,233,0.08); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(14,165,233,0.2); transition: 0.2s;">${cItem.name} (x${cItem.qty}) - ₹${cItem.price}</span>`;
+            });
+            itemsHtml = itemSpans.join(' ');
+        } else {
+            const safeName = s.item.replace(/'/g, "\\'");
+            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${s.price}', '')" style="color:#0ea5e9; font-weight:600; cursor:pointer; display:inline-block; background: rgba(14,165,233,0.08); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(14,165,233,0.2); transition: 0.2s;">${s.item} - ₹${s.price}</span>`;
+        }
+
+        // 🟢 পেমেন্ট হিস্ট্রি (কিস্তি): Paid (Date) ₹Amount
         let historyHtml = '';
         if (s.paymentHistory && s.paymentHistory.length > 0) {
-            historyHtml += `<div style="margin-top: 8px; font-size: 11px; color: var(--text-muted); background: var(--bg-body); padding: 6px 8px; border-radius: 6px; border: 1px dashed var(--border-color);">`;
-            s.paymentHistory.forEach((hist, idx) => {
-                const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
-                historyHtml += `<div style="margin-bottom:3px; display:flex; justify-content:space-between; align-items:center;">
-                    <span><i class="fas fa-check-circle" style="color:var(--success); font-size:10px;"></i> Pay ${idx+1} (${pDate})</span>
-                    <span style="font-weight:bold; color:var(--text-main);">₹${hist.amount}</span>
+            historyHtml += `<div style="margin-top: 10px; border: 1px dashed #fca5a5; padding: 10px; border-radius: 8px; background: #fffaf5;">`;
+            s.paymentHistory.forEach((hist) => {
+                const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+                historyHtml += `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="color: #78350f; font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:#10b981; margin-right:5px;"></i>Paid (${pDate})</span>
+                    <span style="font-weight:bold; color:#78350f; font-size: 14px;">₹${hist.amount}</span>
                 </div>`;
             });
             historyHtml += `</div>`;
         }
         
         list.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--border-color); background: var(--bg-card);">
-                <td style="padding: 10px 5px; vertical-align: middle;">
-                    <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:14.5px; color:var(--text-main); cursor:pointer;">${s.studentName}</strong>
-                    <div style="font-size:11px; color:var(--text-muted); margin-top: 3px;">
-                        <span style="color:#0ea5e9; font-weight:600;">${s.item}</span> &nbsp;|&nbsp; 📅 ${dateStr}
+            <tr style="border-bottom: 1px solid var(--border-color); background: #ffffff; display: block; padding: 15px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #fed7aa;">
+                <td style="display: block; width: 100%; border: none; padding: 0;">
+                    
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:17px; color:#78350f; cursor:pointer; font-weight: 900;">${s.studentName}</strong>
+                        <div style="font-size:12px; color:var(--text-muted); font-weight: 600;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateStr}</div>
                     </div>
-                    ${historyHtml} <!-- 🟢 কিস্তির হিসাব এখানে অ্যাড হবে -->
-                </td>
-                <td style="padding: 10px 5px; font-size:13px; vertical-align: middle;">
-                    <strong>Total: ₹${s.price}</strong>
-                </td>
-                <td style="padding: 10px 5px; font-size:12.5px; vertical-align: middle;">
-                    <div style="display:flex; flex-direction:column; gap:4px;">
-                        <span style="color:var(--success); font-weight:600;">Paid: ₹${s.paid}</span>
-                        <span style="color:${statusClr}; font-weight:800; background:rgba(${s.due > 0 ? '239, 68, 68' : '16, 185, 129'}, 0.1); padding:2px 6px; border-radius:4px; display:inline-block; width:fit-content;">Due: ₹${s.due}</span>
+                    
+                    <div style="font-size:13px; margin-bottom: 8px; line-height: 1.5;">
+                        ${itemsHtml}
                     </div>
-                </td>
-                <td class="action-buttons" style="padding: 10px 5px; vertical-align: middle;">
-                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    
+                    ${historyHtml}
+                    
+                    <div style="margin-top: 15px; font-size: 16px; font-weight: 900; color: #78350f;">
+                        Total: ₹${s.price}
+                    </div>
+
+                    <div style="margin-top: 8px; font-size: 14px; font-weight: 800; color: #10b981;">
+                        Paid: ₹${s.paid}
+                    </div>
+
+                    <div style="margin-top: 10px;">
+                        <span style="background:${statusBg}; color:${statusClr}; padding: 4px 10px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                            Due: ₹${s.due}
+                        </span>
+                    </div>
+
+                    <div class="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
                        ${payDueBtnHtml}
-                       <button class="btn-info" onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-file-pdf"></i></button>
-                       <button class="btn-warning" onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-edit"></i></button>
-                       <button class="btn-danger" onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-trash"></i></button>
-                       <button class="btn-whatsapp" onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; font-size:16px;"><i class="fab fa-whatsapp"></i></button>
-                       <button class="btn-sms" onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-sms"></i></button>
-                       <button class="btn-call" onclick="window.callBuyer(${s.id})" title="Call" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-phone-alt"></i></button>
+                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2); cursor:pointer;"><i class="fas fa-file-pdf"></i></button>
+                       <button onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2); cursor:pointer;"><i class="fas fa-edit"></i></button>
+                       <button onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2); cursor:pointer;"><i class="fas fa-trash"></i></button>
+                       <button onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:8px; font-size:18px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
+                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
+                       <button onclick="window.callBuyer(${s.id})" title="Call" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
                     </div>
                 </td>
             </tr>`;
@@ -9172,7 +9196,6 @@ window.generateSalePDF = async function(sale, student) {
     if (sale.cart && Array.isArray(sale.cart)) { sale.cart.forEach(item => { estLines += Math.ceil(item.name.length / 25); }); } 
     else { estLines = Math.ceil(sale.item.length / 25); }
     
-    // 🟢 Payment History থাকলে সাইজ বড় হবে
     const historyLines = (sale.paymentHistory && sale.paymentHistory.length > 1) ? sale.paymentHistory.length : 0;
     const pageHeight = Math.max(148, 120 + (estLines * 6) + (historyLines * 6) + (sale.discount > 0 ? 15 : 0)); 
     
@@ -9222,7 +9245,6 @@ window.generateSalePDF = async function(sale, student) {
     
     doc.line(10, y, 95, y); y += 6;
 
-    // 🟢 Price & Discount Layout
     doc.setFont("helvetica", "bold");
     const origP = sale.originalPrice || sale.price;
     doc.text(`Sub Total:`, 48, y); doc.text(`Rs. ${origP}/-`, 75, y); y += 6;
@@ -9237,12 +9259,12 @@ window.generateSalePDF = async function(sale, student) {
     doc.setTextColor(0, 128, 0); 
     doc.text(`Total Paid:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
 
-    // 🟢 Installment History (কবে কত পে করেছে)
+    // 🟢 Updated Installment History (Paid (Date) - Amount)
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(80, 80, 80);
         sale.paymentHistory.forEach((hist, index) => {
             const payDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
-            doc.text(`Pay ${index+1} (${payDate}): Rs. ${hist.amount}`, 50, y);
+            doc.text(`Paid (${payDate}): Rs. ${hist.amount}`, 50, y);
             y += 5;
         });
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0); y += 1;
@@ -9264,20 +9286,20 @@ window.generateSalePDF = async function(sale, student) {
     let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
     if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.tempSalePhone = cleanPhone;
     
-    let itemsNamesWA = sale.cart ? sale.cart.map(i => `${i.name} (x${i.qty})`).join(', ') : sale.item;
-    let dueMsg = sale.due > 0 ? `\nDue: ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
-    let discMsg = sale.discount > 0 ? `\nDiscount: ₹${sale.discount}` : '';
+    // 🟢 Add Rate next to Items for WhatsApp Message
+    let itemsNamesWA = sale.cart ? sale.cart.map(i => `*${i.name}* (x${i.qty} @ ₹${i.price/i.qty})`).join('\n') : `*${sale.item}* (₹${sale.originalPrice || sale.price})`;
+    let dueMsg = sale.due > 0 ? `\n*Due:* ₹${sale.due}\n_Please clear your due amount of ₹${sale.due} as soon as possible._` : '';
+    let discMsg = sale.discount > 0 ? `\n*Discount:* ₹${sale.discount}` : '';
     
-    // 🟢 History text for WhatsApp
     let historyText = "";
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
-        historyText = "\n*Payment History:*\n";
-        sale.paymentHistory.forEach((h, i) => {
-            historyText += `Pay ${i+1} (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
+        historyText = "\n\n*Payment History:*\n";
+        sale.paymentHistory.forEach((h) => {
+            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
         });
     }
     
-    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for *${itemsNamesWA}*.\nTotal Bill: ₹${origP}${discMsg}\nFinal Payable: ₹${sale.price}\nTotal Paid: ₹${sale.paid}${historyText}${dueMsg}\n\nThank You!`;
+    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origP}${discMsg}\n*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nThank You!`;
 
     Swal.close();
     setTimeout(() => {
@@ -9316,19 +9338,22 @@ window.sendSaleWhatsApp = async function(saleId) {
     
     const origPrice = sale.originalPrice || sale.price;
     let discountMsg = sale.discount > 0 ? `*Discount Given:* ₹${sale.discount}\n` : '';
-    let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n*Please clear your due amount of ₹${sale.due} as soon as possible.*` : '';
+    let dueMsg = sale.due > 0 ? `\n*Current Due:* ₹${sale.due}\n_Please clear your due amount of ₹${sale.due} as soon as possible._` : '';
     
     // 🟢 History text for WhatsApp
     let historyText = "";
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
-        historyText = "\n*Payment History:*\n";
-        sale.paymentHistory.forEach((h, i) => {
-            historyText += `Pay ${i+1} (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
+        historyText = "\n\n*Payment History:*\n";
+        sale.paymentHistory.forEach((h) => {
+            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
         });
     }
     
+    // 🟢 Add Rate next to Items
+    let itemsNamesWA = sale.cart ? sale.cart.map(i => `*${i.name}* (x${i.qty} @ ₹${i.price/i.qty})`).join('\n') : `*${sale.item}* (₹${sale.originalPrice || sale.price})`;
+    
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for *${sale.item}*.\n\n*Total Bill:* ₹${origPrice}\n${discountMsg}*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nRegards,\n*${instName}*`;
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origPrice}\n${discountMsg}*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nRegards,\n*${instName}*`;
     
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
@@ -9348,14 +9373,17 @@ window.sendSaleSMS = async function(saleId) {
     // 🟢 History text for SMS
     let historyText = "";
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
-        historyText = "\nPayment History:\n";
-        sale.paymentHistory.forEach((h, i) => {
-            historyText += `Pay ${i+1} (${new Date(h.date).toLocaleDateString('en-IN')}): Rs.${h.amount}\n`;
+        historyText = "\n\nPayment History:\n";
+        sale.paymentHistory.forEach((h) => {
+            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): Rs.${h.amount}\n`;
         });
     }
     
+    // 🟢 Add Rate next to Items for SMS
+    let itemsNamesSMS = sale.cart ? sale.cart.map(i => `${i.name} (x${i.qty} @ Rs.${i.price/i.qty})`).join('\n') : `${sale.item} (Rs.${sale.originalPrice || sale.price})`;
+    
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for ${sale.item}.\n\nTotal Bill: Rs.${origPrice}\n${discountMsg}Final Payable: Rs.${sale.price}\nTotal Paid: Rs.${sale.paid}${historyText}${dueMsg}\n\nRegards,\n${instName}`;
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesSMS}\n\nTotal Bill: Rs.${origPrice}\n${discountMsg}Final Payable: Rs.${sale.price}\nTotal Paid: Rs.${sale.paid}${historyText}${dueMsg}\n\nRegards,\n${instName}`;
     
     window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
 };
@@ -10947,7 +10975,7 @@ window.exportDashboardPDF = function() {
     if (typeof window.addWatermarkAndSignatureToPdf === 'function') window.addWatermarkAndSignatureToPdf(doc); 
     doc.save(`Dashboard_Full_Report_${currentMonthStr}.pdf`); 
 };
-// 🟢 NEW: Sales Breakdown Report (ক্লিক করলে পপআপে হিস্ট্রি দেখাবে)
+// 🟢 NEW: Sales Breakdown Report (Matching exact Screenshot Design)
 window.showSalesBreakdown = function(year, month) {
     let reportSales = salesDataArray.filter(s => {
         const sDate = new Date(s.date);
@@ -10957,7 +10985,7 @@ window.showSalesBreakdown = function(year, month) {
         const matchYear = (year === 'Lifetime' || sYear === year);
         const matchMonth = (month === 'All' || sMonth === month);
         
-        return matchYear && matchMonth; // এখানে ডিউ এবং পেইড সব সেলই দেখাবে
+        return matchYear && matchMonth; 
     });
 
     if (reportSales.length === 0) {
@@ -10965,7 +10993,7 @@ window.showSalesBreakdown = function(year, month) {
         return;
     }
 
-    let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
+    let listHtml = '<div style="max-height: 70vh; overflow-y: auto; text-align: left; padding: 5px; background: #fffcf8;">';
     let totalSales = 0;
     let totalDue = 0;
 
@@ -10973,40 +11001,73 @@ window.showSalesBreakdown = function(year, month) {
         totalSales += sale.price;
         totalDue += sale.due;
         
-        const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
-        const statusClr = sale.due > 0 ? '#e11d48' : '#15803d';
-        const statusBg = sale.due > 0 ? '#fff1f2' : '#dcfce7';
-        const statusText = sale.due > 0 ? `Due: ₹${sale.due}` : 'Fully Paid';
+        const dateStr = new Date(sale.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
         
-        let itemsHtml = '';
+        // 🟢 আইটেম লিস্টের সাথে Rate (দাম) অ্যাড করা হলো
+        let itemsString = '';
         if (sale.cart && sale.cart.length > 0) {
-            sale.cart.forEach(cItem => { 
-                itemsHtml += `<div style="font-size: 12px; color: var(--text-muted);">• ${cItem.name} (x${cItem.qty})</div>`;
-            });
+            itemsString = sale.cart.map(c => `${c.name} (x${c.qty} - ₹${c.price})`).join(', ');
         } else {
-            itemsHtml = `<div style="font-size: 12px; color: var(--text-muted);">• ${sale.item}</div>`;
+            itemsString = `${sale.item} (₹${sale.price})`;
         }
 
+        // 🟢 পেমেন্ট হিস্ট্রি (কিস্তি) অ্যাড করা হলো: Paid (Date) ₹Amount ফরম্যাটে
+        let historyHtml = '';
+        if (sale.paymentHistory && sale.paymentHistory.length > 0) {
+            historyHtml += `<div style="margin-top: 15px; border: 1px dashed #fca5a5; padding: 12px; border-radius: 8px; background: #fffaf5;">`;
+            sale.paymentHistory.forEach((hist) => {
+                const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+                historyHtml += `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                    <span style="color: #78350f; font-size: 14px;"><i class="fas fa-check-circle" style="color:#10b981; margin-right:5px;"></i>Paid (${pDate})</span>
+                    <strong style="color: #78350f; font-size: 14px;">₹${hist.amount}</strong>
+                </div>`;
+            });
+            historyHtml += `</div>`;
+        }
+
+        const dueBg = sale.due > 0 ? '#ecfdf5' : '#ecfdf5'; // Greenish bg for badge
+        const dueColor = sale.due > 0 ? '#10b981' : '#10b981';
+
         listHtml += `
-            <div style="background: var(--bg-input); padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-                <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-                    <strong style="color:var(--text-main); font-size:14px;">${sale.studentName}</strong>
-                    <span style="color:var(--text-muted); font-size:11px;">${dateStr}</span>
+            <div style="background: #ffffff; padding: 20px; border-radius: 16px; margin-bottom: 15px; border: 1px solid #fed7aa; box-shadow: 0 4px 10px rgba(0,0,0,0.03);">
+
+                <!-- Name -->
+                <h3 style="margin: 0 0 12px 0; color: #78350f; font-size: 18px; font-weight: 900;">${sale.studentName}</h3>
+
+                <!-- Items and Date -->
+                <div style="font-size: 13px; color: #0ea5e9; line-height: 1.6; font-weight: 600;">
+                    ${itemsString} &nbsp;|&nbsp; <span style="color: #78350f;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateStr}</span>
                 </div>
-                
-                <div style="background: var(--bg-body); padding: 8px; border-radius: 6px; margin-bottom: 8px; border: 1px dashed #cbd5e1;">
-                    ${itemsHtml}
+
+                <!-- Payment History Box -->
+                ${historyHtml}
+
+                <!-- Totals -->
+                <div style="margin-top: 20px; font-size: 17px; font-weight: 900; color: #78350f;">
+                    Total: ₹${sale.price}
                 </div>
-                
-                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 8px;">
-                    <div style="font-size:12px;">
-                        <div style="color:var(--primary); font-weight:600;">Total: ₹${sale.price}</div>
-                        <div style="color:var(--success); font-weight:600;">Paid: ₹${sale.paid}</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div style="font-size:11px; font-weight:bold; color:${statusClr}; padding: 4px 8px; background: ${statusBg}; border-radius: 6px;">${statusText}</div>
-                    </div>
+
+                <div style="margin-top: 15px; font-size: 15px; font-weight: 800; color: #10b981;">
+                    Paid: ₹${sale.paid}
                 </div>
+
+                <div style="margin-top: 10px;">
+                    <span style="background: ${sale.due > 0 ? '#fee2e2' : '#ecfdf5'}; color: ${sale.due > 0 ? '#ef4444' : '#10b981'}; padding: 4px 10px; border-radius: 6px; font-size: 15px; font-weight: bold;">
+                        Due: ₹${sale.due}
+                    </span>
+                </div>
+
+                <!-- Action Buttons (Square design like screenshot) -->
+                <div style="display:flex; gap:8px; align-items:center; margin-top: 25px;">
+                    <button onclick="window.resendSaleReceipt(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#8b5cf6; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-file-pdf"></i></button>
+                    <button onclick="window.editSaleRecord(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#f59e0b; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-edit"></i></button>
+                    <button onclick="window.deleteSaleRecord(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#ef4444; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-trash"></i></button>
+                    <button onclick="window.sendSaleWhatsApp(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#25D366; color:#fff; font-size:22px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fab fa-whatsapp"></i></button>
+                    <button onclick="window.sendSaleSMS(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#f59e0b; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-sms"></i></button>
+                    <button onclick="window.callBuyer(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#059669; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-phone-alt"></i></button>
+                </div>
+
             </div>
         `;
     });
@@ -11025,13 +11086,14 @@ window.showSalesBreakdown = function(year, month) {
     </div>`;
 
     Swal.fire({
-        title: 'Sales Breakdown',
+        title: '<span style="color:#78350f; font-weight:900;">Sales History</span>',
         html: listHtml,
         showConfirmButton: true,
         confirmButtonText: 'Close',
-        confirmButtonColor: '#0ea5e9',
+        confirmButtonColor: '#ef4444',
         width: '95%',
-        padding: '15px'
+        padding: '0 0 15px 0',
+        background: '#fffcf8'
     });
 };
 // 🟢 NEW: Profit Breakdown Report
@@ -11722,7 +11784,7 @@ window.renderStockTable = function() {
 
 
 
-// 7. Update Product Details Popup (For Student Portal)
+// 🟢 NEW: Product Details Popup (Matching Exact Picture Design)
 window.openProductDetailsPopup = function(name, price, photoUrl) {
     let existingOverlay = document.getElementById('customProductDetailOverlay');
     if (existingOverlay) document.body.removeChild(existingOverlay);
@@ -11733,33 +11795,71 @@ window.openProductDetailsPopup = function(name, price, photoUrl) {
 
     const safeName = name.replace(/\\'/g, "'"); 
     const item = window.stockInventory.find(i => i.name === safeName);
-    let photosToSlide = [];
-    if(item && item.photos && item.photos.length > 0) photosToSlide = item.photos;
-    else if (photoUrl && photoUrl !== 'undefined') photosToSlide = [photoUrl];
-
-    let sliderHtml = window.buildPhotosSliderHtml(photosToSlide, '250px', 'contain');
     
-    // 🟢 Fetch MRP dynamically for the popup
-    let mrp = item ? item.mrp : null;
-    let priceHtml = window.getPriceDisplayHtml(price, mrp, true);
+    let displayPhoto = 'https://via.placeholder.com/80?text=📦';
+    if(item && item.photos && item.photos.length > 0) displayPhoto = item.photos[0];
+    else if (photoUrl && photoUrl !== 'undefined' && photoUrl !== '') displayPhoto = photoUrl;
+    else if (item && item.photo) displayPhoto = item.photo;
+
+    // 🟢 Fetch Details dynamically
+    let buyPrice = item ? (item.buyPrice || 0) : 0;
+    let mrp = item ? (item.mrp || '') : '';
+    let sellPrice = item ? (item.price || price) : price;
+    let qty = item ? (item.qty || 0) : 0;
+
+    let mrpHtml = (mrp && parseFloat(mrp) > parseFloat(sellPrice)) 
+        ? `<span style="color: #9a3412; text-decoration: line-through; font-weight: 800; font-size: 15px;">MRP: ₹${mrp}</span>` 
+        : '';
+
+    // Check if it is Student Portal
+    const urlParams = new URLSearchParams(window.location.search);
+    let isStudentPortal = urlParams.get('student') && urlParams.get('manager');
+    if (!isStudentPortal) {
+        isStudentPortal = localStorage.getItem('saved_student_id') ? true : false;
+    }
+
+    let buttonsHtml = '';
+    let topCloseBtn = `<button onclick="document.body.removeChild(this.parentElement.parentElement)" style="position: absolute; top: -15px; right: -15px; background: #ef4444; color: white; border: 2px solid #fff; width: 35px; height: 35px; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 10;">&times;</button>`;
+
+    if (isStudentPortal) {
+        buttonsHtml = `
+            <div style="width:100%; display:flex; gap:10px; margin-top: 10px;">
+                <button onclick="window.sendProductQuery('${safeName}')" style="flex: 1; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Buy Now
+                </button>
+            </div>
+        `;
+    } else {
+        // 🟢 Admin buttons matching the screenshot perfectly
+        buttonsHtml = `
+            <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end;">
+                <button onclick="document.body.removeChild(document.getElementById('customProductDetailOverlay')); window.editStockItem(${item ? item.id : ''})" style="width: 45px; height: 45px; border-radius: 12px; background: #f59e0b; color: #fff; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-edit"></i></button>
+                <button onclick="document.body.removeChild(document.getElementById('customProductDetailOverlay')); window.deleteStockItem(${item ? item.id : ''})" style="width: 45px; height: 45px; border-radius: 12px; background: #ef4444; color: #fff; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-trash"></i></button>
+                <button onclick="document.body.removeChild(document.getElementById('customProductDetailOverlay')); window.sendProductToPortal(${item ? item.id : ''})" style="width: 45px; height: 45px; border-radius: 12px; background: #8b5cf6; color: #fff; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        `;
+    }
 
     overlay.innerHTML = `
-        <div style="background: var(--bg-card); width: 100%; max-width: 400px; border-radius: 20px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; text-align: center;">
-            ${sliderHtml}
-            <div style="font-size: 20px; font-weight: 800; color: var(--text-main); line-height: 1.3; margin-bottom: 8px;">${name}</div>
+        <div style="background: #ffffff; width: 100%; max-width: 420px; border-radius: 16px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; border: 2px solid #fca5a5;">
+            ${topCloseBtn}
             
-            <!-- Discount Block applied here -->
-            <div style="display:flex; justify-content:center;">
-                ${priceHtml}
+            <div style="display:flex; align-items:flex-start; gap: 15px; margin-bottom: 20px;">
+                <img src="${displayPhoto}" style="width: 80px; height: 80px; border-radius: 12px; background: #e2e8f0; object-fit: cover; border: 1px solid #cbd5e1; flex-shrink: 0;">
+                <div style="flex-grow: 1; text-align: left;">
+                    <div style="font-size: 20px; font-weight: 900; color: #78350f; line-height: 1.2;">${name}</div>
+                </div>
             </div>
             
-            <div style="display: flex; flex-direction: column; gap: 12px;">
-                <button onclick="window.sendProductQuery('${safeName}')" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i class="fab fa-whatsapp" style="font-size: 20px;"></i> Buy Now
-                </button>
-                <button onclick="document.body.removeChild(this.parentElement.parentElement.parentElement)" style="background: #ef4444; color: white; border: none; padding: 15px; border-radius: 14px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(239,68,68,0.3);">
-                    Close
-                </button>
+            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom: 20px;">
+                ${!isStudentPortal ? `<span style="background: #eff6ff; color: #2563eb; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 15px;">Buy: ₹${buyPrice}</span>` : ''}
+                ${mrpHtml}
+                <span style="color: #9a3412; font-weight: 800; font-size: 15px;">Sell: ₹${sellPrice}</span>
+            </div>
+
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span style="border: 2px solid #fecaca; color: #ef4444; padding: 8px 15px; border-radius: 8px; font-weight: 900; font-size: 16px; background: #fff5f5;">${qty} pcs</span>
+                ${buttonsHtml}
             </div>
         </div>
     `;
