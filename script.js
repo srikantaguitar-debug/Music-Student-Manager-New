@@ -14107,122 +14107,155 @@ window.markReminderDone = function(id) {
     saveData().catch(e => console.log("Background sync pending for reminder"));
 };
 // ==========================================
-// 🟢 INQUIRY & FOLLOW-UP LOGIC (LIFETIME FREE PLAN OPTIMIZED)
+// 🟢 INQUIRY & FOLLOW-UP LOGIC (ULTIMATE FIREBASE FIX)
 // ==========================================
 
-// ১. লোকাল মেমরি থেকে ডেটা লোড (0 Read Cost)
-window.inquiries = JSON.parse(localStorage.getItem('localInquiriesData')) || [];
+window.inquiries = [];
 
-window.getManagerEmail = function() {
-    if (firebase.auth && firebase.auth().currentUser) {
+// 🟢 ১. ইমেইল চেক করার ফাংশন (যাতে লগইন ছাড়া সেভ না হয়)
+window.getAdminEmail = function() {
+    if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
         return firebase.auth().currentUser.email;
     }
-    return localStorage.getItem('managerEmail');
+    return localStorage.getItem('managerEmail'); 
 };
 
-// ২. Firebase-এ সেভ করা (মাত্র ১টি Write ব্যবহার হবে)
-window.syncInquiriesToFirebase = async function() {
-    try {
-        const email = window.getManagerEmail();
-        if (email && navigator.onLine) {
-            // সব ডেটা একটিমাত্র ডকুমেন্টে সেভ হচ্ছে, তাই সারাজীবন ফ্রি!
-            await firebase.firestore().collection('music_classes').doc(email).collection('inquiries').doc('data').set({
-                list: window.inquiries
-            });
-        }
-    } catch (e) {
-        console.log("Will sync to database when online...");
-    }
-};
-
-// ৩. Firebase থেকে লোড করা (মাত্র ১টি Read ব্যবহার হবে)
+// 🟢 ২. Firebase থেকে ডেটা লোড করা
 window.fetchInquiries = async function() {
+    const email = window.getAdminEmail();
+    if (!email) return; // ইমেইল না পেলে ওয়েট করবে
+
     try {
-        window.renderInquiries(); // অ্যাপ খোলার সাথে সাথেই লোকাল ডেটা দেখাবে
+        console.log("Loading Inquiries from Firebase...");
+        const docRef = firebase.firestore()
+                        .collection('music_classes')
+                        .doc(email)
+                        .collection('inquiries')
+                        .doc('all_inquiries'); // একটিমাত্র ডকুমেন্টে লিস্ট সেভ হবে
+                        
+        const snapshot = await docRef.get();
+        if (snapshot.exists) {
+            window.inquiries = snapshot.data().list || [];
+            console.log("Loaded successfully!");
+        } else {
+            window.inquiries = [];
+        }
+        
+        window.renderInquiries();
         
         const inqDateInput = document.getElementById('inqDate');
         if(inqDateInput && !inqDateInput.value) {
             inqDateInput.value = new Date().toISOString().split('T')[0];
         }
-
-        const email = window.getManagerEmail();
-        if (email && navigator.onLine) {
-            const doc = await firebase.firestore().collection('music_classes').doc(email).collection('inquiries').doc('data').get();
-            if (doc.exists) {
-                window.inquiries = doc.data().list || [];
-                localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries)); // ব্যাকআপ
-                window.renderInquiries();
-            }
-        }
-    } catch (e) {
-        console.log("Running in fast offline mode...");
+    } catch (error) {
+        console.error("Firebase Load Error:", error);
     }
 };
 
-// অ্যাপ চালুর ১ সেকেন্ড পর ব্যাকগ্রাউন্ডে চেক করবে
-setTimeout(() => { window.fetchInquiries(); }, 1000);
+// 🟢 অ্যাপ চালু বা লগইন হওয়ার সাথে সাথে ডেটা লোড করার ট্রিগার
+if (typeof firebase !== 'undefined' && firebase.auth) {
+    firebase.auth().onAuthStateChanged((user) => {
+        if (user) {
+            setTimeout(window.fetchInquiries, 1500); // লগইন হলে ১.৫ সেকেন্ড পর লোড হবে
+        }
+    });
+} else {
+    setTimeout(window.fetchInquiries, 3000);
+}
 
-window.addInquiry = function() {
-    const editId = document.getElementById('editInqId').value;
-    const name = document.getElementById('inqName').value.trim();
-    const phone = document.getElementById('inqPhone').value.trim();
-    const inqClass = document.getElementById('inqClass').value; 
-    const inqDate = document.getElementById('inqDate').value; 
-    const joinDate = document.getElementById('inqJoinDate').value; 
-    const address = document.getElementById('inqAddress').value.trim();
-    const note = document.getElementById('inqNote').value.trim();
-
-    if (!phone) {
-        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Phone is mandatory!', showConfirmButton: false, timer: 2000});
+// 🟢 ৩. Firebase এ সরাসরি সেভ করার মেইন ফাংশন
+window.saveInquiriesToFB = async function() {
+    const email = window.getAdminEmail();
+    if (!email) {
+        Swal.fire('Error', 'Manager email missing! Please login again.', 'error');
         return;
     }
-
-    const inqData = {
-        name: name || 'Unknown',
-        phone: phone,
-        className: inqClass,
-        inquiryDate: inqDate || new Date().toISOString().split('T')[0],
-        joiningDate: joinDate,
-        address: address,
-        note: note,
-        date: new Date().toISOString().split('T')[0],
-        followUpCompleted: false
-    };
-
-    if (!Array.isArray(window.inquiries)) window.inquiries = [];
-
-    if (editId) {
-        inqData.id = editId;
-        const index = window.inquiries.findIndex(i => String(i.id) === String(editId));
-        if (index > -1) {
-            inqData.followUpCompleted = window.inquiries[index].followUpCompleted || false;
-            window.inquiries[index] = inqData;
-        }
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Updated!', showConfirmButton: false, timer: 1500});
-    } else {
-        inqData.id = Date.now().toString();
-        window.inquiries.unshift(inqData);
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Saved!', showConfirmButton: false, timer: 1500});
+    try {
+        await firebase.firestore()
+                .collection('music_classes')
+                .doc(email)
+                .collection('inquiries')
+                .doc('all_inquiries')
+                .set({ list: window.inquiries });
+        console.log("Saved to Firebase successfully.");
+    } catch (error) {
+        console.error("Firebase Save Error:", error);
+        Swal.fire('Database Error', 'Check your internet connection.', 'error');
     }
-
-    localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries)); // লোকাল সেভ
-    window.renderInquiries(); // স্ক্রিনে দেখানো
-    window.cancelInquiryEdit();
-    window.syncInquiriesToFirebase(); // ব্যাকগ্রাউন্ডে ফায়ারবেসে পাঠানো
 };
 
-window.markInquiryFollowUpComplete = function(id) {
+// 🟢 ৪. নতুন ইনকোয়ারি অ্যাড বা আপডেট করা
+window.addInquiry = async function() {
+    try {
+        const editId = document.getElementById('editInqId').value;
+        const name = document.getElementById('inqName').value.trim();
+        const phone = document.getElementById('inqPhone').value.trim();
+        const inqClass = document.getElementById('inqClass').value; 
+        const inqDate = document.getElementById('inqDate').value; 
+        const joinDate = document.getElementById('inqJoinDate').value; 
+        const address = document.getElementById('inqAddress').value.trim();
+        const note = document.getElementById('inqNote').value.trim();
+
+        if (!phone) {
+            Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Phone is mandatory!', showConfirmButton: false, timer: 2000});
+            return;
+        }
+
+        Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
+
+        const inqData = {
+            name: name || 'Unknown',
+            phone: phone,
+            className: inqClass,
+            inquiryDate: inqDate || new Date().toISOString().split('T')[0],
+            joiningDate: joinDate,
+            address: address,
+            note: note,
+            date: new Date().toISOString().split('T')[0],
+            followUpCompleted: false
+        };
+
+        if (!Array.isArray(window.inquiries)) window.inquiries = [];
+
+        if (editId) {
+            const index = window.inquiries.findIndex(i => String(i.id) === String(editId));
+            if (index > -1) {
+                inqData.id = editId;
+                inqData.followUpCompleted = window.inquiries[index].followUpCompleted || false;
+                window.inquiries[index] = inqData;
+            }
+        } else {
+            inqData.id = Date.now().toString();
+            window.inquiries.unshift(inqData);
+        }
+
+        window.renderInquiries();
+        window.cancelInquiryEdit();
+        
+        await window.saveInquiriesToFB(); // ফায়ারবেসে পুশ
+        
+        Swal.close();
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Saved Successfully!', showConfirmButton: false, timer: 1500});
+
+    } catch (e) {
+        console.error("Error:", e);
+        Swal.close();
+    }
+};
+
+// 🟢 ৫. ফলোআপ কমপ্লিট করা
+window.markInquiryFollowUpComplete = async function(id) {
+    if (!Array.isArray(window.inquiries)) return;
     const index = window.inquiries.findIndex(i => String(i.id) === String(id));
     if (index > -1) {
         window.inquiries[index].followUpCompleted = true; 
-        
-        localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries));
         window.renderInquiries();
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Done!', showConfirmButton: false, timer: 1500});
-        window.syncInquiriesToFirebase();
+        await window.saveInquiriesToFB(); // ফায়ারবেস আপডেট
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Follow-up Done!', showConfirmButton: false, timer: 1500});
     }
 };
 
+// 🟢 ৬. ডিলিট করা
 window.deleteInquiry = function(id) {
     Swal.fire({
         title: 'Delete Inquiry?',
@@ -14230,14 +14263,16 @@ window.deleteInquiry = function(id) {
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         confirmButtonText: 'Yes, Delete'
-    }).then((result) => {
+    }).then(async (result) => {
         if(result.isConfirmed) {
-            window.inquiries = window.inquiries.filter(i => String(i.id) !== String(id));
+            Swal.fire({ title: 'Deleting...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
             
-            localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries));
+            window.inquiries = window.inquiries.filter(i => String(i.id) !== String(id));
             window.renderInquiries();
+            await window.saveInquiriesToFB(); // ফায়ারবেস আপডেট
+            
+            Swal.close();
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
-            window.syncInquiriesToFirebase();
         }
     });
 };
@@ -14261,7 +14296,6 @@ window.editInquiry = function(id) {
         saveBtn.innerHTML = '<i class="fas fa-save"></i> Update Inquiry';
         saveBtn.style.background = '#10b981'; 
     }
-    
     document.getElementById('inqCancelBtn').style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
