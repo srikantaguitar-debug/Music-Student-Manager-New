@@ -9196,7 +9196,8 @@ window.generateSalePDF = async function(sale, student) {
     if (sale.cart && Array.isArray(sale.cart)) { sale.cart.forEach(item => { estLines += Math.ceil(item.name.length / 25); }); } 
     else { estLines = Math.ceil(sale.item.length / 25); }
     
-    const historyLines = (sale.paymentHistory && sale.paymentHistory.length > 1) ? sale.paymentHistory.length : 0;
+    // 🟢 Payment History থাকলে সাইজ বড় হবে
+    const historyLines = (sale.paymentHistory && sale.paymentHistory.length > 0) ? sale.paymentHistory.length : 0;
     const pageHeight = Math.max(148, 120 + (estLines * 6) + (historyLines * 6) + (sale.discount > 0 ? 15 : 0)); 
     
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [105, pageHeight] });
@@ -9259,11 +9260,17 @@ window.generateSalePDF = async function(sale, student) {
     doc.setTextColor(0, 128, 0); 
     doc.text(`Total Paid:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
 
-    // 🟢 Updated Installment History (Paid (Date) - Amount)
+    // 🟢 Updated Installment History (DD/MM/YYYY Format)
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(80, 80, 80);
-        sale.paymentHistory.forEach((hist, index) => {
-            const payDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+        sale.paymentHistory.forEach((hist) => {
+            // ডেটকে DD/MM/YYYY ফরম্যাটে কনভার্ট করা হচ্ছে
+            const pDateObj = new Date(hist.date);
+            const dd = String(pDateObj.getDate()).padStart(2, '0');
+            const mm = String(pDateObj.getMonth() + 1).padStart(2, '0');
+            const yyyy = pDateObj.getFullYear();
+            const payDate = `${dd}/${mm}/${yyyy}`;
+            
             doc.text(`Paid (${payDate}): Rs. ${hist.amount}`, 50, y);
             y += 5;
         });
@@ -9286,7 +9293,6 @@ window.generateSalePDF = async function(sale, student) {
     let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
     if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone; window.tempSalePhone = cleanPhone;
     
-    // 🟢 Add Rate next to Items for WhatsApp Message
     let itemsNamesWA = sale.cart ? sale.cart.map(i => `*${i.name}* (x${i.qty} @ ₹${i.price/i.qty})`).join('\n') : `*${sale.item}* (₹${sale.originalPrice || sale.price})`;
     let dueMsg = sale.due > 0 ? `\n*Due:* ₹${sale.due}\n_Please clear your due amount of ₹${sale.due} as soon as possible._` : '';
     let discMsg = sale.discount > 0 ? `\n*Discount:* ₹${sale.discount}` : '';
@@ -9295,7 +9301,9 @@ window.generateSalePDF = async function(sale, student) {
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         historyText = "\n\n*Payment History:*\n";
         sale.paymentHistory.forEach((h) => {
-            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
+            const hDateObj = new Date(h.date);
+            const formattedDate = `${String(hDateObj.getDate()).padStart(2, '0')}/${String(hDateObj.getMonth() + 1).padStart(2, '0')}/${hDateObj.getFullYear()}`;
+            historyText += `Paid (${formattedDate}): ₹${h.amount}\n`;
         });
     }
     
@@ -14097,4 +14105,291 @@ window.markReminderDone = function(id) {
 
     // ৪. ব্যাকগ্রাউন্ডে সেভ হবে
     saveData().catch(e => console.log("Background sync pending for reminder"));
+};
+// ==========================================
+// 🟢 INQUIRY & FOLLOW-UP LOGIC (LIFETIME FREE PLAN OPTIMIZED)
+// ==========================================
+
+// ১. লোকাল মেমরি থেকে ডেটা লোড (0 Read Cost)
+window.inquiries = JSON.parse(localStorage.getItem('localInquiriesData')) || [];
+
+window.getManagerEmail = function() {
+    if (firebase.auth && firebase.auth().currentUser) {
+        return firebase.auth().currentUser.email;
+    }
+    return localStorage.getItem('managerEmail');
+};
+
+// ২. Firebase-এ সেভ করা (মাত্র ১টি Write ব্যবহার হবে)
+window.syncInquiriesToFirebase = async function() {
+    try {
+        const email = window.getManagerEmail();
+        if (email && navigator.onLine) {
+            // সব ডেটা একটিমাত্র ডকুমেন্টে সেভ হচ্ছে, তাই সারাজীবন ফ্রি!
+            await firebase.firestore().collection('music_classes').doc(email).collection('inquiries').doc('data').set({
+                list: window.inquiries
+            });
+        }
+    } catch (e) {
+        console.log("Will sync to database when online...");
+    }
+};
+
+// ৩. Firebase থেকে লোড করা (মাত্র ১টি Read ব্যবহার হবে)
+window.fetchInquiries = async function() {
+    try {
+        window.renderInquiries(); // অ্যাপ খোলার সাথে সাথেই লোকাল ডেটা দেখাবে
+        
+        const inqDateInput = document.getElementById('inqDate');
+        if(inqDateInput && !inqDateInput.value) {
+            inqDateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        const email = window.getManagerEmail();
+        if (email && navigator.onLine) {
+            const doc = await firebase.firestore().collection('music_classes').doc(email).collection('inquiries').doc('data').get();
+            if (doc.exists) {
+                window.inquiries = doc.data().list || [];
+                localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries)); // ব্যাকআপ
+                window.renderInquiries();
+            }
+        }
+    } catch (e) {
+        console.log("Running in fast offline mode...");
+    }
+};
+
+// অ্যাপ চালুর ১ সেকেন্ড পর ব্যাকগ্রাউন্ডে চেক করবে
+setTimeout(() => { window.fetchInquiries(); }, 1000);
+
+window.addInquiry = function() {
+    const editId = document.getElementById('editInqId').value;
+    const name = document.getElementById('inqName').value.trim();
+    const phone = document.getElementById('inqPhone').value.trim();
+    const inqClass = document.getElementById('inqClass').value; 
+    const inqDate = document.getElementById('inqDate').value; 
+    const joinDate = document.getElementById('inqJoinDate').value; 
+    const address = document.getElementById('inqAddress').value.trim();
+    const note = document.getElementById('inqNote').value.trim();
+
+    if (!phone) {
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Phone is mandatory!', showConfirmButton: false, timer: 2000});
+        return;
+    }
+
+    const inqData = {
+        name: name || 'Unknown',
+        phone: phone,
+        className: inqClass,
+        inquiryDate: inqDate || new Date().toISOString().split('T')[0],
+        joiningDate: joinDate,
+        address: address,
+        note: note,
+        date: new Date().toISOString().split('T')[0],
+        followUpCompleted: false
+    };
+
+    if (!Array.isArray(window.inquiries)) window.inquiries = [];
+
+    if (editId) {
+        inqData.id = editId;
+        const index = window.inquiries.findIndex(i => String(i.id) === String(editId));
+        if (index > -1) {
+            inqData.followUpCompleted = window.inquiries[index].followUpCompleted || false;
+            window.inquiries[index] = inqData;
+        }
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Updated!', showConfirmButton: false, timer: 1500});
+    } else {
+        inqData.id = Date.now().toString();
+        window.inquiries.unshift(inqData);
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Saved!', showConfirmButton: false, timer: 1500});
+    }
+
+    localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries)); // লোকাল সেভ
+    window.renderInquiries(); // স্ক্রিনে দেখানো
+    window.cancelInquiryEdit();
+    window.syncInquiriesToFirebase(); // ব্যাকগ্রাউন্ডে ফায়ারবেসে পাঠানো
+};
+
+window.markInquiryFollowUpComplete = function(id) {
+    const index = window.inquiries.findIndex(i => String(i.id) === String(id));
+    if (index > -1) {
+        window.inquiries[index].followUpCompleted = true; 
+        
+        localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries));
+        window.renderInquiries();
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Done!', showConfirmButton: false, timer: 1500});
+        window.syncInquiriesToFirebase();
+    }
+};
+
+window.deleteInquiry = function(id) {
+    Swal.fire({
+        title: 'Delete Inquiry?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Delete'
+    }).then((result) => {
+        if(result.isConfirmed) {
+            window.inquiries = window.inquiries.filter(i => String(i.id) !== String(id));
+            
+            localStorage.setItem('localInquiriesData', JSON.stringify(window.inquiries));
+            window.renderInquiries();
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+            window.syncInquiriesToFirebase();
+        }
+    });
+};
+
+window.editInquiry = function(id) {
+    if (!Array.isArray(window.inquiries)) return;
+    const inq = window.inquiries.find(i => String(i.id) === String(id));
+    if(!inq) return;
+
+    document.getElementById('editInqId').value = inq.id;
+    document.getElementById('inqName').value = inq.name === 'Unknown' ? '' : inq.name;
+    document.getElementById('inqPhone').value = inq.phone;
+    document.getElementById('inqClass').value = inq.className || '';
+    document.getElementById('inqDate').value = inq.inquiryDate || inq.date || new Date().toISOString().split('T')[0];
+    document.getElementById('inqJoinDate').value = inq.joiningDate || '';
+    document.getElementById('inqAddress').value = inq.address || '';
+    document.getElementById('inqNote').value = inq.note || '';
+
+    const saveBtn = document.getElementById('inqSaveBtn');
+    if(saveBtn){
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Update Inquiry';
+        saveBtn.style.background = '#10b981'; 
+    }
+    
+    document.getElementById('inqCancelBtn').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+
+window.cancelInquiryEdit = function() {
+    document.getElementById('editInqId').value = '';
+    document.getElementById('inqName').value = '';
+    document.getElementById('inqPhone').value = '';
+    document.getElementById('inqClass').value = '';
+    document.getElementById('inqDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('inqJoinDate').value = '';
+    document.getElementById('inqAddress').value = '';
+    document.getElementById('inqNote').value = '';
+
+    const saveBtn = document.getElementById('inqSaveBtn');
+    if(saveBtn){
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save Inquiry';
+        saveBtn.style.background = '#f59e0b'; 
+    }
+    document.getElementById('inqCancelBtn').style.display = 'none';
+};
+
+window.renderInquiries = function() {
+    const container = document.getElementById('inquiryListContainer');
+    const notifArea = document.getElementById('inquiryNotificationArea');
+    if(!container) return;
+    
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+    let upcomingInquiries = Array.isArray(window.inquiries) ? window.inquiries.filter(inq => inq.joiningDate === tomorrowStr && !inq.followUpCompleted) : [];
+    
+    if(upcomingInquiries.length > 0 && notifArea) {
+        let notifHtml = `<div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-left: 5px solid #f59e0b; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #fde68a;">
+            <h4 style="margin: 0 0 8px 0; color: #b45309; display: flex; align-items: center; gap: 8px;"><i class="fas fa-bell fa-shake" style="color: #f59e0b;"></i> Follow-up Reminder!</h4>
+            <p style="margin: 0 0 10px 0; font-size: 13px; color: #92400e;">The following people planned to join tomorrow:</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">`;
+        
+        upcomingInquiries.forEach(inq => {
+            let clPhone = inq.phone.replace(/[^0-9]/g, '');
+            if(clPhone.length === 10) clPhone = '91' + clPhone;
+            
+            const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+            const classText = inq.className ? ` for the *${inq.className}* class` : '';
+            const msg = `Hello ${inq.name !== 'Unknown' ? inq.name : ''},\n\nThis is a gentle reminder regarding your joining date tomorrow${classText}. Let me know if you have any questions.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+
+            const waUrl = `https://wa.me/${clPhone}?text=${encodeURIComponent(msg)}`;
+            const smsUrl = `sms:${inq.phone}?body=${encodeURIComponent(msg)}`;
+            const callUrl = `tel:${inq.phone}`;
+            
+            notifHtml += `
+            <div style="background: rgba(255,255,255,0.7); padding: 12px; border-radius: 8px; border: 1px dashed #f59e0b; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <strong style="color: #92400e; font-size: 15px;"><i class="fas fa-user-circle"></i> ${inq.name !== 'Unknown' ? inq.name : 'Unknown Caller'}</strong>
+                    <span style="font-size: 11px; font-weight: bold; background: #fef08a; color: #854d0e; padding: 3px 8px; border-radius: 4px;">Tomorrow</span>
+                </div>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <a href="${callUrl}" title="Call" style="flex:1; background: #059669; color: white; padding: 8px 0; border-radius: 6px; text-align: center; text-decoration: none; font-size: 14px; box-shadow: 0 2px 4px rgba(5,150,105,0.2);"><i class="fas fa-phone-alt"></i></a>
+                    <a href="${waUrl}" target="_blank" title="WhatsApp" style="flex:1; background: #25D366; color: white; padding: 8px 0; border-radius: 6px; text-align: center; text-decoration: none; font-size: 16px; box-shadow: 0 2px 4px rgba(37,211,102,0.2);"><i class="fab fa-whatsapp"></i></a>
+                    <a href="${smsUrl}" title="SMS" style="flex:1; background: #0ea5e9; color: white; padding: 8px 0; border-radius: 6px; text-align: center; text-decoration: none; font-size: 14px; box-shadow: 0 2px 4px rgba(14,165,233,0.2);"><i class="fas fa-sms"></i></a>
+                    
+                    <button onclick="window.markInquiryFollowUpComplete('${inq.id}')" title="Mark Complete" style="flex:1.2; background: #f59e0b; border: none; color: white; padding: 8px 0; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-check-double"></i> Done</button>
+                </div>
+            </div>`;
+        });
+        notifHtml += `</div></div>`;
+        notifArea.innerHTML = notifHtml;
+    } else if(notifArea) {
+        notifArea.innerHTML = '';
+    }
+
+    if (!Array.isArray(window.inquiries) || window.inquiries.length === 0) {
+        container.innerHTML = '<div style="text-align:center; color:var(--text-muted); font-size:12px; padding:15px; border:1px dashed var(--border-color); border-radius:8px;">No pending inquiries found.</div>';
+        return;
+    }
+
+    let html = '';
+    window.inquiries.forEach(inq => {
+        let cleanPhone = inq.phone.replace(/[^0-9]/g, '');
+        if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+        
+        const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+        const classText = inq.className ? ` for the *${inq.className}* class` : '';
+        const msg = `Hello ${inq.name !== 'Unknown' ? inq.name : ''},\n\nThank you for showing interest in our Music Classes${classText}. Let me know when you are ready to join or if you have any questions.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+        
+        const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+        const smsUrl = `sms:${inq.phone}?body=${encodeURIComponent(msg)}`;
+        const callUrl = `tel:${inq.phone}`;
+        
+        const inqDateDisplay = inq.inquiryDate ? new Date(inq.inquiryDate).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : new Date(inq.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+        
+        let joinDateHtml = '';
+        if (inq.joiningDate) {
+            const joinDateDisplay = new Date(inq.joiningDate).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+            const completedTag = inq.followUpCompleted ? ` <span style="color:#059669; margin-left:5px;" title="Follow-up Done"><i class="fas fa-check-circle"></i></span>` : '';
+            joinDateHtml = `<div style="font-size: 11px; background: rgba(16, 185, 129, 0.1); color: #059669; padding: 2px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(16, 185, 129, 0.2); margin-top: 4px; display: inline-block;">Expected Join: ${joinDateDisplay}${completedTag}</div>`;
+        }
+
+        html += `
+            <div style="background: var(--bg-body); border: 1px solid var(--border-color); border-left: 4px solid ${inq.followUpCompleted ? '#10b981' : '#f59e0b'}; border-radius: 10px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 8px;">
+                    <strong style="color: var(--text-main); font-size:16px; font-weight: 900;"><i class="fas fa-user-circle" style="color:var(--text-muted);"></i> ${inq.name}</strong>
+                    <div style="text-align: right;">
+                        <span style="font-size:10px; color: var(--text-muted); font-weight:600;"><i class="far fa-calendar-alt"></i> Inq: ${inqDateDisplay}</span>
+                    </div>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                    <div style="font-size: 14px; color: var(--text-main); font-weight: bold;"><i class="fas fa-phone-alt" style="color:#10b981;"></i> ${inq.phone}</div>
+                    ${inq.className ? `<div style="font-size: 11px; background: rgba(14, 165, 233, 0.1); color: #0ea5e9; padding: 2px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(14, 165, 233, 0.2);">${inq.className}</div>` : ''}
+                </div>
+                
+                ${joinDateHtml}
+                ${inq.address ? `<div style="font-size: 12px; color: var(--text-muted); margin-top: 6px; margin-bottom: 6px;"><i class="fas fa-map-marker-alt" style="color:#ef4444;"></i> ${inq.address}</div>` : ''}
+                ${inq.note ? `<div style="font-size: 12.5px; color: #b45309; background: #fef3c7; padding: 6px 10px; border-radius: 6px; margin-top: 8px; margin-bottom: 10px; border: 1px dashed #fcd34d;"><strong>Note:</strong> ${inq.note}</div>` : ''}
+                
+                <div style="display:flex; gap:8px; align-items:center; border-top: 1px dashed var(--border-color); padding-top: 10px; margin-top: 10px;">
+                    <a href="${callUrl}" title="Call" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; font-size:14px; box-shadow:0 2px 4px rgba(5,150,105,0.2);"><i class="fas fa-phone-alt"></i></a>
+                    <a href="${waUrl}" target="_blank" title="WhatsApp" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; font-size: 16px; box-shadow:0 2px 4px rgba(37,211,102,0.2);"><i class="fab fa-whatsapp"></i></a>
+                    <a href="${smsUrl}" title="SMS" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; font-size:14px; box-shadow:0 2px 4px rgba(14,165,233,0.2);"><i class="fas fa-sms"></i></a>
+                    
+                    <button onclick="window.editInquiry('${inq.id}')" title="Edit" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-edit"></i></button>
+                    <button onclick="window.deleteInquiry('${inq.id}')" title="Delete" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(239,68,68,0.2);"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+        `;
+    });
+    container.innerHTML = html;
 };
