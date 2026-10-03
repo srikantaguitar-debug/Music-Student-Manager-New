@@ -8501,40 +8501,41 @@ window.renderSalesUI = function() {
             payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:14px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);"><i class="fas fa-rupee-sign"></i></button>`;
         }
         
-        // 🟢 আইটেম লিস্ট (ক্লিকেবল এবং রেট সহ)
+        // 🟢 আইটেম লিস্ট (থিম কালার অনুযায়ী)
         let itemsHtml = '';
         if (s.cart && s.cart.length > 0) {
             let itemSpans = s.cart.map(cItem => {
                 const safeName = cItem.name.replace(/'/g, "\\'");
-                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cItem.price}', '')" style="color:#0ea5e9; font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: rgba(14,165,233,0.08); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(14,165,233,0.2); transition: 0.2s;">${cItem.name} (x${cItem.qty}) - ₹${cItem.price}</span>`;
+                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cItem.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${cItem.name} (x${cItem.qty}) - ₹${cItem.price}</span>`;
             });
             itemsHtml = itemSpans.join(' ');
         } else {
             const safeName = s.item.replace(/'/g, "\\'");
-            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${s.price}', '')" style="color:#0ea5e9; font-weight:600; cursor:pointer; display:inline-block; background: rgba(14,165,233,0.08); padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(14,165,233,0.2); transition: 0.2s;">${s.item} - ₹${s.price}</span>`;
+            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${s.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${s.item} - ₹${s.price}</span>`;
         }
 
-        // 🟢 পেমেন্ট হিস্ট্রি (কিস্তি): Paid (Date) ₹Amount
+        // 🟢 পেমেন্ট হিস্ট্রি (থিম কালার অনুযায়ী)
         let historyHtml = '';
         if (s.paymentHistory && s.paymentHistory.length > 0) {
-            historyHtml += `<div style="margin-top: 10px; border: 1px dashed #fca5a5; padding: 10px; border-radius: 8px; background: #fffaf5;">`;
+            historyHtml += `<div style="margin-top: 12px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background: var(--bg-input);">`;
             s.paymentHistory.forEach((hist) => {
                 const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
                 historyHtml += `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color: #78350f; font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:#10b981; margin-right:5px;"></i>Paid (${pDate})</span>
-                    <span style="font-weight:bold; color:#78350f; font-size: 14px;">₹${hist.amount}</span>
+                    <span style="color: var(--text-main); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})</span>
+                    <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount}</span>
                 </div>`;
             });
             historyHtml += `</div>`;
         }
         
+        // 🟢 মেইন কার্ড (থিমের কালার ভ্যারিয়েবল ব্যবহার করে)
         list.innerHTML += `
-            <tr style="border-bottom: 1px solid var(--border-color); background: #ffffff; display: block; padding: 15px; margin-bottom: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.04); border: 1px solid #fed7aa;">
+            <tr style="display: block; padding: 16px; margin-bottom: 15px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
                 <td style="display: block; width: 100%; border: none; padding: 0;">
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:17px; color:#78350f; cursor:pointer; font-weight: 900;">${s.studentName}</strong>
-                        <div style="font-size:12px; color:var(--text-muted); font-weight: 600;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateStr}</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:18px; color:var(--primary); cursor:pointer; font-weight: 900;">${s.studentName}</strong>
+                        <div style="font-size:12px; color:var(--text-muted); font-weight: 600;"><i class="far fa-calendar-alt" style="color:var(--danger);"></i> ${dateStr}</div>
                     </div>
                     
                     <div style="font-size:13px; margin-bottom: 8px; line-height: 1.5;">
@@ -8543,28 +8544,28 @@ window.renderSalesUI = function() {
                     
                     ${historyHtml}
                     
-                    <div style="margin-top: 15px; font-size: 16px; font-weight: 900; color: #78350f;">
+                    <div style="margin-top: 15px; font-size: 16px; font-weight: 900; color: var(--text-main);">
                         Total: ₹${s.price}
                     </div>
 
-                    <div style="margin-top: 8px; font-size: 14px; font-weight: 800; color: #10b981;">
+                    <div style="margin-top: 8px; font-size: 14px; font-weight: 800; color: var(--success);">
                         Paid: ₹${s.paid}
                     </div>
 
-                    <div style="margin-top: 10px;">
-                        <span style="background:${statusBg}; color:${statusClr}; padding: 4px 10px; border-radius: 6px; font-size: 14px; font-weight: bold;">
+                    <div style="margin-top: 12px;">
+                        <span style="background:${statusBg}; color:${statusClr}; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; border: 1px solid ${statusClr};">
                             Due: ₹${s.due}
                         </span>
                     </div>
 
                     <div class="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
                        ${payDueBtnHtml}
-                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.2); cursor:pointer;"><i class="fas fa-file-pdf"></i></button>
-                       <button onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.2); cursor:pointer;"><i class="fas fa-edit"></i></button>
-                       <button onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2); cursor:pointer;"><i class="fas fa-trash"></i></button>
-                       <button onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:8px; font-size:18px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
-                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
-                       <button onclick="window.callBuyer(${s.id})" title="Call" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
+                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3); cursor:pointer;"><i class="fas fa-file-pdf"></i></button>
+                       <button onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3); cursor:pointer;"><i class="fas fa-edit"></i></button>
+                       <button onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); cursor:pointer;"><i class="fas fa-trash"></i></button>
+                       <button onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:8px; font-size:20px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.3); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
+                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); cursor:pointer;"><i class="fas fa-sms"></i></button>
+                       <button onclick="window.callBuyer(${s.id})" title="Call" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
                     </div>
                 </td>
             </tr>`;
@@ -14107,12 +14108,12 @@ window.markReminderDone = function(id) {
     saveData().catch(e => console.log("Background sync pending for reminder"));
 };
 // ==========================================
-// 🟢 INQUIRY & FOLLOW-UP LOGIC (ULTIMATE FIREBASE FIX)
+// 🟢 INQUIRY & FOLLOW-UP LOGIC (SUPER FAST & BACKGROUND SYNC)
 // ==========================================
 
 window.inquiries = [];
 
-// 🟢 ১. ইমেইল চেক করার ফাংশন (যাতে লগইন ছাড়া সেভ না হয়)
+// 🟢 ১. ইমেইল চেক করার ফাংশন
 window.getAdminEmail = function() {
     if (typeof firebase !== 'undefined' && firebase.auth().currentUser) {
         return firebase.auth().currentUser.email;
@@ -14120,28 +14121,26 @@ window.getAdminEmail = function() {
     return localStorage.getItem('managerEmail'); 
 };
 
-// 🟢 ২. Firebase থেকে ডেটা লোড করা
+// 🟢 ২. Firebase থেকে ডেটা লোড করা (চুপচাপ ব্যাকগ্রাউন্ডে)
 window.fetchInquiries = async function() {
     const email = window.getAdminEmail();
-    if (!email) return; // ইমেইল না পেলে ওয়েট করবে
+    if (!email) return; 
 
     try {
-        console.log("Loading Inquiries from Firebase...");
         const docRef = firebase.firestore()
                         .collection('music_classes')
                         .doc(email)
                         .collection('inquiries')
-                        .doc('all_inquiries'); // একটিমাত্র ডকুমেন্টে লিস্ট সেভ হবে
+                        .doc('all_inquiries'); 
                         
         const snapshot = await docRef.get();
         if (snapshot.exists) {
             window.inquiries = snapshot.data().list || [];
-            console.log("Loaded successfully!");
         } else {
             window.inquiries = [];
         }
         
-        window.renderInquiries();
+        window.renderInquiries(); // ডেটা এলে স্ক্রিন আপডেট হবে
         
         const inqDateInput = document.getElementById('inqDate');
         if(inqDateInput && !inqDateInput.value) {
@@ -14155,21 +14154,16 @@ window.fetchInquiries = async function() {
 // 🟢 অ্যাপ চালু বা লগইন হওয়ার সাথে সাথে ডেটা লোড করার ট্রিগার
 if (typeof firebase !== 'undefined' && firebase.auth) {
     firebase.auth().onAuthStateChanged((user) => {
-        if (user) {
-            setTimeout(window.fetchInquiries, 1500); // লগইন হলে ১.৫ সেকেন্ড পর লোড হবে
-        }
+        if (user) { setTimeout(window.fetchInquiries, 1000); }
     });
 } else {
-    setTimeout(window.fetchInquiries, 3000);
+    setTimeout(window.fetchInquiries, 2000);
 }
 
-// 🟢 ৩. Firebase এ সরাসরি সেভ করার মেইন ফাংশন
+// 🟢 ৩. Firebase এ সরাসরি সেভ করার ব্যাকগ্রাউন্ড ফাংশন
 window.saveInquiriesToFB = async function() {
     const email = window.getAdminEmail();
-    if (!email) {
-        Swal.fire('Error', 'Manager email missing! Please login again.', 'error');
-        return;
-    }
+    if (!email) return;
     try {
         await firebase.firestore()
                 .collection('music_classes')
@@ -14177,85 +14171,80 @@ window.saveInquiriesToFB = async function() {
                 .collection('inquiries')
                 .doc('all_inquiries')
                 .set({ list: window.inquiries });
-        console.log("Saved to Firebase successfully.");
     } catch (error) {
-        console.error("Firebase Save Error:", error);
-        Swal.fire('Database Error', 'Check your internet connection.', 'error');
+        console.error("Firebase Background Save Error:", error);
     }
 };
 
-// 🟢 ৪. নতুন ইনকোয়ারি অ্যাড বা আপডেট করা
-window.addInquiry = async function() {
-    try {
-        const editId = document.getElementById('editInqId').value;
-        const name = document.getElementById('inqName').value.trim();
-        const phone = document.getElementById('inqPhone').value.trim();
-        const inqClass = document.getElementById('inqClass').value; 
-        const inqDate = document.getElementById('inqDate').value; 
-        const joinDate = document.getElementById('inqJoinDate').value; 
-        const address = document.getElementById('inqAddress').value.trim();
-        const note = document.getElementById('inqNote').value.trim();
+// 🟢 ৪. নতুন ইনকোয়ারি অ্যাড বা আপডেট করা (SUPER FAST)
+window.addInquiry = function() {
+    const editId = document.getElementById('editInqId').value;
+    const name = document.getElementById('inqName').value.trim();
+    const phone = document.getElementById('inqPhone').value.trim();
+    const inqClass = document.getElementById('inqClass').value; 
+    const inqDate = document.getElementById('inqDate').value; 
+    const joinDate = document.getElementById('inqJoinDate').value; 
+    const address = document.getElementById('inqAddress').value.trim();
+    const note = document.getElementById('inqNote').value.trim();
 
-        if (!phone) {
-            Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Phone is mandatory!', showConfirmButton: false, timer: 2000});
-            return;
+    if (!phone) {
+        Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Phone is mandatory!', showConfirmButton: false, timer: 2000});
+        return;
+    }
+
+    const inqData = {
+        name: name || 'Unknown',
+        phone: phone,
+        className: inqClass,
+        inquiryDate: inqDate || new Date().toISOString().split('T')[0],
+        joiningDate: joinDate,
+        address: address,
+        note: note,
+        date: new Date().toISOString().split('T')[0],
+        followUpCompleted: false
+    };
+
+    if (!Array.isArray(window.inquiries)) window.inquiries = [];
+
+    if (editId) {
+        const index = window.inquiries.findIndex(i => String(i.id) === String(editId));
+        if (index > -1) {
+            inqData.id = editId;
+            inqData.followUpCompleted = window.inquiries[index].followUpCompleted || false;
+            window.inquiries[index] = inqData;
         }
-
-        Swal.fire({ title: 'Saving...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-
-        const inqData = {
-            name: name || 'Unknown',
-            phone: phone,
-            className: inqClass,
-            inquiryDate: inqDate || new Date().toISOString().split('T')[0],
-            joiningDate: joinDate,
-            address: address,
-            note: note,
-            date: new Date().toISOString().split('T')[0],
-            followUpCompleted: false
-        };
-
-        if (!Array.isArray(window.inquiries)) window.inquiries = [];
-
-        if (editId) {
-            const index = window.inquiries.findIndex(i => String(i.id) === String(editId));
-            if (index > -1) {
-                inqData.id = editId;
-                inqData.followUpCompleted = window.inquiries[index].followUpCompleted || false;
-                window.inquiries[index] = inqData;
-            }
-        } else {
-            inqData.id = Date.now().toString();
-            window.inquiries.unshift(inqData);
-        }
-
-        window.renderInquiries();
-        window.cancelInquiryEdit();
-        
-        await window.saveInquiriesToFB(); // ফায়ারবেসে পুশ
-        
-        Swal.close();
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Updated Successfully!', showConfirmButton: false, timer: 1500});
+    } else {
+        inqData.id = Date.now().toString();
+        window.inquiries.unshift(inqData);
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Saved Successfully!', showConfirmButton: false, timer: 1500});
-
-    } catch (e) {
-        console.error("Error:", e);
-        Swal.close();
     }
+
+    // ⚡ চোখের পলকে স্ক্রিন আপডেট
+    window.renderInquiries();
+    window.cancelInquiryEdit();
+    
+    // ⚡ ব্যাকগ্রাউন্ডে ফায়ারবেসে সেভ হবে, কোনো লোডিং স্ক্রিন আসবে না
+    window.saveInquiriesToFB(); 
 };
 
-// 🟢 ৫. ফলোআপ কমপ্লিট করা
-window.markInquiryFollowUpComplete = async function(id) {
+// 🟢 ৫. ফলোআপ কমপ্লিট করা (SUPER FAST)
+window.markInquiryFollowUpComplete = function(id) {
     if (!Array.isArray(window.inquiries)) return;
     const index = window.inquiries.findIndex(i => String(i.id) === String(id));
     if (index > -1) {
         window.inquiries[index].followUpCompleted = true; 
+        
+        // ⚡ চোখের পলকে স্ক্রিন আপডেট
         window.renderInquiries();
-        await window.saveInquiriesToFB(); // ফায়ারবেস আপডেট
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Follow-up Done!', showConfirmButton: false, timer: 1500});
+        
+        // ⚡ ব্যাকগ্রাউন্ডে সেভ
+        window.saveInquiriesToFB(); 
     }
 };
 
-// 🟢 ৬. ডিলিট করা
+// 🟢 ৬. ডিলিট করা (SUPER FAST)
 window.deleteInquiry = function(id) {
     Swal.fire({
         title: 'Delete Inquiry?',
@@ -14263,16 +14252,16 @@ window.deleteInquiry = function(id) {
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
         confirmButtonText: 'Yes, Delete'
-    }).then(async (result) => {
+    }).then((result) => {
         if(result.isConfirmed) {
-            Swal.fire({ title: 'Deleting...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); }});
-            
             window.inquiries = window.inquiries.filter(i => String(i.id) !== String(id));
-            window.renderInquiries();
-            await window.saveInquiriesToFB(); // ফায়ারবেস আপডেট
             
-            Swal.close();
+            // ⚡ চোখের পলকে স্ক্রিন আপডেট
+            window.renderInquiries();
             Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+            
+            // ⚡ ব্যাকগ্রাউন্ডে সেভ
+            window.saveInquiriesToFB(); 
         }
     });
 };
