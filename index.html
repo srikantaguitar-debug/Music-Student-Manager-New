@@ -172,6 +172,9 @@
              <button class="nav-item" onclick="openTab('sales')"><i class="fas fa-shopping-cart"></i><span>Sales</span></button>
             <button class="nav-item" onclick="openTab('reminders')"><i class="fas fa-bell"></i><span>Remind</span></button>
             <button class="nav-item" onclick="openTab('studentMgmt')"><i class="fas fa-users"></i><span>Students</span></button>
+            <button class="nav-item" onclick="openTab('inquiries')">
+    <i class="fas fa-headset"></i><span>Inquiry</span>
+</button>
             <button class="nav-item" onclick="openTab('reports')"><i class="fas fa-file-invoice"></i><span>Report</span></button>
             <button class="nav-item" onclick="openTab('analytics')"><i class="fas fa-chart-line"></i><span>Analytic</span></button>
             
@@ -184,14 +187,82 @@
         <div class="tab-buttons">
             <button class="tab-button" onclick="openTab('attendance')"></button>
             <button class="tab-button" onclick="openTab('fees')"></button>
-            <button class="tab-button" onclick="openTab('studentMgmt')"></button>
             <button class="tab-button" onclick="openTab('dashboard')"></button>
+            <button class="tab-button" onclick="openTab('sales')"></button>
             <button class="tab-button" onclick="openTab('reminders')"></button>
+            <button class="tab-button" onclick="openTab('studentMgmt')"></button>
+            <button class="tab-button" onclick="openTab('inquiries')"></button>
             <button class="tab-button" onclick="openTab('reports')"></button>
             <button class="tab-button" onclick="openTab('analytics')"></button>
+            <button class="tab-button" onclick="openTab('liveClass')"></button>
             <button class="tab-button" onclick="openTab('settings')"></button>
         </div>
 
+<!-- 🟢 NEW: SEPARATE INQUIRY TAB (With Notification Area) -->
+<div id="inquiries" class="tab-content">
+    
+    <!-- 🟢 Notification Area for Tomorrow's Joinings -->
+    <div id="inquiryNotificationArea"></div>
+
+    <div class="dashboard-card" style="border-top-color: #f59e0b; background: var(--bg-card);">
+        <h3 style="color: #d97706; margin-top: 0; display:flex; align-items:center; gap:8px;">
+            <i class="fas fa-headset"></i> Follow-up Inquiries
+        </h3>
+        
+        <!-- Hidden input for Edit ID -->
+        <input type="hidden" id="editInqId" value="">
+
+        <div class="form-grid" style="grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="form-group" style="margin-bottom:0;">
+                <input type="text" id="inqName" placeholder="Name (Optional)" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--border-color); width:100%; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <input type="tel" id="inqPhone" placeholder="Phone * (Mandatory)" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid #10b981; width:100%; box-sizing:border-box;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom:0; grid-column: span 2;">
+                <select id="inqClass" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--border-color); width:100%; box-sizing:border-box; background: var(--bg-input); color: var(--text-main); outline: none;">
+                    <option value="">Interested Class (Optional)</option>
+                    <option value="Guitar">Guitar</option>
+                    <option value="Bass Guitar">Bass Guitar</option>
+                    <option value="Piano">Piano</option>
+                    <option value="Keyboard">Keyboard</option>
+                    <option value="Violin">Violin</option>
+                    <option value="Mandolin">Mandolin</option>
+                </select>
+            </div>
+            
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size: 10px; color: var(--text-muted); font-weight: bold;">Inquiry Date</label>
+                <input type="date" id="inqDate" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--border-color); width:100%; box-sizing:border-box; background: var(--bg-input); color: var(--text-main);">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+                <label style="font-size: 10px; color: var(--text-muted); font-weight: bold;">Expected Joining Date</label>
+                <input type="date" id="inqJoinDate" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--border-color); width:100%; box-sizing:border-box; background: var(--bg-input); color: var(--text-main);">
+            </div>
+
+            <div class="form-group" style="margin-bottom:0; grid-column: span 2;">
+                <input type="text" id="inqAddress" placeholder="Address (Optional)" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--border-color); width:100%; box-sizing:border-box;">
+            </div>
+            <div class="form-group" style="margin-bottom:0; grid-column: span 2;">
+                <input type="text" id="inqNote" placeholder="Note (e.g. Will join in Nov)" style="font-size:13px; padding:10px; border-radius:8px; border:1px solid var(--border-color); width:100%; box-sizing:border-box;">
+            </div>
+        </div>
+        
+        <div style="display: flex; gap: 10px; margin-top: 12px;">
+            <button id="inqSaveBtn" class="btn-warning" onclick="window.addInquiry()" style="flex: 1; font-weight: bold; border-radius:8px; padding:10px; box-shadow: 0 4px 6px rgba(245,158,11,0.2); border: none; color: #fff;">
+                <i class="fas fa-save"></i> Save Inquiry
+            </button>
+            <button id="inqCancelBtn" class="btn-danger" onclick="window.cancelInquiryEdit()" style="display:none; flex: 1; font-weight: bold; border-radius:8px; padding:10px; box-shadow: 0 4px 6px rgba(239,68,68,0.2); border: none; color: #fff;">
+                <i class="fas fa-times"></i> Cancel Edit
+            </button>
+        </div>
+        
+        <div id="inquiryListContainer" style="margin-top: 15px; max-height: 55vh; overflow-y: auto; padding-right: 5px;">
+            <!-- Inquiry List will load here -->
+        </div>
+    </div>
+</div>
         <div id="attendance" class="tab-content active">
             
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
