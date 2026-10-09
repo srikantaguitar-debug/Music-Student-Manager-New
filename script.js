@@ -5618,9 +5618,109 @@ document.getElementById('modalJoiningDate').innerHTML = `${new Date(student.join
     }
     // 🟢 Inactive Calculation Logic শেষ
     
-    const modalImg = document.getElementById('modalStudentPhoto'); 
-    if(student.photo) { modalImg.src = student.photo; modalImg.style.display = 'inline-block'; } 
-    else { modalImg.src = 'https://via.placeholder.com/100?text=No+Photo'; } 
+    // ==========================================
+// 🟢 ২-আঙুল দিয়ে জুম এবং প্যান করার স্পেশাল ফাংশন
+// ==========================================
+window.openPinchZoomImage = function(src, titleName) {
+    // ওভারলে (কালো ব্যাকগ্রাউন্ড) তৈরি
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:9999999; display:flex; justify-content:center; align-items:center; overflow:hidden; touch-action:none;';
+
+    // ক্রস বাটন (কেটে দেওয়ার জন্য)
+    const closeBtn = document.createElement('div');
+    closeBtn.innerHTML = '<i class="fas fa-times"></i>';
+    closeBtn.style.cssText = 'position:absolute; top:20px; right:20px; color:white; font-size:22px; cursor:pointer; z-index:10000000; background:rgba(255,255,255,0.2); width:40px; height:40px; border-radius:50%; display:flex; justify-content:center; align-items:center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);';
+    closeBtn.onclick = () => document.body.removeChild(overlay);
+
+    // স্টুডেন্টের নাম দেখানোর জন্য
+    const titleEl = document.createElement('div');
+    titleEl.textContent = titleName;
+    titleEl.style.cssText = 'position:absolute; top:28px; left:20px; color:white; font-size:18px; font-weight:900; z-index:10000000; font-family:"Poppins", sans-serif;';
+
+    // আসল ইমেজ
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'max-width:100%; max-height:100%; transform-origin:center center; transition:transform 0.05s ease-out;';
+
+    overlay.appendChild(titleEl);
+    overlay.appendChild(closeBtn);
+    overlay.appendChild(img);
+    document.body.appendChild(overlay);
+
+    // 🟢 ২-আঙুলের জুম এবং প্যান (সরানোর) লজিক
+    let scale = 1;
+    let panning = false;
+    let pointX = 0, pointY = 0;
+    let startX = 0, startY = 0;
+    let initialDistance = 0;
+    let initialScale = 1;
+
+    // যখন স্ক্রিনে আঙুল ছোঁয়ানো হবে
+    img.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            e.preventDefault(); // ডিফল্ট জুম বন্ধ করবে
+            // ২ আঙুলের মাঝের দূরত্ব মাপা
+            initialDistance = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            initialScale = scale;
+        } else if (e.touches.length === 1 && scale > 1) {
+            e.preventDefault();
+            panning = true;
+            startX = e.touches[0].pageX - pointX;
+            startY = e.touches[0].pageY - pointY;
+        }
+    });
+
+    // যখন স্ক্রিনে আঙুল নাড়ানো হবে
+    img.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2) {
+            e.preventDefault();
+            const currentDistance = Math.hypot(e.touches[0].pageX - e.touches[1].pageX, e.touches[0].pageY - e.touches[1].pageY);
+            scale = initialScale * (currentDistance / initialDistance);
+            scale = Math.min(Math.max(1, scale), 5); // ১ গুণ থেকে ৫ গুণ পর্যন্ত জুম হবে
+            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        } else if (e.touches.length === 1 && panning && scale > 1) {
+            e.preventDefault();
+            pointX = e.touches[0].pageX - startX;
+            pointY = e.touches[0].pageY - startY;
+            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+    });
+
+    // যখন আঙুল সরিয়ে নেওয়া হবে
+    img.addEventListener('touchend', (e) => {
+        if (e.touches.length < 2) {
+            panning = false;
+        }
+        if (e.touches.length === 0 && scale <= 1) {
+            pointX = 0; pointY = 0;
+            img.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+        }
+    });
+};
+
+// ==========================================
+// 🟢 স্টুডেন্ট প্রোফাইল ছবির আপডেট লজিক (showStudentDetails ফাংশনের ভেতরে)
+// ==========================================
+
+const modalImg = document.getElementById('modalStudentPhoto'); 
+const safeName = student.name ? student.name.replace(/'/g, "\\'") : 'Student';
+
+if(student.photo) { 
+    modalImg.src = student.photo; 
+    modalImg.style.display = 'inline-block'; 
+    
+    modalImg.style.cursor = 'pointer'; 
+    modalImg.title = 'Click to view full image';
+    modalImg.onclick = function() { 
+        // 🟢 আপনার নতুন ২-ফিঙ্গার জুম ফাংশনটি কল করা হলো
+        window.openPinchZoomImage(student.photo, safeName);
+    };
+} 
+else { 
+    modalImg.src = 'https://via.placeholder.com/100?text=No+Photo'; 
+    modalImg.style.cursor = 'default';
+    modalImg.onclick = null; 
+}
 
     const viewSigBtn = document.getElementById('btnViewSignature');
     if (viewSigBtn) {
@@ -8352,21 +8452,32 @@ window.deleteSaleRecord = function(saleId) {
     });
 };
 
-window.renderSalesUI = function() {
+// ==========================================
+// 🟢 SALES HISTORY RENDER (DROPDOWN REAL-TIME UPDATE FIXED)
+// ==========================================
+
+window.renderSalesUI = function(filteredSales) {
     const list = document.getElementById('salesList');
     if(!list) return;
-    list.innerHTML = '';
     
     const searchInput = document.getElementById('searchSalesHistoryInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+    // 🟢 লাইভ সার্চ ফিক্স
+    if (searchInput && !searchInput.hasAttribute('data-bound')) {
+        searchInput.addEventListener('input', () => window.renderSalesUI());
+        searchInput.setAttribute('data-bound', 'true');
+    }
+
     let yearFilter = document.getElementById('salesYearFilter');
     let monthFilter = document.getElementById('salesMonthFilter');
 
+    // 🟢 Year Filter (Custom Blue Design)
     if (yearFilter && yearFilter.tagName.toLowerCase() === 'input') {
         const parent = yearFilter.parentNode;
         const newYearSelect = document.createElement('select');
         newYearSelect.id = 'salesYearFilter';
-        newYearSelect.style.cssText = "padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 13px; font-weight: bold; background: var(--bg-input); color: var(--text-main); outline: none; cursor: pointer;";
+        newYearSelect.style.cssText = "background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.2); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 14px; outline: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.02);";
         
         const currentY = new Date().getFullYear();
         newYearSelect.innerHTML = `
@@ -8377,16 +8488,25 @@ window.renderSalesUI = function() {
         `;
         parent.replaceChild(newYearSelect, yearFilter);
         yearFilter = newYearSelect;
-        yearFilter.onchange = window.fetchSalesData; 
+        
+        // 🟢 ইয়ার চেঞ্জ ফিক্স (Event অবজেক্ট ইগনোর করার জন্য)
+        yearFilter.onchange = () => {
+            if (typeof window.fetchSalesData === 'function') {
+                window.fetchSalesData();
+            } else {
+                window.renderSalesUI();
+            }
+        }; 
     }
 
+    // 🟢 Month Filter (Custom Blue Design)
     if (!monthFilter && yearFilter) {
         monthFilter = document.createElement('select');
         monthFilter.id = 'salesMonthFilter';
         monthFilter.style.cssText = yearFilter.style.cssText;
         monthFilter.style.marginLeft = '8px';
         monthFilter.innerHTML = `
-            <option value="All">Full Year</option>
+            <option value="All">All</option>
             <option value="01">Jan</option><option value="02">Feb</option>
             <option value="03">Mar</option><option value="04">Apr</option>
             <option value="05">May</option><option value="06">Jun</option>
@@ -8396,145 +8516,107 @@ window.renderSalesUI = function() {
         `;
         const curM = (new Date().getMonth() + 1).toString().padStart(2, '0');
         monthFilter.value = curM; 
-        monthFilter.onchange = window.renderSalesUI;
+        
+        // 🟢 মাস চেঞ্জ ফিক্স (Event অবজেক্ট ইগনোর করার জন্য)
+        monthFilter.onchange = () => window.renderSalesUI();
         yearFilter.parentNode.insertBefore(monthFilter, yearFilter.nextSibling);
     }
+
+    // প্রথমে লিস্ট ক্লিয়ার করা
+    list.innerHTML = '';
 
     const selectedYear = yearFilter ? yearFilter.value : new Date().getFullYear().toString();
     const selectedMonth = monthFilter ? monthFilter.value : (new Date().getMonth() + 1).toString().padStart(2, '0');
 
-    let totalDueAmount = 0;
-    let dueRecords = [];
-    let totalSalesAmount = 0;
-    let totalProfit = 0;
+    // 🟢 🟢 মেইন ফিক্স: Event অবজেক্ট এড়ানোর জন্য Array.isArray চেক করা হয়েছে
+    let salesDataToFilter = [];
+    if (Array.isArray(filteredSales)) {
+        salesDataToFilter = filteredSales;
+    } else if (typeof salesDataArray !== 'undefined' && Array.isArray(salesDataArray)) {
+        salesDataToFilter = salesDataArray;
+    } else if (typeof window.salesDataArray !== 'undefined' && Array.isArray(window.salesDataArray)) {
+        salesDataToFilter = window.salesDataArray;
+    }
 
-    const filteredSales = salesDataArray.filter(s => {
+    // 🟢 ফিল্টারিং লজিক
+    const finalFilteredSales = salesDataToFilter.filter(s => {
+        if (!s || !s.date) return false;
         const sDate = new Date(s.date);
         const sYear = sDate.getFullYear().toString();
         const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
         
         const matchYear = (selectedYear === 'Lifetime' || sYear === selectedYear);
         const matchMonth = (selectedMonth === 'All' || sMonth === selectedMonth);
-        const matchSearch = (!filterText || `${s.studentName} ${s.item}`.toLowerCase().includes(filterText));
+        const searchStr = `${s.studentName || ''} ${s.item || ''} ${s.cart ? s.cart.map(c=>c.name).join(' ') : ''}`.toLowerCase();
+        const matchSearch = (!filterText || searchStr.includes(filterText));
         
         return matchYear && matchMonth && matchSearch;
     });
 
-    filteredSales.forEach(s => {
-        if (s.due > 0) {
-            totalDueAmount += s.due;
-            dueRecords.push(s);
-        }
-        
-        totalSalesAmount += s.price;
-        
-        if (s.due <= 0) {
-            let totalBuyPrice = 0;
-            if (s.cart && s.cart.length > 0) {
-                s.cart.forEach(cItem => { totalBuyPrice += (cItem.buyPrice || 0); });
-            }
-            totalProfit += (s.price - totalBuyPrice);
-        }
-    });
-
-    let profitDash = document.getElementById('salesProfitDashboard');
-    if (!profitDash) {
-        profitDash = document.createElement('div');
-        profitDash.id = 'salesProfitDashboard';
-        const containerToInsert = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement.parentElement;
-        containerToInsert.insertBefore(profitDash, containerToInsert.firstChild);
-    }
-    
-    let periodText = '';
-    if (selectedYear === 'Lifetime') periodText = 'Lifetime';
-    else if (selectedMonth === 'All') periodText = selectedYear;
-    else periodText = document.querySelector(`#salesMonthFilter option[value="${selectedMonth}"]`).text + ' ' + selectedYear;
-    
-    profitDash.innerHTML = `
-        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-            <div onclick="window.showSalesBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 15px; border-radius: 12px; border: 1px solid #7dd3fc; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
-                <div style="font-size: 11px; color: #0284c7; font-weight: 800; text-transform: uppercase;">${periodText} Sales</div>
-                <div style="font-size: 20px; font-weight: 900; color: #0369a1; margin-top: 5px;">₹${totalSalesAmount}</div>
-            </div>
-            <div onclick="window.showProfitBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 15px; border-radius: 12px; border: 1px solid #86efac; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
-                <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase;">${periodText} Profit</div>
-                <div style="font-size: 20px; font-weight: 900; color: #15803d; margin-top: 5px;">₹${totalProfit}</div>
-            </div>
-        </div>
-    `;
-
-    let dueAlertContainer = document.getElementById('salesDueAlertContainer');
-    if (!dueAlertContainer) {
-        const searchBar = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement;
-        dueAlertContainer = document.createElement('div');
-        dueAlertContainer.id = 'salesDueAlertContainer';
-        dueAlertContainer.style.marginBottom = '10px';
-        searchBar.parentNode.insertBefore(dueAlertContainer, searchBar);
-    }
-
-    if (dueRecords.length > 0) {
-        dueAlertContainer.innerHTML = `
-            <button onclick="window.showSalesDuesPopup()" style="width: 100%; padding: 10px; border-radius: 8px; font-size: 13px; font-weight: bold; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; border: none; box-shadow: 0 4px 10px rgba(239,68,68,0.3); cursor: pointer; display: flex; justify-content: space-between; align-items: center;">
-                <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-exclamation-triangle" style="font-size:16px;"></i> Unpaid Accessories</span>
-                <span style="background: white; color: #ef4444; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 900; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);">
-                    ${dueRecords.length} Dues (₹${totalDueAmount})
-                </span>
-            </button>
-        `;
-        dueAlertContainer.style.display = 'block';
-    } else {
-        dueAlertContainer.style.display = 'none';
-    }
-
-    if (filteredSales.length === 0) {
-        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No sales found for this period.</td></tr>';
+    if(!finalFilteredSales || finalFilteredSales.length === 0) {
+        list.innerHTML = '<tr><td style="text-align:center; padding:20px; color:var(--text-muted); font-weight:bold;">No sales found for this period.</td></tr>';
         return;
     }
-    
-    filteredSales.forEach(s => {
-        const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
-        const statusBg = s.due > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)';
-        const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+
+    let htmlString = ''; // 🟢 সুপার ফাস্ট রেন্ডারিংয়ের জন্য
+
+    finalFilteredSales.forEach(s => {
+        const dateStr = s.date ? new Date(s.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '';
         
         let payDueBtnHtml = '';
+        let dueDisplayHtml = '';
+        
         if (s.due > 0) {
-            payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:14px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.2);"><i class="fas fa-rupee-sign"></i></button>`;
+            dueDisplayHtml = `
+            <div style="margin-top: 12px;">
+                <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; border: 1px solid var(--danger);">
+                    Due: ₹${s.due}
+                </span>
+            </div>`;
+            
+            payDueBtnHtml = `<button onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); cursor:pointer;"><strong style="font-size:14px;">Rs</strong></button>`;
         }
         
-        // 🟢 আইটেম লিস্ট (থিম কালার অনুযায়ী)
         let itemsHtml = '';
         if (s.cart && s.cart.length > 0) {
             let itemSpans = s.cart.map(cItem => {
-                const safeName = cItem.name.replace(/'/g, "\\'");
-                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cItem.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${cItem.name} (x${cItem.qty}) - ₹${cItem.price}</span>`;
+                const itemName = cItem.name || 'Unknown Item';
+                const safeName = itemName.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+                const hBuy = cItem.buyPrice || 0;
+                const hMrp = cItem.mrp || 0;
+                const cPrice = cItem.price || 0;
+                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cPrice}', '', '${hBuy}', '${hMrp}')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${itemName} (x${cItem.qty || 1}) - ₹${cPrice}</span>`;
             });
             itemsHtml = itemSpans.join(' ');
         } else {
-            const safeName = s.item.replace(/'/g, "\\'");
-            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${s.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${s.item} - ₹${s.price}</span>`;
+            const itemName = s.item || 'Unknown Item';
+            const safeName = itemName.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+            const hBuy = s.buyPrice || 0;
+            const hMrp = s.mrp || 0;
+            const sPrice = s.price || 0;
+            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${sPrice}', '', '${hBuy}', '${hMrp}')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${itemName} - ₹${sPrice}</span>`;
         }
 
-        // 🟢 পেমেন্ট হিস্ট্রি (থিম কালার অনুযায়ী)
         let historyHtml = '';
         if (s.paymentHistory && s.paymentHistory.length > 0) {
             historyHtml += `<div style="margin-top: 12px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background: var(--bg-input);">`;
             s.paymentHistory.forEach((hist) => {
-                const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
+                const pDate = hist.date ? new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '';
                 historyHtml += `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="color: var(--text-main); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})</span>
-                    <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount}</span>
+                    <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount || 0}</span>
                 </div>`;
             });
             historyHtml += `</div>`;
         }
         
-        // 🟢 মেইন কার্ড (থিমের কালার ভ্যারিয়েবল ব্যবহার করে)
-        list.innerHTML += `
+        // 🟢 কার্ড রেন্ডারিং (সব বাটন পারফেক্টলি কাজ করবে)
+        htmlString += `
             <tr style="display: block; padding: 16px; margin-bottom: 15px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
                 <td style="display: block; width: 100%; border: none; padding: 0;">
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:18px; color:var(--primary); cursor:pointer; font-weight: 900;">${s.studentName}</strong>
+                        <strong onclick="window.viewBuyerProfile('${s.id}')" style="font-size:18px; color:var(--primary); cursor:pointer; font-weight: 900;">${s.studentName || 'Unknown'}</strong>
                         <div style="font-size:12px; color:var(--text-muted); font-weight: 600;"><i class="far fa-calendar-alt" style="color:var(--danger);"></i> ${dateStr}</div>
                     </div>
                     
@@ -8545,31 +8627,29 @@ window.renderSalesUI = function() {
                     ${historyHtml}
                     
                     <div style="margin-top: 15px; font-size: 16px; font-weight: 900; color: var(--text-main);">
-                        Total: ₹${s.price}
+                        Total: ₹${s.price || 0}
                     </div>
 
                     <div style="margin-top: 8px; font-size: 14px; font-weight: 800; color: var(--success);">
-                        Paid: ₹${s.paid}
+                        Paid: ₹${s.paid || 0}
                     </div>
 
-                    <div style="margin-top: 12px;">
-                        <span style="background:${statusBg}; color:${statusClr}; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; border: 1px solid ${statusClr};">
-                            Due: ₹${s.due}
-                        </span>
-                    </div>
+                    ${dueDisplayHtml}
 
                     <div class="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
                        ${payDueBtnHtml}
-                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3); cursor:pointer;"><i class="fas fa-file-pdf"></i></button>
+                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3); cursor:pointer;"><i class="fas fa-file-pdf"></i><span style="font-size:8px; position:absolute; margin-top:12px;">PDF</span></button>
                        <button onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3); cursor:pointer;"><i class="fas fa-edit"></i></button>
                        <button onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); cursor:pointer;"><i class="fas fa-trash"></i></button>
                        <button onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:8px; font-size:20px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.3); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
-                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); cursor:pointer;"><i class="fas fa-sms"></i></button>
+                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:bold; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); cursor:pointer;">SMS</button>
                        <button onclick="window.callBuyer(${s.id})" title="Call" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
                     </div>
                 </td>
             </tr>`;
     });
+    
+    list.innerHTML = htmlString;
 };
 
 // 🟢 NEW: Call Button Logic
@@ -9103,11 +9183,13 @@ window.processSale = function() {
                 stockItem.qty -= cartItem.qty; stockUpdated = true;
             }
         });
-        if (stockUpdated) {
-            window.stockInventory = window.stockInventory.filter(i => i.qty > 0);
-            dbSet('stockData', window.stockInventory).catch(e=>{}); 
-            window.renderStockTable(); window.renderInventoryDropdown();
-        }
+        // 🟢 এই কোডটি দিয়ে পরিবর্তন করুন:
+if (stockUpdated) {
+    // স্টক ০ হলেও প্রোডাক্ট ডিলিট হবে না, ০ পিস হিসেবেই লিস্টে থাকবে
+    dbSet('stockData', window.stockInventory).catch(e=>{}); 
+    window.renderStockTable(); 
+    window.renderInventoryDropdown();
+}
         Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Completed!', showConfirmButton: false, timer: 1500});
         
         const pdfStudentData = isGuest ? { name: finalStudentName, phone: guestPhone, class: 'Guest Customer' } : students.find(s => s.id == finalStudentId);
@@ -11757,49 +11839,84 @@ window.editStockItem = function(id) {
     document.getElementById('stockModal').style.display = 'flex';
 };
 
-// 5. Update Admin Stock Table
+// ==========================================
+// 🟢 STOCK TABLE RENDER (PROFIT & ZERO STOCK FIX)
+// ==========================================
 window.renderStockTable = function() {
-    const tbody = document.getElementById('stockTableBody');
-    if(!tbody) return;
+    const tbody = document.getElementById('stockTableBody') || document.getElementById('stockList');
+    if (!tbody) return;
     tbody.innerHTML = '';
+
     const searchInput = document.getElementById('searchStockInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-    const filteredStock = window.stockInventory.filter(item => {
+    // 🟢 কোনো স্টক ফিল্টার করে বাদ দেওয়া হবে না, স্টক ০ হলেও লিস্টে থাকবে
+    const filteredStock = (window.stockInventory || []).filter(item => {
         if (!filterText) return true;
-        return item.name.toLowerCase().includes(filterText);
+        return (item.name || '').toLowerCase().includes(filterText);
     });
 
     if (filteredStock.length === 0) {
-        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:gray; font-size:12px;">No items found.</td></tr>';
+        tbody.innerHTML = '<tr><td style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px; font-weight:bold;">No items found in stock.</td></tr>';
         return;
     }
 
     filteredStock.forEach(item => {
-        const stockColor = item.qty <= 2 ? 'color: var(--danger);' : 'color: var(--success);';
         const photoSrc = item.photo ? item.photo : 'https://via.placeholder.com/50?text=📦';
-        const safeName = item.name.replace(/'/g, "\\'"); 
+        const safeName = (item.name || '').replace(/'/g, "\\'"); 
         
-        let mrpHtml = (item.mrp && parseFloat(item.mrp) > parseFloat(item.price)) ? `<span style="color: var(--text-muted); text-decoration: line-through; margin-right:4px;">MRP: ₹${item.mrp}</span>` : '';
+        const buyPrice = parseFloat(item.buyPrice) || 0;
+        const sellPrice = parseFloat(item.price || item.sellPrice) || 0;
+        const mrp = parseFloat(item.mrp) || 0;
+        const qty = parseInt(item.qty) || 0;
+
+        // 🟢 প্রফিট হিসাব
+        const profit = sellPrice - buyPrice;
+
+        // 🟢 স্টক ব্যাজ (০ হলেও ডিলিট হবে না, লাল রঙে ০ pcs দেখাবে)
+        let stockBadge = '';
+        if (qty > 0) {
+            stockBadge = `<span style="background: #fff5f5; color: #ef4444; border: 1px solid #fecaca; padding: 3px 8px; border-radius: 6px; font-size: 12px; font-weight: bold;">${qty} pcs</span>`;
+        } else {
+            stockBadge = `<span style="background: #fef2f2; color: #dc2626; border: 1px dashed #ef4444; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;">0 pcs (Out of Stock)</span>`;
+        }
+
+        // 🟢 লাল বৃত্তের জায়গায় সবুজ রঙের প্রফিট
+        let profitHtml = '';
+        if (profit >= 0) {
+            profitHtml = `<span style="color: #10b981; font-weight: 900; font-size: 13px; margin-left: 8px;">Profit: ₹${profit}</span>`;
+        } else {
+            profitHtml = `<span style="color: #ef4444; font-weight: 900; font-size: 13px; margin-left: 8px;">Loss: ₹${Math.abs(profit)}</span>`;
+        }
+
+        let mrpHtml = (mrp > 0 && mrp > sellPrice) 
+            ? `<span style="color: #64748b; text-decoration: line-through; margin-right: 6px; font-weight: 700;">MRP: ₹${mrp}</span>` 
+            : '';
 
         tbody.innerHTML += `
-            <tr style="display: block; background: var(--bg-card); padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <tr style="display: block; background: var(--bg-card); padding: 12px; margin-bottom: 10px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
                 <td style="display: block; padding: 0; border: none; text-align: left;">
+                    
                     <div style="display: flex; align-items: center; margin-bottom: 8px;">
-                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 35px; height: 35px; border-radius: 6px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 10px; cursor: pointer; flex-shrink:0;" title="Click to view">
-                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main); line-height: 1.3;">${item.name}</div>
+                        <img src="${photoSrc}" onclick="window.viewStockImage('${item.photo || ''}', '${safeName}')" style="width: 45px; height: 45px; border-radius: 8px; object-fit: cover; border: 1px solid #cbd5e1; margin-right: 12px; cursor: pointer; flex-shrink: 0;" title="Click to view">
+                        <div style="font-weight: 800; font-size: 15px; color: var(--text-main); line-height: 1.3;">${item.name}</div>
                     </div>
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <div style="display: flex; gap: 6px; font-size: 11px; font-weight: bold; align-items: center; flex-wrap:wrap;">
-                            <span style="color: var(--info); background: rgba(59,130,246,0.1); padding: 2px 6px; border-radius: 4px;">Buy: ₹${item.buyPrice || 0}</span>
-                            ${mrpHtml}
-                            <span style="color: var(--text-main);">Sell: ₹${item.price}</span>
-                            <span style="${stockColor} background: var(--bg-body); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border-color);">${item.qty} pcs</span>
+                    
+                    <div style="display: flex; gap: 8px; font-size: 12px; font-weight: bold; align-items: center; margin-bottom: 10px; flex-wrap: wrap;">
+                        <span style="color: #1d4ed8; background: #eff6ff; padding: 2px 8px; border-radius: 4px; border: 1px solid #bfdbfe;">Buy: ₹${buyPrice}</span>
+                        ${mrpHtml}
+                        <span style="color: var(--text-main); font-weight: 800;">Sell: ₹${sellPrice}</span>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed var(--border-color); padding-top: 8px;">
+                        <div style="display: flex; align-items: center;">
+                            ${stockBadge}
+                            ${profitHtml}
                         </div>
                         <div style="display: flex; gap: 6px;">
-                            <button onclick="window.editStockItem(${item.id})" style="background: #f59e0b; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;"><i class="fas fa-edit"></i></button>
-                            <button onclick="window.deleteStockItem(${item.id})" style="background: #ef4444; color: white; border: none; padding: 6px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-weight: bold;"><i class="fas fa-trash"></i></button>
-                            <button onclick="window.sendProductToPortal(${item.id})" title="Send to Portal" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px;"><i class="fas fa-paper-plane"></i></button>
+                            <button onclick="window.editStockItem('${item.id}')" style="background: #f59e0b; color: white; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);"><i class="fas fa-edit"></i></button>
+                            <button onclick="window.deleteStockItem('${item.id}')" style="background: #ef4444; color: white; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);"><i class="fas fa-trash"></i></button>
+                            <button onclick="window.sendProductToPortal('${item.id}')" title="Send to Portal" style="background: #8b5cf6; color: white; border: none; width: 32px; height: 32px; border-radius: 8px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3);"><i class="fas fa-paper-plane"></i></button>
                         </div>
                     </div>
                 </td>
@@ -11807,89 +11924,119 @@ window.renderStockTable = function() {
         `;
     });
 };
+window.renderStockUI = window.renderStockTable;
 
 
 
-// 🟢 NEW: Product Details Popup (Matching Exact Picture Design)
-window.openProductDetailsPopup = function(name, price, photoUrl) {
-    let existingOverlay = document.getElementById('customProductDetailOverlay');
-    if (existingOverlay) document.body.removeChild(existingOverlay);
+// ==========================================
+// 🟢 PRODUCT DETAILS POPUP (SALES HISTORY) - SAME AS STOCK POPUP
+// ==========================================
 
-    const overlay = document.createElement('div');
-    overlay.id = 'customProductDetailOverlay';
-    overlay.style.cssText = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15, 23, 42, 0.85); z-index:2000005; display:flex; align-items:center; justify-content:center; backdrop-filter:blur(5px); animation: fadeIn 0.2s ease; padding: 20px; box-sizing: border-box;';
-
-    const safeName = name.replace(/\\'/g, "'"); 
-    const item = window.stockInventory.find(i => i.name === safeName);
+window.openProductDetailsPopup = function(name, sellPriceFromHistory, imgUrl, historyBuyPrice, historyMrp) {
     
-    let displayPhoto = 'https://via.placeholder.com/80?text=📦';
-    if(item && item.photos && item.photos.length > 0) displayPhoto = item.photos[0];
-    else if (photoUrl && photoUrl !== 'undefined' && photoUrl !== '') displayPhoto = photoUrl;
-    else if (item && item.photo) displayPhoto = item.photo;
+    // ১. ইনভেন্টরি থেকে প্রোডাক্ট খোঁজা (ইমেজ ও সঠিক দামের জন্য)
+    let stockItem = null;
+    if (window.stockInventory && window.stockInventory.length > 0) {
+        const searchName = String(name).toLowerCase().trim();
+        stockItem = window.stockInventory.find(item => String(item.name).toLowerCase().trim() === searchName);
+        if (!stockItem) {
+            stockItem = window.stockInventory.find(item => 
+                searchName.includes(String(item.name).toLowerCase().trim()) || 
+                String(item.name).toLowerCase().trim().includes(searchName)
+            );
+        }
+    }
 
-    // 🟢 Fetch Details dynamically
-    let buyPrice = item ? (item.buyPrice || 0) : 0;
-    let mrp = item ? (item.mrp || '') : '';
-    let sellPrice = item ? (item.price || price) : price;
-    let qty = item ? (item.qty || 0) : 0;
+    // ২. দামগুলো হিসেব করা
+    const buyPrice = parseFloat(historyBuyPrice) || (stockItem ? (parseFloat(stockItem.buyPrice) || 0) : 0);
+    const mrp = parseFloat(historyMrp) || (stockItem ? (parseFloat(stockItem.mrp) || 0) : 0);
+    const currentStock = stockItem ? (parseInt(stockItem.qty) || 0) : 0;
+    const sPrice = parseFloat(sellPriceFromHistory) || (stockItem ? parseFloat(stockItem.sellPrice || 0) : 0);
+    
+    const profit = sPrice - buyPrice;
+    
+    // 🟢 ৩. ইমেজ লজিক (স্টকে থাকলে সেটা নেবে, না থাকলে ডিফল্ট)
+    const finalImgUrl = (stockItem && stockItem.photo) ? stockItem.photo : (imgUrl || '');
+    const itemId = stockItem ? stockItem.id : null;
+    const safeName = name.replace(/'/g, "\\'");
 
-    let mrpHtml = (mrp && parseFloat(mrp) > parseFloat(sellPrice)) 
-        ? `<span style="color: #9a3412; text-decoration: line-through; font-weight: 800; font-size: 15px;">MRP: ₹${mrp}</span>` 
+    // ৪. ব্যাজ এবং কালার লজিক (বক্স ছাড়া, শুধু টেক্সট কালার - স্টকের মতো)
+    let stockBadge = '';
+    if (currentStock > 0) {
+        const stockColor = currentStock <= 2 ? 'var(--danger)' : 'var(--success)';
+        stockBadge = `<span style="color: ${stockColor}; font-weight: 800; font-size: 15px;">${currentStock} pcs</span>`;
+    } else {
+        stockBadge = `<span style="color: var(--danger); font-weight: 800; font-size: 15px;">0 pcs (Out of Stock)</span>`;
+    }
+
+    let profitBadge = '';
+    if (profit >= 0) {
+        profitBadge = `<span style="color: var(--success); font-weight: 800; font-size: 15px;">Profit: ₹${profit}</span>`;
+    } else {
+        profitBadge = `<span style="color: var(--danger); font-weight: 800; font-size: 15px;">Loss: ₹${Math.abs(profit)}</span>`;
+    }
+
+    let mrpHtml = (mrp > 0 && mrp > sPrice) 
+        ? `<span style="color: var(--text-muted); text-decoration: line-through; font-size: 15px; font-weight: 700;">MRP: ₹${mrp}</span>` 
         : '';
 
-    // Check if it is Student Portal
-    const urlParams = new URLSearchParams(window.location.search);
-    let isStudentPortal = urlParams.get('student') && urlParams.get('manager');
-    if (!isStudentPortal) {
-        isStudentPortal = localStorage.getItem('saved_student_id') ? true : false;
-    }
-
-    let buttonsHtml = '';
-    let topCloseBtn = `<button onclick="document.body.removeChild(this.parentElement.parentElement)" style="position: absolute; top: -15px; right: -15px; background: #ef4444; color: white; border: 2px solid #fff; width: 35px; height: 35px; border-radius: 50%; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 10;">&times;</button>`;
-
-    if (isStudentPortal) {
-        buttonsHtml = `
-            <div style="width:100%; display:flex; gap:10px; margin-top: 10px;">
-                <button onclick="window.sendProductQuery('${safeName}')" style="flex: 1; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; padding: 12px; border-radius: 10px; font-size: 15px; font-weight: bold; cursor: pointer; box-shadow: 0 4px 12px rgba(16,185,129,0.3); display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <i class="fab fa-whatsapp" style="font-size: 18px;"></i> Buy Now
-                </button>
-            </div>
-        `;
-    } else {
-        // 🟢 Admin buttons matching the screenshot perfectly
-        buttonsHtml = `
-            <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end;">
-                <button onclick="document.body.removeChild(document.getElementById('customProductDetailOverlay')); window.editStockItem(${item ? item.id : ''})" style="width: 45px; height: 45px; border-radius: 12px; background: #f59e0b; color: #fff; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-edit"></i></button>
-                <button onclick="document.body.removeChild(document.getElementById('customProductDetailOverlay')); window.deleteStockItem(${item ? item.id : ''})" style="width: 45px; height: 45px; border-radius: 12px; background: #ef4444; color: #fff; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-trash"></i></button>
-                <button onclick="document.body.removeChild(document.getElementById('customProductDetailOverlay')); window.sendProductToPortal(${item ? item.id : ''})" style="width: 45px; height: 45px; border-radius: 12px; background: #8b5cf6; color: #fff; font-size: 18px; border: none; cursor: pointer; box-shadow: 0 4px 6px rgba(139, 92, 246, 0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-paper-plane"></i></button>
-            </div>
-        `;
-    }
-
-    overlay.innerHTML = `
-        <div style="background: #ffffff; width: 100%; max-width: 420px; border-radius: 16px; padding: 20px; box-sizing: border-box; box-shadow: 0 10px 30px rgba(0,0,0,0.5); position: relative; border: 2px solid #fca5a5;">
-            ${topCloseBtn}
+    // ৫. পপআপের মেইন HTML ডিজাইন (স্টকের মতো এবং আপনার ছবির মতো)
+    let detailsHtml = `
+        <div style="text-align:left; padding: 5px; font-family: 'Poppins', sans-serif;">
             
-            <div style="display:flex; align-items:flex-start; gap: 15px; margin-bottom: 20px;">
-                <img src="${displayPhoto}" style="width: 80px; height: 80px; border-radius: 12px; background: #e2e8f0; object-fit: cover; border: 1px solid #cbd5e1; flex-shrink: 0;">
-                <div style="flex-grow: 1; text-align: left;">
-                    <div style="font-size: 20px; font-weight: 900; color: #78350f; line-height: 1.2;">${name}</div>
+            <!-- 🟢 Row 1: Image & Name -->
+            <div style="display:flex; gap: 15px; margin-bottom: 25px; align-items:center;">
+                <!-- 🟢 ইমেজ বক্সে ক্লিক করলে জুম হবে -->
+                <div onclick="window.viewStockImage('${finalImgUrl}', '${safeName}')" style="width: 80px; height: 80px; background: var(--bg-input); border-radius: 10px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border-color); cursor:pointer;" title="Click to view full image">
+                    ${finalImgUrl ? `<img src="${finalImgUrl}" style="width:100%; height:100%; object-fit:cover;">` : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size: 24px;"><i class="fas fa-image"></i></div>`}
+                </div>
+                <div style="font-size: 20px; font-weight: 900; color: var(--text-main); line-height: 1.2;">
+                    ${name}
                 </div>
             </div>
             
-            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom: 20px;">
-                ${!isStudentPortal ? `<span style="background: #eff6ff; color: #2563eb; padding: 6px 12px; border-radius: 8px; font-weight: 800; font-size: 15px;">Buy: ₹${buyPrice}</span>` : ''}
-                ${mrpHtml}
-                <span style="color: #9a3412; font-weight: 800; font-size: 15px;">Sell: ₹${sellPrice}</span>
-            </div>
+            <!-- 🟢 Row 2: Buy, MRP, Sell, Stock, Profit (Compact Fit like Stock) -->
+            <div style="display:flex; flex-direction: column; gap: 10px; margin-bottom: 25px;">
+                
+                <div style="display:flex; flex-wrap:wrap; column-gap: 12px; row-gap: 6px; font-size: 16px; font-weight: bold; align-items: center;">
+                    <span style="color: var(--info);">Buy: ₹${buyPrice}</span>
+                    ${mrpHtml}
+                    <span style="color: var(--text-main); font-weight: 900;">Sell: ₹${sPrice}</span>
+                </div>
+                
+                <div style="display:flex; flex-wrap:wrap; column-gap: 12px; row-gap: 6px; font-size: 15px; font-weight: bold; align-items: center; margin-top: 5px;">
+                    ${stockBadge}
+                    <span style="color: var(--border-color); font-weight: normal;">|</span>
+                    ${profitBadge}
+                </div>
 
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="border: 2px solid #fecaca; color: #ef4444; padding: 8px 15px; border-radius: 8px; font-weight: 900; font-size: 16px; background: #fff5f5;">${qty} pcs</span>
-                ${buttonsHtml}
+            </div>
+            
+            <!-- 🟢 Dashed Line Separator -->
+            <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-bottom: 20px;"></div>
+            
+            <!-- 🟢 Row 3: Action Buttons (Aligned to Center/Right like Stock) -->
+            <div style="display:flex; justify-content:center; align-items:center;">
+                <div style="display:flex; gap: 15px;">
+                    ${itemId ? `
+                    <button onclick="window.editStockItem('${itemId}'); Swal.close();" style="width: 45px; height: 45px; border:none; border-radius: 10px; background: #f59e0b; color: white; font-size: 18px; cursor: pointer; box-shadow: 0 4px 6px rgba(245,158,11,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-edit"></i></button>
+                    <button onclick="window.deleteStockItem('${itemId}'); Swal.close();" style="width: 45px; height: 45px; border:none; border-radius: 10px; background: #ef4444; color: white; font-size: 18px; cursor: pointer; box-shadow: 0 4px 6px rgba(239,68,68,0.3); display: flex; align-items: center; justify-content: center;"><i class="fas fa-trash"></i></button>
+                    ` : ''}
+                    <button onclick="window.sendProductToPortal('${itemId}'); Swal.close();" style="width: 45px; height: 45px; border:none; border-radius: 10px; background: #8b5cf6; color: white; font-size: 18px; cursor: pointer; box-shadow: 0 4px 6px rgba(139,92,246,0.3); display: flex; align-items: center; justify-content: center;" title="Share to Portal"><i class="fas fa-paper-plane"></i></button>
+                </div>
             </div>
         </div>
     `;
-    document.body.appendChild(overlay);
+
+    Swal.fire({
+        html: detailsHtml,
+        showConfirmButton: false,
+        showCloseButton: true,
+        customClass: { popup: 'rounded-2xl' },
+        width: '95%',
+        padding: '25px 15px',
+        background: 'var(--bg-card)'
+    });
 };
 
 // 8. Update Slider Logic (For Top Horizontal Scroll)
