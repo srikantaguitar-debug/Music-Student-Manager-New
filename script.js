@@ -8453,31 +8453,108 @@ window.deleteSaleRecord = function(saleId) {
 };
 
 // ==========================================
-// 🟢 SALES HISTORY RENDER (DROPDOWN REAL-TIME UPDATE FIXED)
+// 🟢 PENDING ACCESSORY DUES POPUP (NEW FUNCTION)
 // ==========================================
+window.showSalesDuesPopup = function() {
+    // ডিউ রেকর্ডগুলো ফিল্টার করা
+    let selectedYear = document.getElementById('salesYearFilter') ? document.getElementById('salesYearFilter').value : 'Lifetime';
+    let selectedMonth = document.getElementById('salesMonthFilter') ? document.getElementById('salesMonthFilter').value : 'All';
+    const filterText = document.getElementById('searchSalesHistoryInput') ? document.getElementById('searchSalesHistoryInput').value.toLowerCase().trim() : '';
 
-window.renderSalesUI = function(filteredSales) {
+    let duesList = salesDataArray.filter(s => {
+        const sDate = new Date(s.date);
+        const sYear = sDate.getFullYear().toString();
+        const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
+        
+        const matchYear = (selectedYear === 'Lifetime' || sYear === selectedYear);
+        const matchMonth = (selectedMonth === 'All' || sMonth === selectedMonth);
+        const matchSearch = (!filterText || `${s.studentName} ${s.item}`.toLowerCase().includes(filterText));
+        
+        return matchYear && matchMonth && matchSearch && s.due > 0;
+    });
+
+    if (!duesList || duesList.length === 0) return;
+
+    let duesHtml = `<div style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">`;
+
+    duesList.forEach(s => {
+        const dateStr = s.date ? new Date(s.date).toLocaleDateString('en-IN') : '';
+        const safeId = s.id ? s.id.toString() : '';
+        
+        let itemName = 'Unknown Item';
+        if (s.cart && s.cart.length > 0) {
+            itemName = s.cart.map(c => `${c.name} (x${c.qty})`).join(', ');
+        } else if (s.item) {
+            itemName = s.item;
+        }
+
+        let studentImg = 'https://via.placeholder.com/150?text=No+Photo';
+        if (typeof students !== 'undefined' && students.length > 0) {
+            const matchedStudent = students.find(st => st.name === s.studentName);
+            if (matchedStudent && matchedStudent.photo) {
+                studentImg = matchedStudent.photo;
+            }
+        }
+
+        duesHtml += `
+            <div style="background: #3b2a82; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+                    <img src="${studentImg}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1;">
+                    <div style="text-align: left;">
+                        <div style="color: white; font-size: 16px; font-weight: 900; line-height: 1.2;">${s.studentName}</div>
+                        <div style="color: #94a3b8; font-size: 12px; margin-top: 4px;"><strong>Date:</strong> ${dateStr}</div>
+                    </div>
+                </div>
+                <div style="background: #2e1d6b; border-radius: 10px; padding: 10px; text-align: left; margin-bottom: 15px;">
+                    <span style="color: white; font-weight: bold; font-size: 14px;">Item:</span> 
+                    <span style="color: #38bdf8; font-size: 14px; font-weight: 500;">${itemName}</span>
+                </div>
+                <div style="background: #fff5f5; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+                    <div style="text-align: left;">
+                        <div style="color: #ef4444; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">TOTAL DUE</div>
+                        <div style="color: #ef4444; font-size: 22px; font-weight: 900;">₹${s.due}</div>
+                    </div>
+                    <button onclick="Swal.close(); setTimeout(() => window.paySaleDue(${safeId}), 300);" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.3);">
+                        Pay Now
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    duesHtml += `</div>`;
+
+    Swal.fire({
+        title: '<div style="color: white; font-size: 24px; font-weight: 900; line-height: 1.3;">Pending<br>Accessory<br>Dues</div>',
+        html: duesHtml,
+        showConfirmButton: false,
+        showCloseButton: false, 
+        footer: '<button onclick="Swal.close()" style="background: #ef4444; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">Close</button>',
+        background: '#1e0b58', 
+        customClass: { popup: 'rounded-3xl border-2 border-indigo-500/30' },
+        width: '95%',
+        padding: '20px 10px'
+    });
+};
+
+// ==========================================
+// 🟢 UPDATED SALES HISTORY RENDER
+// ==========================================
+window.renderSalesUI = function() {
     const list = document.getElementById('salesList');
     if(!list) return;
+    list.innerHTML = '';
     
     const searchInput = document.getElementById('searchSalesHistoryInput');
     const filterText = searchInput ? searchInput.value.toLowerCase().trim() : '';
-
-    // 🟢 লাইভ সার্চ ফিক্স
-    if (searchInput && !searchInput.hasAttribute('data-bound')) {
-        searchInput.addEventListener('input', () => window.renderSalesUI());
-        searchInput.setAttribute('data-bound', 'true');
-    }
-
     let yearFilter = document.getElementById('salesYearFilter');
     let monthFilter = document.getElementById('salesMonthFilter');
 
-    // 🟢 Year Filter (Custom Blue Design)
     if (yearFilter && yearFilter.tagName.toLowerCase() === 'input') {
         const parent = yearFilter.parentNode;
         const newYearSelect = document.createElement('select');
         newYearSelect.id = 'salesYearFilter';
-        newYearSelect.style.cssText = "background: rgba(14, 165, 233, 0.1); border: 1px solid rgba(14, 165, 233, 0.2); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-weight: 800; font-size: 14px; outline: none; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.02);";
+        newYearSelect.style.cssText = "padding: 5px 8px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 13px; font-weight: bold; background: var(--bg-input); color: var(--text-main); outline: none; cursor: pointer;";
         
         const currentY = new Date().getFullYear();
         newYearSelect.innerHTML = `
@@ -8488,25 +8565,16 @@ window.renderSalesUI = function(filteredSales) {
         `;
         parent.replaceChild(newYearSelect, yearFilter);
         yearFilter = newYearSelect;
-        
-        // 🟢 ইয়ার চেঞ্জ ফিক্স (Event অবজেক্ট ইগনোর করার জন্য)
-        yearFilter.onchange = () => {
-            if (typeof window.fetchSalesData === 'function') {
-                window.fetchSalesData();
-            } else {
-                window.renderSalesUI();
-            }
-        }; 
+        yearFilter.onchange = window.fetchSalesData; 
     }
 
-    // 🟢 Month Filter (Custom Blue Design)
     if (!monthFilter && yearFilter) {
         monthFilter = document.createElement('select');
         monthFilter.id = 'salesMonthFilter';
         monthFilter.style.cssText = yearFilter.style.cssText;
         monthFilter.style.marginLeft = '8px';
         monthFilter.innerHTML = `
-            <option value="All">All</option>
+            <option value="All">Full Year</option>
             <option value="01">Jan</option><option value="02">Feb</option>
             <option value="03">Mar</option><option value="04">Apr</option>
             <option value="05">May</option><option value="06">Jun</option>
@@ -8516,107 +8584,143 @@ window.renderSalesUI = function(filteredSales) {
         `;
         const curM = (new Date().getMonth() + 1).toString().padStart(2, '0');
         monthFilter.value = curM; 
-        
-        // 🟢 মাস চেঞ্জ ফিক্স (Event অবজেক্ট ইগনোর করার জন্য)
-        monthFilter.onchange = () => window.renderSalesUI();
+        monthFilter.onchange = window.renderSalesUI;
         yearFilter.parentNode.insertBefore(monthFilter, yearFilter.nextSibling);
     }
-
-    // প্রথমে লিস্ট ক্লিয়ার করা
-    list.innerHTML = '';
 
     const selectedYear = yearFilter ? yearFilter.value : new Date().getFullYear().toString();
     const selectedMonth = monthFilter ? monthFilter.value : (new Date().getMonth() + 1).toString().padStart(2, '0');
 
-    // 🟢 🟢 মেইন ফিক্স: Event অবজেক্ট এড়ানোর জন্য Array.isArray চেক করা হয়েছে
-    let salesDataToFilter = [];
-    if (Array.isArray(filteredSales)) {
-        salesDataToFilter = filteredSales;
-    } else if (typeof salesDataArray !== 'undefined' && Array.isArray(salesDataArray)) {
-        salesDataToFilter = salesDataArray;
-    } else if (typeof window.salesDataArray !== 'undefined' && Array.isArray(window.salesDataArray)) {
-        salesDataToFilter = window.salesDataArray;
-    }
+    let totalDueAmount = 0;
+    let dueRecords = [];
+    let totalSalesAmount = 0;
+    let totalProfit = 0;
 
-    // 🟢 ফিল্টারিং লজিক
-    const finalFilteredSales = salesDataToFilter.filter(s => {
-        if (!s || !s.date) return false;
+    const filteredSales = salesDataArray.filter(s => {
         const sDate = new Date(s.date);
         const sYear = sDate.getFullYear().toString();
         const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
         
         const matchYear = (selectedYear === 'Lifetime' || sYear === selectedYear);
         const matchMonth = (selectedMonth === 'All' || sMonth === selectedMonth);
-        const searchStr = `${s.studentName || ''} ${s.item || ''} ${s.cart ? s.cart.map(c=>c.name).join(' ') : ''}`.toLowerCase();
-        const matchSearch = (!filterText || searchStr.includes(filterText));
+        const matchSearch = (!filterText || `${s.studentName} ${s.item}`.toLowerCase().includes(filterText));
         
         return matchYear && matchMonth && matchSearch;
     });
 
-    if(!finalFilteredSales || finalFilteredSales.length === 0) {
-        list.innerHTML = '<tr><td style="text-align:center; padding:20px; color:var(--text-muted); font-weight:bold;">No sales found for this period.</td></tr>';
-        return;
+    filteredSales.forEach(s => {
+        if (s.due > 0) {
+            totalDueAmount += s.due;
+            dueRecords.push(s);
+        }
+        
+        totalSalesAmount += s.price;
+        
+        if (s.due <= 0) {
+            let totalBuyPrice = 0;
+            if (s.cart && s.cart.length > 0) {
+                s.cart.forEach(cItem => { totalBuyPrice += (cItem.buyPrice || 0); });
+            }
+            totalProfit += (s.price - totalBuyPrice);
+        }
+    });
+
+    let profitDash = document.getElementById('salesProfitDashboard');
+    if (!profitDash) {
+        profitDash = document.createElement('div');
+        profitDash.id = 'salesProfitDashboard';
+        const containerToInsert = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement.parentElement;
+        containerToInsert.insertBefore(profitDash, containerToInsert.firstChild);
+    }
+    
+    let periodText = '';
+    if (selectedYear === 'Lifetime') periodText = 'Lifetime';
+    else if (selectedMonth === 'All') periodText = selectedYear;
+    else periodText = document.querySelector(`#salesMonthFilter option[value="${selectedMonth}"]`).text + ' ' + selectedYear;
+    
+    profitDash.innerHTML = `
+        <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+            <div onclick="window.showSalesBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 15px; border-radius: 12px; border: 1px solid #7dd3fc; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
+                <div style="font-size: 11px; color: #0284c7; font-weight: 800; text-transform: uppercase;">${periodText} Sales</div>
+                <div style="font-size: 20px; font-weight: 900; color: #0369a1; margin-top: 5px;">₹${totalSalesAmount}</div>
+            </div>
+            <div onclick="window.showProfitBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 15px; border-radius: 12px; border: 1px solid #86efac; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
+                <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase;">${periodText} Profit</div>
+                <div style="font-size: 20px; font-weight: 900; color: #15803d; margin-top: 5px;">₹${totalProfit}</div>
+            </div>
+        </div>
+    `;
+
+    // 🟢 🟢 Unpaid Accessories ব্যানার আপডেট 
+    let dueAlertContainer = document.getElementById('salesDueAlertContainer');
+    if (!dueAlertContainer) {
+        const searchBar = document.querySelector('.search-bar input#searchSalesHistoryInput').parentElement;
+        dueAlertContainer = document.createElement('div');
+        dueAlertContainer.id = 'salesDueAlertContainer';
+        dueAlertContainer.style.marginBottom = '15px';
+        searchBar.parentNode.insertBefore(dueAlertContainer, searchBar);
     }
 
-    let htmlString = ''; // 🟢 সুপার ফাস্ট রেন্ডারিংয়ের জন্য
+    if (dueRecords.length > 0) {
+        dueAlertContainer.innerHTML = `
+            <button onclick="window.showSalesDuesPopup()" style="width: 100%; padding: 12px 16px; border-radius: 12px; font-size: 16px; font-weight: 800; background: #ef4444; color: white; border: none; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.3); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;">
+                <span style="display:flex; align-items:center; gap:8px;"><i class="fas fa-exclamation-triangle" style="font-size:16px;"></i> Unpaid Accessories</span>
+                <span style="background: white; color: #ef4444; padding: 4px 12px; border-radius: 20px; font-size: 14px; font-weight: 900;">
+                    ${dueRecords.length} Dues (₹${totalDueAmount})
+                </span>
+            </button>
+        `;
+        dueAlertContainer.style.display = 'block';
+    } else {
+        dueAlertContainer.style.display = 'none';
+    }
 
-    finalFilteredSales.forEach(s => {
-        const dateStr = s.date ? new Date(s.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '';
+    if (filteredSales.length === 0) {
+        list.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:var(--text-muted); font-size:13px;">No sales found for this period.</td></tr>';
+        return;
+    }
+    
+    filteredSales.forEach(s => {
+        const statusClr = s.due > 0 ? 'var(--danger)' : 'var(--success)';
+        const statusBg = s.due > 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)';
+        const dateStr = new Date(s.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
         
         let payDueBtnHtml = '';
-        let dueDisplayHtml = '';
-        
         if (s.due > 0) {
-            dueDisplayHtml = `
-            <div style="margin-top: 12px;">
-                <span style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; border: 1px solid var(--danger);">
-                    Due: ₹${s.due}
-                </span>
-            </div>`;
-            
-            payDueBtnHtml = `<button onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); cursor:pointer;"><strong style="font-size:14px;">Rs</strong></button>`;
+            payDueBtnHtml = `<button class="btn-success" onclick="window.paySaleDue(${s.id})" title="Pay Due" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#10b981; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3); cursor:pointer;"><strong style="font-size:14px;">Rs</strong></button>`;
         }
         
         let itemsHtml = '';
         if (s.cart && s.cart.length > 0) {
             let itemSpans = s.cart.map(cItem => {
-                const itemName = cItem.name || 'Unknown Item';
-                const safeName = itemName.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                const hBuy = cItem.buyPrice || 0;
-                const hMrp = cItem.mrp || 0;
-                const cPrice = cItem.price || 0;
-                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cPrice}', '', '${hBuy}', '${hMrp}')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${itemName} (x${cItem.qty || 1}) - ₹${cPrice}</span>`;
+                const safeName = cItem.name.replace(/'/g, "\\'");
+                return `<span onclick="window.openProductDetailsPopup('${safeName}', '${cItem.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; margin-bottom:4px; margin-right:4px; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${cItem.name} (x${cItem.qty}) - ₹${cItem.price}</span>`;
             });
             itemsHtml = itemSpans.join(' ');
         } else {
-            const itemName = s.item || 'Unknown Item';
-            const safeName = itemName.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-            const hBuy = s.buyPrice || 0;
-            const hMrp = s.mrp || 0;
-            const sPrice = s.price || 0;
-            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${sPrice}', '', '${hBuy}', '${hMrp}')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${itemName} - ₹${sPrice}</span>`;
+            const safeName = s.item.replace(/'/g, "\\'");
+            itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${s.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${s.item} - ₹${s.price}</span>`;
         }
 
         let historyHtml = '';
         if (s.paymentHistory && s.paymentHistory.length > 0) {
             historyHtml += `<div style="margin-top: 12px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background: var(--bg-input);">`;
             s.paymentHistory.forEach((hist) => {
-                const pDate = hist.date ? new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'}) : '';
+                const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
                 historyHtml += `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
                     <span style="color: var(--text-main); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})</span>
-                    <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount || 0}</span>
+                    <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount}</span>
                 </div>`;
             });
             historyHtml += `</div>`;
         }
         
-        // 🟢 কার্ড রেন্ডারিং (সব বাটন পারফেক্টলি কাজ করবে)
-        htmlString += `
+        list.innerHTML += `
             <tr style="display: block; padding: 16px; margin-bottom: 15px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
                 <td style="display: block; width: 100%; border: none; padding: 0;">
                     
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                        <strong onclick="window.viewBuyerProfile('${s.id}')" style="font-size:18px; color:var(--primary); cursor:pointer; font-weight: 900;">${s.studentName || 'Unknown'}</strong>
+                        <strong onclick="window.viewBuyerProfile(${s.id})" style="font-size:18px; color:var(--primary); cursor:pointer; font-weight: 900;">${s.studentName}</strong>
                         <div style="font-size:12px; color:var(--text-muted); font-weight: 600;"><i class="far fa-calendar-alt" style="color:var(--danger);"></i> ${dateStr}</div>
                     </div>
                     
@@ -8627,29 +8731,31 @@ window.renderSalesUI = function(filteredSales) {
                     ${historyHtml}
                     
                     <div style="margin-top: 15px; font-size: 16px; font-weight: 900; color: var(--text-main);">
-                        Total: ₹${s.price || 0}
+                        Total: ₹${s.price}
                     </div>
 
                     <div style="margin-top: 8px; font-size: 14px; font-weight: 800; color: var(--success);">
-                        Paid: ₹${s.paid || 0}
+                        Paid: ₹${s.paid}
                     </div>
 
-                    ${dueDisplayHtml}
+                    <div style="margin-top: 12px; display: ${s.due > 0 ? 'block' : 'none'};">
+                        <span style="background:${statusBg}; color:${statusClr}; padding: 6px 12px; border-radius: 8px; font-size: 13px; font-weight: bold; border: 1px solid ${statusClr};">
+                            Due: ₹${s.due}
+                        </span>
+                    </div>
 
                     <div class="action-buttons" style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 20px; border-top: 1px dashed var(--border-color); padding-top: 15px;">
                        ${payDueBtnHtml}
-                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3); cursor:pointer;"><i class="fas fa-file-pdf"></i><span style="font-size:8px; position:absolute; margin-top:12px;">PDF</span></button>
+                       <button onclick="window.resendSaleReceipt(${s.id})" title="Receipt" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3); cursor:pointer;"><i class="fas fa-file-pdf"></i></button>
                        <button onclick="window.editSaleRecord(${s.id})" title="Edit" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3); cursor:pointer;"><i class="fas fa-edit"></i></button>
                        <button onclick="window.deleteSaleRecord(${s.id})" title="Delete" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); cursor:pointer;"><i class="fas fa-trash"></i></button>
                        <button onclick="window.sendSaleWhatsApp(${s.id})" title="WA" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:8px; font-size:20px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.3); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
-                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:12px; font-weight:bold; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); cursor:pointer;">SMS</button>
+                       <button onclick="window.sendSaleSMS(${s.id})" title="SMS" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); cursor:pointer;"><i class="fas fa-sms"></i></button>
                        <button onclick="window.callBuyer(${s.id})" title="Call" style="width: 38px; height: 38px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:8px; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
                     </div>
                 </td>
             </tr>`;
     });
-    
-    list.innerHTML = htmlString;
 };
 
 // 🟢 NEW: Call Button Logic
