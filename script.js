@@ -3230,93 +3230,255 @@ function showCategoryList(type) {
 
 function checkBirthday(dobString) { if (!dobString) return false; const today = new Date(); const dob = new Date(dobString); return today.getDate() === dob.getDate() && today.getMonth() === dob.getMonth(); }
 
-function updateReminderDay() { const dateVal = document.getElementById('reminderDate').value; if (dateVal) { const date = new Date(dateVal); const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']; document.getElementById('reminderDay').value = days[date.getDay()]; } }
+// =====================================================================
+// 🟢 ADVANCED WEEKLY REMINDER SYSTEM (FIXED SEARCH, OPTIONAL DATE/TIME & ICON BUTTONS)
+// =====================================================================
 
-async function addReminder() { 
-    const text = document.getElementById('reminderText').value.trim(); 
-    const day = document.getElementById('reminderDay').value; 
-    const dateVal = document.getElementById('reminderDate').value; 
-
-    if(!text) { 
-        Swal.fire('Error', 'Please enter reminder text.', 'error'); 
-        return; 
-    } 
-
-    reminders.push({ id: Date.now(), text: text, day: day, date: dateVal }); 
-    
-    // UI সাথে সাথে আপডেট হবে
-    document.getElementById('reminderText').value = ''; 
-    document.getElementById('reminderDate').value = ''; 
-    renderReminders(); 
-    
-    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder added!', showConfirmButton: false, timer: 1500 });
-    
-    // ব্যাকগ্রাউন্ডে সেভ হবে (কোনো ল্যাগ করবে না)
-    saveData().catch(e => console.log("Background sync pending")); 
-}
-
-// 🟢 NEW: Instant Delete Reminder
-window.deleteReminder = function(id) { 
-    // ১. সাথে সাথে Array থেকে রিমাইন্ডার ডিলিট
-    reminders = reminders.filter(r => r.id !== id); 
-    
-    // ২. চোখের পলকে UI (স্ক্রিন) আপডেট
-    renderReminders(); 
-    if(typeof renderDashboard === 'function') renderDashboard();
-
-    // ৩. ছোট্ট এবং সুন্দর নোটিফিকেশন
-    Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'success',
-        title: 'Reminder deleted!',
-        showConfirmButton: false,
-        timer: 1500
+window.generateReminderStudentListHtml = function(studentsList) {
+    let html = '';
+    studentsList.forEach(s => {
+        const photoSrc = s.photo ? s.photo : 'https://via.placeholder.com/40?text=S';
+        html += `
+            <div class="rem-student-item" onclick="window.selectReminderStudent('${s.id}', this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer; transition: 0.2s; background: var(--bg-card);">
+                <img src="${photoSrc}" style="width: 35px; height: 35px; border-radius: 50%; object-fit: cover; margin-right: 12px; border: 1px solid #cbd5e1; flex-shrink: 0;">
+                <div style="flex-grow: 1; text-align: left; line-height:1.2;">
+                    <div class="rem-student-name" style="font-weight: 600; font-size: 14px; color: var(--text-main);">${s.name}</div>
+                    <div style="font-size: 11px; color: var(--text-muted);">${s.class || 'N/A'} | ${s.class_day || ''} ${s.class_time || ''}</div>
+                </div>
+            </div>
+        `;
     });
-
-    // ৪. ব্যাকগ্রাউন্ডে সেভ হবে, কোনো 'await' বা অপেক্ষা ছাড়াই
-    saveData().catch(e => console.log("Background sync pending for reminder")); 
+    return html;
 };
 
-function renderReminders() { 
+window.filterReminderStudentList = function() {
+    const filter = document.getElementById('swal-search-rem-student').value.toUpperCase();
+    const items = document.querySelectorAll('.rem-student-item');
+    items.forEach((item, index) => {
+        if (index === 0 && filter.length > 0) { item.style.display = "none"; return; } 
+        if (index === 0) { item.style.display = "flex"; return; }
+        
+        const nameEl = item.querySelector('.rem-student-name');
+        const text = nameEl ? nameEl.textContent || nameEl.innerText : item.innerText;
+        item.style.display = text.toUpperCase().indexOf(filter) > -1 ? "flex" : "none";
+    });
+};
+
+window.selectReminderStudent = function(targetId, divElement) {
+    document.getElementById('selected-rem-student-id').value = targetId;
+    document.querySelectorAll('.rem-student-item').forEach(item => {
+        item.style.backgroundColor = 'var(--bg-card)';
+        item.style.borderLeft = '4px solid transparent';
+    });
+    divElement.style.backgroundColor = 'rgba(99, 102, 241, 0.1)';
+    divElement.style.borderLeft = '4px solid var(--primary)';
+};
+
+window.addReminder = async function() { 
+    let activeSt = students.filter(s => window.isStudentCurrentlyActive(s)).sort((a,b) => a.name.localeCompare(b.name));
+    let listHtml = window.generateReminderStudentListHtml(activeSt);
+
+    const { value: formValues, isConfirmed } = await Swal.fire({
+        title: 'Add New Reminder',
+        html: `
+            <div style="text-align: left;">
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Reminder Note: <span style="color:red;">*</span></label>
+                <input id="swalReminderText" class="swal2-input" placeholder="e.g. Guitar Class / Check Fees" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
+                
+                <div style="display:flex; gap:10px; margin-bottom:15px;">
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Date (Optional):</label>
+                        <input id="swalReminderDate" type="date" class="swal2-input" style="width:100%; margin: 5px 0 0 0; font-size: 14px; box-sizing: border-box;" onchange="window.updateReminderDaySwal()">
+                    </div>
+                    <div style="flex:1;">
+                        <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Time (Optional):</label>
+                        <input id="swalReminderTime" type="time" class="swal2-input" style="width:100%; margin: 5px 0 0 0; font-size: 14px; box-sizing: border-box;">
+                    </div>
+                </div>
+
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Day (Optional):</label>
+                <select id="swalReminderDay" class="swal2-select" style="width:100%; margin: 5px 0 15px 0; font-size: 14px; box-sizing: border-box;">
+                    <option value="">-- Select Day --</option>
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                    <option value="Saturday">Saturday</option>
+                    <option value="Sunday">Sunday</option>
+                </select>
+
+                <label style="font-size:12px; font-weight:bold; color:var(--text-muted);">Select Student (Optional):</label>
+                <input type="text" id="swal-search-rem-student" class="swal2-input" placeholder="🔍 Search student name..." style="width: 100%; margin: 5px 0 10px 0; font-size: 14px; box-sizing: border-box;" onkeyup="window.filterReminderStudentList()">
+                <input type="hidden" id="selected-rem-student-id" value="">
+                
+                <div id="rem-student-list" style="width:100%; max-height: 150px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-card); box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);">
+                    <div class="rem-student-item" onclick="window.selectReminderStudent('', this)" style="display:flex; align-items:center; padding: 10px; border-bottom: 1px solid var(--border-color); cursor:pointer; background: rgba(99, 102, 241, 0.1); border-left: 4px solid var(--primary);">
+                        <div style="width: 35px; height: 35px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; margin-right: 12px; font-size: 16px; flex-shrink:0;"><i class="fas fa-users"></i></div>
+                        <div style="font-weight: 600; font-size: 14px; color: var(--text-main);">-- General Reminder --</div>
+                    </div>
+                    ${listHtml}
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Save Reminder',
+        confirmButtonColor: 'var(--primary)',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const text = document.getElementById('swalReminderText').value.trim();
+            const dateVal = document.getElementById('swalReminderDate').value;
+            const timeVal = document.getElementById('swalReminderTime').value;
+            const day = document.getElementById('swalReminderDay').value;
+            const studentId = document.getElementById('selected-rem-student-id').value;
+
+            if (!text) {
+                Swal.showValidationMessage('Reminder Note is mandatory!');
+                return false;
+            }
+            return { text, dateVal, timeVal, day, studentId };
+        }
+    });
+
+    if (isConfirmed && formValues) {
+        reminders.push({ 
+            id: Date.now(), 
+            text: formValues.text, 
+            day: formValues.day || 'General', 
+            date: formValues.dateVal,
+            time: formValues.timeVal,
+            studentId: formValues.studentId 
+        }); 
+        
+        window.renderReminders(); 
+        if(typeof window.renderDashboard === 'function') window.renderDashboard(); 
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder Saved!', showConfirmButton: false, timer: 1500 });
+        if(typeof window.saveData === 'function') window.saveData().catch(e => console.log(e));
+    }
+};
+
+window.updateReminderDaySwal = function() {
+    const dateVal = document.getElementById('swalReminderDate').value;
+    if (dateVal) {
+        const date = new Date(dateVal);
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        document.getElementById('swalReminderDay').value = days[date.getDay()];
+    }
+};
+
+window.renderReminders = function() { 
     const listContainer = document.getElementById('reminderListContainer'); 
+    if(!listContainer) return; 
     listContainer.innerHTML = ''; 
-    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]; 
     
+    const daysSet = new Set(reminders.map(r => r.day || 'General'));
+    const days = Array.from(daysSet);
+    const weekOrder = { "Monday":1, "Tuesday":2, "Wednesday":3, "Thursday":4, "Friday":5, "Saturday":6, "Sunday":7, "General": 8 };
+    days.sort((a,b) => (weekOrder[a]||99) - (weekOrder[b]||99));
+
     days.forEach(day => { 
-        const dayReminders = reminders.filter(r => r.day === day); 
+        const dayReminders = reminders.filter(r => (r.day || 'General') === day); 
         
         if(dayReminders.length > 0) { 
             const dayHeader = document.createElement('h4'); 
-            dayHeader.style.cssText = "margin: 15px 0 5px 0; color: var(--primary); font-size:14px; border-bottom:1px solid var(--border-color); padding-bottom: 5px;"; 
+            dayHeader.style.cssText = "margin: 20px 0 10px 0; color: #9333ea; font-size:18px; font-weight:900; border-bottom:2px dashed rgba(147, 51, 234, 0.3); padding-bottom: 5px; text-transform:uppercase;"; 
             dayHeader.textContent = day; 
             listContainer.appendChild(dayHeader); 
             
             dayReminders.forEach(r => { 
-                let dateDisplay = "";
-                if(r.date) {
-                    const d = new Date(r.date);
-                    dateDisplay = `<div style="font-size:10px; color:var(--text-muted); margin-top:2px;">📅 ${d.toLocaleDateString('en-IN')}</div>`;
+                let dtHtml = "";
+                let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
+                let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
+                
+                if (dateDisplay || timeDisplay) {
+                    dtHtml = `<div style="font-size:13px; color:var(--text-muted); margin-top:8px; display:flex; align-items:center; gap:10px; font-weight:600;">`;
+                    if(dateDisplay) dtHtml += `<span><i class="far fa-calendar-alt" style="color:#ef4444; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${dateDisplay}</span>`;
+                    if(timeDisplay) dtHtml += `<span><i class="far fa-clock" style="color:#f59e0b; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${timeDisplay}</span>`;
+                    dtHtml += `</div>`;
                 }
 
-                const div = document.createElement('div'); 
-                div.className = 'reminder-item'; 
-                div.innerHTML = `
-                    <div style="flex:1;">
-                        <span style="font-weight:500;">${r.text}</span>
-                        ${dateDisplay}
-                    </div> 
-                    <button class="btn-danger" style="padding:5px 10px; height:30px;" onclick="deleteReminder(${r.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>`; 
-                listContainer.appendChild(div); 
+                let studentInfoHtml = '';
+                let contactButtonsHtml = '';
+                
+                if (r.studentId) {
+                    const student = students.find(s => String(s.id) === String(r.studentId));
+                    if (student) {
+                        studentInfoHtml = `<div style="font-size: 15px; color: #38bdf8; font-weight: 800; margin-top: 8px; display:flex; align-items:center; gap:6px;"><i class="fas fa-user-circle"></i> ${student.name}</div>`;
+                        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+                        
+                        contactButtonsHtml = `
+                        <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-top: 15px; margin-bottom: 15px;"></div>
+                        <div style="display:flex; gap:15px; justify-content:center;">
+                            <button onclick="window.location.href='tel:${cleanPhone}'" style="background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="Call"><i class="fas fa-phone-alt" style="font-size:26px;"></i></button>
+                            <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="WhatsApp"><i class="fab fa-whatsapp" style="font-size:32px;"></i></button>
+                            <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="SMS"><i class="fas fa-sms" style="font-size:28px;"></i></button>
+                        </div>`;
+                    }
+                }
+
+                const cardHtml = `
+                    <div style="position:relative; display: flex; flex-direction: column; background: #2e1065; border: 1px solid #4c1d95; border-left: 8px solid #f59e0b; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.15);">
+                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: #ef4444; color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-size:16px;" onclick="window.deleteReminder('${r.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <div style="padding-right: 50px;">
+                            <div style="font-weight:900; font-size: 20px; color: #ffffff; line-height: 1.3;">${r.text}</div>
+                            ${dtHtml}
+                            ${studentInfoHtml}
+                        </div> 
+                        ${contactButtonsHtml}
+                    </div>
+                `;
+                listContainer.insertAdjacentHTML('beforeend', cardHtml);
             }); 
         } 
     }); 
     
     if(reminders.length === 0) { 
-        listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:12px; margin-top:20px;">No reminders set.</p>'; 
+        listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:14px; margin-top:20px; font-weight: bold;">No reminders set.</p>'; 
     } 
+
+window.sendReminderSpecificMsg = function(type, studentId, reminderId) {
+    const student = students.find(s => String(s.id) === String(studentId));
+    const reminder = reminders.find(r => String(r.id) === String(reminderId));
+    
+    if (!student || !reminder) return;
+    
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    
+    let dateStr = reminder.date ? new Date(reminder.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '';
+    let timeStr = reminder.time ? window.formatTime12H(reminder.time) : '';
+    let dayStr = reminder.day && reminder.day !== 'General' ? reminder.day : '';
+
+    let timeDetails = '';
+    if (dateStr || timeStr || dayStr) {
+        timeDetails = `\n\n*Class Schedule:*`;
+        if(dateStr) timeDetails += `\n📅 Date: ${dateStr}`;
+        if(dayStr) timeDetails += `\n📆 Day: ${dayStr}`;
+        if(timeStr) timeDetails += `\n⏰ Time: ${timeStr}`;
+    }
+
+    const msgBody = `Hello ${student.name},\n\nThis is a reminder regarding: *${reminder.text}*${timeDetails}\n\nPlease join on time.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+    
+    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+    if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+    if (type === 'wa') {
+        if (cleanPhone) window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        else Swal.fire('Error', 'No phone number found', 'error');
+    } else if (type === 'sms') {
+        if (student.phone) window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+        else Swal.fire('Error', 'No phone number found', 'error');
+    }
+};
+
+window.deleteReminder = function(id) { 
+    reminders = reminders.filter(r => String(r.id) !== String(id)); 
+    renderReminders(); 
+    if(typeof window.renderDashboard === 'function') window.renderDashboard();
+    Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Reminder deleted!', showConfirmButton: false, timer: 1500 });
+    if(typeof window.saveData === 'function') window.saveData().catch(e => console.log(e)); 
+};
     // 🟢 NEW: Custom Dropdown Selection Logic
     window.selectCustomDay = function(value, displayText) {
         // মেইন বক্সে টেক্সট আপডেট করা
@@ -3728,25 +3890,41 @@ window.showTodaysPracticingStudentsModal = function() {
 
     if(todaysReminders.length > 0) { 
         rList.innerHTML = ''; 
-        rList.className = 'dashboard-reminder-list'; 
-        todaysReminders.forEach(r => { 
-            rList.innerHTML += `
-                <div class="d-reminder-card">
-                    <div class="d-rem-content">
-                        <div class="d-rem-icon"><i class="fas fa-bell"></i></div>
-                        <div class="d-rem-text">${r.text}</div>
-                    </div>
-                    <button class="d-rem-btn" onclick="markReminderDone(${r.id})" title="Mark as Done">
-                        <i class="fas fa-check"></i>
-                    </button>
-                </div>
-            `; 
-        }); 
         rBox.style.display = 'block'; 
         rBox.style.background = 'transparent'; 
         rBox.style.boxShadow = 'none';
         rBox.style.border = 'none';
         rBox.style.padding = '0';
+        
+        todaysReminders.forEach(r => { 
+            let contactHtml = '';
+            if (r.studentId) {
+                const student = students.find(s => String(s.id) === String(r.studentId));
+                if (student) {
+                    let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+                    contactHtml = `
+                    <div style="width: 100%; border-top: 1px dashed rgba(255,255,255,0.2); margin-top: 15px; margin-bottom: 15px;"></div>
+                    <div style="display:flex; gap:10px; justify-content:center;">
+                        <button onclick="window.location.href='tel:${cleanPhone}'" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
+                        <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="flex:1; background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fab fa-whatsapp" style="font-size:26px;"></i></button>
+                        <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="flex:1; background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-sms" style="font-size:22px;"></i></button>
+                    </div>`;
+                }
+            }
+
+            const cardHtml = `
+                <div style="position:relative; display: flex; flex-direction: column; background: #2e1065; border: 1px solid #4c1d95; border-left: 8px solid #f59e0b; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.15);">
+                    <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: #ef4444; color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-size:16px;" onclick="window.markReminderDone('${r.id}')">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <div style="padding-right: 50px;">
+                        <div style="font-weight:900; font-size: 18px; color: #ffffff; line-height: 1.3;">${r.text}</div>
+                    </div> 
+                    ${contactHtml}
+                </div>
+            `;
+            rList.insertAdjacentHTML('beforeend', cardHtml);
+        }); 
     } else { 
         rBox.style.display = 'none'; 
     }
@@ -12198,124 +12376,86 @@ window.getOldestUnpaidMonth = function(studentId, selectedMonthStr) {
     return selectedMonthStr; 
 };
 
-const originalRenderDashboard = window.renderDashboard;
+// ৯. 🟢 Dashboard Notification Design 
+const oldRenderDashboardReminder = window.renderDashboard;
 window.renderDashboard = function() {
-    if (typeof originalRenderDashboard === 'function') originalRenderDashboard();
-
+    if(typeof oldRenderDashboardReminder === 'function') oldRenderDashboardReminder();
+    
     setTimeout(() => {
-        let monthlyCollected = 0, monthlyDueAmount = 0, yearlyCollected = 0, yearlyDueAmount = 0; 
-        let monthlyPaidCount = 0, monthlyDueCount = 0; 
-        const currentYear = new Date().getFullYear();
-        const currentMonthStr = `${currentYear}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
+        const rBox = document.getElementById('dashboardRemindersBox'); 
+        const rList = document.getElementById('dashboardReminderList'); 
+        if(!rBox || !rList) return;
 
-        students.forEach(student => { 
-            for (let i = 0; i < 12; i++) { 
-                const monthStr = `${currentYear}-${(i + 1).toString().padStart(2, '0')}`; 
-                if (window.wasStudentActiveDuringMonth(student, monthStr)) { 
-                    if (fees[monthStr]?.[student.id]?.status === 'paid') { 
-                        if (monthStr === currentMonthStr) {
-                            monthlyCollected += fees[monthStr][student.id].amount; 
-                            monthlyPaidCount++; 
-                        }
-                        yearlyCollected += fees[monthStr][student.id].amount; 
-                    } else { 
-                        const dueAmt = window.getCalculatedDueAmount(student, monthStr);
-                        if (dueAmt > 0) {
-                            if (monthStr === currentMonthStr) {
-                                monthlyDueAmount += dueAmt; 
-                                monthlyDueCount++; 
-                            }
-                            yearlyDueAmount += dueAmt; 
-                        }
-                    } 
-                } 
-            } 
-        });
+        const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; 
+        const todayName = days[new Date().getDay()]; 
+        
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todaysReminders = reminders.filter(r => r.day === todayName || r.date === todayStr);
 
-        // Update Yearly UI
-        const dashboardSummary = document.getElementById('dashboardYearlySummary');
-        if(dashboardSummary) {
-            dashboardSummary.innerHTML = `
-                <div onclick="showYearlyBreakdown('collected', '${currentYear}')" style="cursor:pointer;">
-                    <h4>Yearly Collected</h4><p class="summary-collected">₹${yearlyCollected}</p>
-                </div>
-                <div onclick="showYearlyBreakdown('due', '${currentYear}')" style="cursor:pointer;">
-                    <h4>Yearly Due (Active)</h4><p class="summary-due">₹${yearlyDueAmount}</p>
-                </div>`; 
-        }
-
-        // Update Monthly UI (Fixing Dashboard Dues)
-        const monthlyUI = document.getElementById('financeOverviewNumbers');
-        if(monthlyUI) {
-            monthlyUI.innerHTML = `
-                <div onclick="showFeeBreakdown('collected')">
-                    <h4 style="line-height: 1.4; margin-bottom: 8px;">Collected <br><span style="font-size: 10px; text-transform: none; font-weight: 500; color: var(--secondary);">(${monthlyPaidCount} Students)</span></h4>
-                    <p class="summary-collected">₹${monthlyCollected}</p>
-                </div>
-                <div onclick="showFeeBreakdown('due')">
-                    <h4 style="line-height: 1.4; margin-bottom: 8px;">Due <br><span style="font-size: 10px; text-transform: none; font-weight: 500; color: var(--secondary);">(${monthlyDueCount} Students)</span></h4>
-                    <p class="summary-due">₹${monthlyDueAmount}</p>
-                </div>`;
-        }
-
-        // Update Pie Chart
-        const chartCanvas = document.getElementById('financeChart');
-        if(chartCanvas) {
-            const ctx = chartCanvas.getContext('2d'); 
-            if (financeChartInstance) financeChartInstance.destroy(); 
-            financeChartInstance = new Chart(ctx, { 
-                type: 'doughnut', 
-                data: { 
-                    labels: ['Collected', 'Due'], 
-                    datasets: [{ data: [monthlyCollected, monthlyDueAmount], backgroundColor: ['#28a745', '#dc3545'], hoverOffset: 4 }] 
-                }, 
-                options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    plugins: { 
-                        legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-main') } }, 
-                        title: { display: true, text: `Summary for ${formatMonthYear(currentMonthStr)}`, color: getComputedStyle(document.body).getPropertyValue('--text-main') } 
-                    } 
-                } 
-            });
-        }
-
-        // Update Defaulters List at the bottom of Dashboard
-        const dueTableBody = document.querySelector('#dueFeeTable tbody'); 
-        const dueMessageEl = document.getElementById('dueFeeMessage'); 
-        if(dueTableBody && dueMessageEl) {
-            dueTableBody.innerHTML = ''; 
+        if(todaysReminders.length > 0) { 
+            rList.innerHTML = ''; 
+            rBox.style.display = 'block'; 
+            rBox.style.background = 'transparent'; 
+            rBox.style.boxShadow = 'none';
+            rBox.style.border = 'none';
+            rBox.style.padding = '0';
             
-            const defaulters = students.filter(s => window.isStudentCurrentlyActive(s))
-                .map(s => { return { student: s, months: window.getDueMonthsList(s.id) }; })
-                .filter(item => item.months.length > 0); 
-            
-            if (defaulters.length === 0) { 
-                dueMessageEl.textContent = "No pending dues."; 
-            } else { 
-                dueMessageEl.textContent = `(${defaulters.length}) students have pending dues.`; 
-                defaulters.sort((a, b) => b.months.length - a.months.length);
-                defaulters.forEach(item => { 
-                    const monthsStr = item.months.join(", "); 
-                    const studentHtml = getStudentHtml(item.student); 
-                    const dueDisplay = `<div style="margin-top:5px; font-size:11px; color:#dc2626; font-weight:600; line-height:1.4;">Due: ${monthsStr}</div>`; 
-                    
-                    const oldestDueMonthRaw = window.getOldestUnpaidMonth(item.student.id, currentMonthStr); 
-                    
-                    const payBtn = `<button class="btn-success btn-like" onclick="openFeeModal(${item.student.id}, '${oldestDueMonthRaw}')" style="padding: 4px 8px; font-size: 11px; margin: 2px;"><i class="fas fa-rupee-sign"></i> Pay</button>`;
-                    const contactBtns = window.getContactButtons(item.student.id, oldestDueMonthRaw); 
-                    
-                    dueTableBody.innerHTML += `<tr>
-                        <td>${studentHtml}${dueDisplay}</td>
-                        <td class="action-buttons">
-                            ${payBtn} 
-                            ${contactBtns}
-                        </td>
-                    </tr>`; 
-                }); 
-            }
-        }
+            todaysReminders.forEach(r => { 
+                let contactHtml = '';
+                let studentNameHtml = '';
+                
+                // 🟢 স্টুডেন্টের নাম এবং কন্টাক্ট বাটন অ্যাড করা হলো
+                if (r.studentId) {
+                    const student = students.find(s => String(s.id) === String(r.studentId));
+                    if (student) {
+                        studentNameHtml = `<div style="font-size: 15px; color: #38bdf8; font-weight: 800; margin-top: 8px; margin-bottom: 5px; display:flex; align-items:center; gap:6px;"><i class="fas fa-user-circle"></i> ${student.name}</div>`;
+                        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+                        
+                        contactHtml = `
+                        <div style="width: 100%; border-top: 1px dashed rgba(255,255,255,0.2); margin-top: 15px; margin-bottom: 15px;"></div>
+                        <div style="display:flex; gap:10px; justify-content:center;">
+                            <button onclick="window.location.href='tel:${cleanPhone}'" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
+                            
+                            <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="flex:1; background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fab fa-whatsapp" style="font-size:26px;"></i></button>
+                            
+                            <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="flex:1; background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-sms" style="font-size:22px;"></i></button>
+                        </div>`;
+                    }
+                }
 
-    }, 150); // wait for original renderDashboard to finish
+                // 🟢 ডেট এবং টাইম দেখানোর লজিক
+                let dtHtml = "";
+                let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
+                let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
+                let dayDisplay = r.day && r.day !== 'General' ? r.day : '';
+
+                if (dateDisplay || timeDisplay || dayDisplay) {
+                    dtHtml = `<div style="font-size:13px; color:var(--text-muted); margin-top:8px; display:flex; align-items:center; gap:10px; font-weight:600;">`;
+                    if(dayDisplay) dtHtml += `<span><i class="far fa-calendar-check" style="color:#a855f7; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${dayDisplay}</span>`;
+                    if(dateDisplay) dtHtml += `<span><i class="far fa-calendar-alt" style="color:#ef4444; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${dateDisplay}</span>`;
+                    if(timeDisplay) dtHtml += `<span><i class="far fa-clock" style="color:#f59e0b; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${timeDisplay}</span>`;
+                    dtHtml += `</div>`;
+                }
+
+                const cardHtml = `
+                    <div style="position:relative; display: flex; flex-direction: column; background: #2e1065; border: 1px solid #4c1d95; border-left: 8px solid #f59e0b; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.15);" id="dashboard-reminder-${r.id}">
+                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: #ef4444; color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-size:16px;" onclick="window.markReminderDone('${r.id}')">
+                            <i class="fas fa-check"></i>
+                        </button>
+                        <div style="padding-right: 50px;">
+                            ${studentNameHtml}
+                            <div style="font-weight:900; font-size: 18px; color: #ffffff; line-height: 1.3;">${r.text}</div>
+                            ${dtHtml}
+                        </div> 
+                        ${contactHtml}
+                    </div>
+                `;
+                rList.insertAdjacentHTML('beforeend', cardHtml);
+            }); 
+        } else { 
+            rBox.style.display = 'none'; 
+        }
+    }, 200);
 };
 // ==========================================
 // DETAILED STUDENT REPORT LOGIC (PERFECT PROFILE OPEN FIX)
@@ -14336,29 +14476,31 @@ window.openCustomDaySelector = function() {
     }
 };
 
-// 🟢 NEW: Instant Mark Reminder as Done (Dashboard)
+// ৮. 🟢 Mark Reminder Done (Dashboard Fix)
 window.markReminderDone = function(id) {
-    // ১. সাথে সাথে Array থেকে রিমাইন্ডার সরিয়ে ফেলা (Done মানেই ডিলিট)
-    reminders = reminders.filter(r => r.id !== id);
+    reminders = reminders.filter(r => String(r.id) !== String(id));
     
-    // ২. চোখের পলকে ড্যাশবোর্ড আপডেট
-    renderDashboard();
-    if(typeof renderReminders === 'function') renderReminders();
+    // 🟢 রিয়েল টাইমে ড্যাশবোর্ড থেকে হাইড করা
+    const reminderCard = document.getElementById(`dashboard-reminder-${id}`);
+    if (reminderCard) {
+        reminderCard.style.display = 'none';
+    }
 
-    // ৩. সুন্দর কমপ্লিট নোটিফিকেশন
+    if(typeof window.renderDashboard === 'function') window.renderDashboard();
+    renderReminders();
+
     Swal.fire({
         toast: true,
         position: 'top-end',
         icon: 'success',
         title: 'Task Completed! ✅',
         showConfirmButton: false,
-        timer: 1500,
+        timer: 2000,
         background: '#ecfdf5',
         color: '#059669'
     });
 
-    // ৪. ব্যাকগ্রাউন্ডে সেভ হবে
-    saveData().catch(e => console.log("Background sync pending for reminder"));
+    if(typeof window.saveData === 'function') window.saveData().catch(e => console.log(e));
 };
 // ==========================================
 // 🟢 INQUIRY & FOLLOW-UP LOGIC (SUPER FAST & BACKGROUND SYNC)
