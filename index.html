@@ -379,25 +379,13 @@
             </div>
         </div>
     </div>
-            <div class="dashboard-card">
-                <div class="form-group">
-                    <label>Add New Reminder</label>
-                    <input type="text" id="reminderText" placeholder="e.g. Check Guitars, Call Piano Batch..." style="margin-bottom:10px;">
-                    <div style="display: flex; gap: 10px;">
-                        <input type="date" id="reminderDate" style="flex:1;" onchange="updateReminderDay()">
-                        <select id="reminderDay" style="flex:1;">
-                            <option value="Monday">Monday</option>
-                            <option value="Tuesday">Tuesday</option>
-                            <option value="Wednesday">Wednesday</option>
-                            <option value="Thursday">Thursday</option>
-                            <option value="Friday">Friday</option>
-                            <option value="Saturday">Saturday</option>
-                            <option value="Sunday">Sunday</option>
-                        </select>
-                    </div>
-                    <button class="btn-primary" onclick="addReminder()" style="width:100%; margin-top: 10px;">Add Reminder</button>
-                </div>
-            </div>
+            <!-- Reminder Section -->
+<div class="card" style="margin-top:20px; border-radius:15px; border-top: 4px solid var(--primary); box-shadow: 0 8px 15px rgba(0,0,0,0.05); padding: 15px;">
+    <h3 style="font-size:15px; color:var(--text-main); margin:0 0 15px 0;">Add New Reminder</h3>
+    <button onclick="window.addReminder()" class="btn-primary" style="width:100%; border-radius:10px; padding:12px; font-size:15px; font-weight:bold; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.3);">
+        Add Reminder
+    </button>
+</div>
             <div id="reminderListContainer" style="margin-bottom: 30px;"></div>
 
             <hr style="margin: 25px 0; border-top: 2px dashed var(--border-color);">
