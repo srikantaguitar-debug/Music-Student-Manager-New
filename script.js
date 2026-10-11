@@ -12423,19 +12423,29 @@ window.renderDashboard = function() {
                     }
                 }
 
-                // 🟢 ডেট এবং টাইম দেখানোর লজিক
-                let dtHtml = "";
-                let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
-                let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
-                let dayDisplay = r.day && r.day !== 'General' ? r.day : '';
+                // 🟢 ডেট এবং টাইম দেখানোর লজিক (এক লাইনে)
+let dtHtml = "";
+let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
+let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
+let dayDisplay = r.day && r.day !== 'General' ? r.day : '';
 
-                if (dateDisplay || timeDisplay || dayDisplay) {
-                    dtHtml = `<div style="font-size:13px; color:var(--text-muted); margin-top:8px; display:flex; align-items:center; gap:10px; font-weight:600;">`;
-                    if(dayDisplay) dtHtml += `<span><i class="far fa-calendar-check" style="color:#a855f7; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${dayDisplay}</span>`;
-                    if(dateDisplay) dtHtml += `<span><i class="far fa-calendar-alt" style="color:#ef4444; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${dateDisplay}</span>`;
-                    if(timeDisplay) dtHtml += `<span><i class="far fa-clock" style="color:#f59e0b; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${timeDisplay}</span>`;
-                    dtHtml += `</div>`;
-                }
+if (dateDisplay || timeDisplay || dayDisplay) {
+    // এখানে flex-wrap: wrap; যোগ করা হয়েছে যাতে স্ক্রিন ছোট হলে মানিয়ে নেয়, কিন্তু সাধারণত এক লাইনেই থাকবে।
+    dtHtml = `<div style="font-size:12.5px; color:var(--text-muted); margin-top:6px; display:flex; align-items:center; gap:8px; font-weight:600; flex-wrap: wrap;">`;
+    
+    if(dayDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-check" style="color:#a855f7;"></i> ${dayDisplay}</span>`;
+    
+    // যদি বার এবং ডেট দুটোই থাকে, তাহলে মাঝে একটা ছোট্ট ডিভাইডার (|) দেওয়া হলো দেখতে ভালো লাগার জন্য
+    if(dayDisplay && dateDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
+    
+    if(dateDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateDisplay}</span>`;
+    
+    if((dayDisplay || dateDisplay) && timeDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
+    
+    if(timeDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-clock" style="color:#f59e0b;"></i> ${timeDisplay}</span>`;
+    
+    dtHtml += `</div>`;
+}
 
                 const cardHtml = `
                     <div style="position:relative; display: flex; flex-direction: column; background: #2e1065; border: 1px solid #4c1d95; border-left: 8px solid #f59e0b; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.15);" id="dashboard-reminder-${r.id}">
