@@ -3391,19 +3391,25 @@ window.renderReminders = function() {
                 let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
                 
                 if (dateDisplay || timeDisplay) {
-                    dtHtml = `<div style="font-size:13px; color:var(--text-muted); margin-top:8px; display:flex; align-items:center; gap:10px; font-weight:600;">`;
-                    if(dateDisplay) dtHtml += `<span><i class="far fa-calendar-alt" style="color:#ef4444; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${dateDisplay}</span>`;
-                    if(timeDisplay) dtHtml += `<span><i class="far fa-clock" style="color:#f59e0b; background:var(--bg-body); border-radius:3px; padding:1px 3px;"></i> ${timeDisplay}</span>`;
+                    dtHtml = `<div style="font-size:12.5px; color:var(--text-muted); margin-top:6px; display:flex; align-items:center; gap:8px; font-weight:600; flex-wrap: wrap;">`;
+                    if(dateDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateDisplay}</span>`;
+                    if(dateDisplay && timeDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
+                    if(timeDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-clock" style="color:#f59e0b;"></i> ${timeDisplay}</span>`;
                     dtHtml += `</div>`;
                 }
 
                 let studentInfoHtml = '';
                 let contactButtonsHtml = '';
                 
+                // 🟢 স্টুডেন্টের নাম, ছবি এবং কন্টাক্ট বাটন অ্যাড করা হলো
                 if (r.studentId) {
                     const student = students.find(s => String(s.id) === String(r.studentId));
                     if (student) {
-                        studentInfoHtml = `<div style="font-size: 15px; color: #38bdf8; font-weight: 800; margin-top: 8px; display:flex; align-items:center; gap:6px;"><i class="fas fa-user-circle"></i> ${student.name}</div>`;
+                        const photoSrc = student.photo ? student.photo : 'https://via.placeholder.com/40?text=S';
+                        studentInfoHtml = `<div style="font-size: 15px; color: #0ea5e9; font-weight: 800; margin-top: 10px; display:flex; align-items:center; gap:8px;">
+                            <img src="${photoSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;"> 
+                            ${student.name}
+                        </div>`;
                         let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
                         
                         contactButtonsHtml = `
@@ -3416,13 +3422,14 @@ window.renderReminders = function() {
                     }
                 }
 
+                // 🟢 রিমাইন্ডার ট্যাব কার্ড (চারিদিকে Orange Border)
                 const cardHtml = `
-                    <div style="position:relative; display: flex; flex-direction: column; background: #2e1065; border: 1px solid #4c1d95; border-left: 8px solid #f59e0b; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.15);">
-                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: #ef4444; color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-size:16px;" onclick="window.deleteReminder('${r.id}')">
+                    <div style="position:relative; display: flex; flex-direction: column; background: var(--bg-card); border: 3px solid #f97316; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: var(--danger); color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); font-size:16px; transition: 0.2s;" onclick="window.deleteReminder('${r.id}')">
                             <i class="fas fa-trash"></i>
                         </button>
                         <div style="padding-right: 50px;">
-                            <div style="font-weight:900; font-size: 20px; color: #ffffff; line-height: 1.3;">${r.text}</div>
+                            <div style="font-weight:900; font-size: 20px; color: var(--text-main); line-height: 1.3;">${r.text}</div>
                             ${dtHtml}
                             ${studentInfoHtml}
                         </div> 
@@ -3430,7 +3437,7 @@ window.renderReminders = function() {
                     </div>
                 `;
                 listContainer.insertAdjacentHTML('beforeend', cardHtml);
-            }); 
+            });
         } 
     }); 
     
@@ -3552,13 +3559,14 @@ window.renderDayWiseClasses = function(dayValue = 'tomorrow') {
 
             let contactButtons = '';
             if (phoneStr) {
+                // 🟢 NEW: লিংকের বদলে বাটন ব্যবহার করা হলো, যাতে ক্লিক করলে ডেট সিলেক্ট করার পপআপ আসে
                 contactButtons = `
                     <div style="display:flex; gap:6px; align-items:center;">
                         <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
                         
-                        <a href="https://wa.me/${waPhone}?text=${encodeURIComponent(msgBody)}" target="_blank" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></a>
+                        <button onclick="window.sendClassReminderWithDate('wa', ${s.id}, '${targetDayName}', '${timeDisplay}')" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
                         
-                        <a href="sms:${phoneStr}?body=${encodeURIComponent(msgBody)}" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></a>
+                        <button onclick="window.sendClassReminderWithDate('sms', ${s.id}, '${targetDayName}', '${timeDisplay}')" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></button>
                     </div>
                 `;
             }
@@ -12404,64 +12412,60 @@ window.renderDashboard = function() {
                 let contactHtml = '';
                 let studentNameHtml = '';
                 
-                // 🟢 স্টুডেন্টের নাম এবং কন্টাক্ট বাটন অ্যাড করা হলো
+                // 🟢 স্টুডেন্টের নাম, ছবি এবং কন্টাক্ট বাটন অ্যাড করা হলো
                 if (r.studentId) {
                     const student = students.find(s => String(s.id) === String(r.studentId));
                     if (student) {
-                        studentNameHtml = `<div style="font-size: 15px; color: #38bdf8; font-weight: 800; margin-top: 8px; margin-bottom: 5px; display:flex; align-items:center; gap:6px;"><i class="fas fa-user-circle"></i> ${student.name}</div>`;
+                        const photoSrc = student.photo ? student.photo : 'https://via.placeholder.com/40?text=S';
+                        studentNameHtml = `<div style="font-size: 15px; color: #0ea5e9; font-weight: 800; margin-top: 10px; display:flex; align-items:center; gap:8px;">
+                            <img src="${photoSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;"> 
+                            ${student.name}
+                        </div>`;
+                        
                         let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
                         
                         contactHtml = `
-                        <div style="width: 100%; border-top: 1px dashed rgba(255,255,255,0.2); margin-top: 15px; margin-bottom: 15px;"></div>
+                        <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-top: 15px; margin-bottom: 15px;"></div>
                         <div style="display:flex; gap:10px; justify-content:center;">
                             <button onclick="window.location.href='tel:${cleanPhone}'" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
-                            
                             <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="flex:1; background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fab fa-whatsapp" style="font-size:26px;"></i></button>
-                            
                             <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="flex:1; background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-sms" style="font-size:22px;"></i></button>
                         </div>`;
                     }
                 }
 
                 // 🟢 ডেট এবং টাইম দেখানোর লজিক (এক লাইনে)
-let dtHtml = "";
-let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
-let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
-let dayDisplay = r.day && r.day !== 'General' ? r.day : '';
+                let dtHtml = "";
+                let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
+                let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
+                let dayDisplay = r.day && r.day !== 'General' ? r.day : '';
 
-if (dateDisplay || timeDisplay || dayDisplay) {
-    // এখানে flex-wrap: wrap; যোগ করা হয়েছে যাতে স্ক্রিন ছোট হলে মানিয়ে নেয়, কিন্তু সাধারণত এক লাইনেই থাকবে।
-    dtHtml = `<div style="font-size:12.5px; color:var(--text-muted); margin-top:6px; display:flex; align-items:center; gap:8px; font-weight:600; flex-wrap: wrap;">`;
-    
-    if(dayDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-check" style="color:#a855f7;"></i> ${dayDisplay}</span>`;
-    
-    // যদি বার এবং ডেট দুটোই থাকে, তাহলে মাঝে একটা ছোট্ট ডিভাইডার (|) দেওয়া হলো দেখতে ভালো লাগার জন্য
-    if(dayDisplay && dateDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
-    
-    if(dateDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateDisplay}</span>`;
-    
-    if((dayDisplay || dateDisplay) && timeDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
-    
-    if(timeDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-clock" style="color:#f59e0b;"></i> ${timeDisplay}</span>`;
-    
-    dtHtml += `</div>`;
-}
+                if (dateDisplay || timeDisplay || dayDisplay) {
+                    dtHtml = `<div style="font-size:12.5px; color:var(--text-muted); margin-top:6px; display:flex; align-items:center; gap:8px; font-weight:600; flex-wrap: wrap;">`;
+                    if(dayDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-check" style="color:#a855f7;"></i> ${dayDisplay}</span>`;
+                    if(dayDisplay && dateDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
+                    if(dateDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateDisplay}</span>`;
+                    if((dayDisplay || dateDisplay) && timeDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
+                    if(timeDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-clock" style="color:#f59e0b;"></i> ${timeDisplay}</span>`;
+                    dtHtml += `</div>`;
+                }
 
+                // 🟢 ড্যাশবোর্ড রিমাইন্ডার কার্ড (চারিদিকে Orange Border)
                 const cardHtml = `
-                    <div style="position:relative; display: flex; flex-direction: column; background: #2e1065; border: 1px solid #4c1d95; border-left: 8px solid #f59e0b; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 8px 15px rgba(0,0,0,0.15);" id="dashboard-reminder-${r.id}">
-                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: #ef4444; color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.3); font-size:16px;" onclick="window.markReminderDone('${r.id}')">
+                    <div style="position:relative; display: flex; flex-direction: column; background: var(--bg-card); border: 3px solid #f97316; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);" id="dashboard-reminder-${r.id}">
+                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: var(--danger); color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); font-size:16px; transition: 0.2s;" onclick="window.markReminderDone('${r.id}')">
                             <i class="fas fa-check"></i>
                         </button>
                         <div style="padding-right: 50px;">
-                            ${studentNameHtml}
-                            <div style="font-weight:900; font-size: 18px; color: #ffffff; line-height: 1.3;">${r.text}</div>
+                            <div style="font-weight:900; font-size: 20px; color: var(--text-main); line-height: 1.3;">${r.text}</div>
                             ${dtHtml}
+                            ${studentNameHtml}
                         </div> 
                         ${contactHtml}
                     </div>
                 `;
                 rList.insertAdjacentHTML('beforeend', cardHtml);
-            }); 
+            });
         } else { 
             rBox.style.display = 'none'; 
         }
@@ -14820,4 +14824,119 @@ window.renderInquiries = function() {
         `;
     });
     container.innerHTML = html;
+};
+// 🟢 NEW: Class Reminder Date & Time Selector for WA/SMS (Fixed 'Tomorrow' Logic & Editable Time)
+window.sendClassReminderWithDate = async function(type, studentId, targetDayName, scheduledTime) {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    // পপআপে দেখানোর জন্য ডিফল্ট ডেট (Tomorrow)
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const defaultDateStr = tomorrow.toISOString().split('T')[0];
+    
+    // 🟢 পপআপে দেখানোর জন্য ডিফল্ট টাইম (24-hour format needed for input type="time")
+    let defaultTimeStr = "";
+    if (student.class_time) {
+        // যদি স্টুডেন্টের 12-hour (যেমন: 04:30 PM) ফরম্যাটে সেভ থাকে, তবে সেটা 24-hour এ কনভার্ট করতে হবে
+        try {
+            const [timePart, modifier] = student.class_time.split(' ');
+            if (modifier) {
+                let [hours, minutes] = timePart.split(':');
+                if (hours === '12') hours = '00';
+                if (modifier.toUpperCase() === 'PM') hours = parseInt(hours, 10) + 12;
+                defaultTimeStr = `${hours.toString().padStart(2, '0')}:${minutes}`;
+            } else {
+                // যদি আগে থেকেই 24-hour ফরম্যাটে থাকে
+                defaultTimeStr = student.class_time;
+            }
+        } catch(e) {
+            defaultTimeStr = student.class_time;
+        }
+    }
+
+    const { value: formValues, isConfirmed } = await Swal.fire({
+        title: 'Select Class Schedule',
+        html: `
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:15px;">
+                Sending reminder to <b>${student.name}</b> for ${targetDayName}'s class.
+            </p>
+            
+            <div style="text-align: left; margin-bottom: 10px;">
+                <label style="font-size:12px; font-weight:bold; color:var(--text-main); margin-left: 5px;">Class Date:</label>
+                <input type="date" id="swal-class-date" class="swal2-input" value="${defaultDateStr}" style="width: 100%; font-size: 15px; font-weight: bold; color: var(--primary); margin-top: 5px;">
+            </div>
+            
+            <div style="text-align: left;">
+                <label style="font-size:12px; font-weight:bold; color:var(--text-main); margin-left: 5px;">Class Time:</label>
+                <input type="time" id="swal-class-time" class="swal2-input" value="${defaultTimeStr}" style="width: 100%; font-size: 15px; font-weight: bold; color: var(--primary); margin-top: 5px;">
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fas fa-paper-plane"></i> Send',
+        confirmButtonColor: type === 'wa' ? '#25D366' : '#0ea5e9',
+        cancelButtonColor: '#ef4444',
+        preConfirm: () => {
+            const d = document.getElementById('swal-class-date').value;
+            const t = document.getElementById('swal-class-time').value;
+            if (!d) {
+                Swal.showValidationMessage('Please select a date!');
+                return false;
+            }
+            return { date: d, time: t };
+        }
+    });
+
+    if (isConfirmed && formValues) {
+        const selectedDate = formValues.date;
+        const selectedTimeInput = formValues.time;
+        
+        // 🟢 ইউজারের সিলেক্ট করা ডেট ক্যালকুলেট করা হচ্ছে
+        const selectedD = new Date(selectedDate);
+        const formattedDate = selectedD.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        const daysArr = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        const selectedDayName = daysArr[selectedD.getDay()];
+        
+        // 🟢 চেক করা হচ্ছে সিলেক্ট করা ডেটটা 'আজ', 'আগামীকাল' নাকি অন্য কোনো দিন
+        const t = new Date();
+        const tom = new Date(t);
+        tom.setDate(t.getDate() + 1);
+        
+        const isToday = selectedD.toDateString() === t.toDateString();
+        const isTomorrow = selectedD.toDateString() === tom.toDateString();
+        
+        let datePhrase = "";
+        if (isTomorrow) {
+            datePhrase = `tomorrow (${formattedDate})`;
+        } else if (isToday) {
+            datePhrase = `today (${formattedDate})`;
+        } else {
+            datePhrase = `on ${selectedDayName} (${formattedDate})`;
+        }
+        
+        // 🟢 ইউজারের সিলেক্ট করা টাইম 12-Hour ফরম্যাটে কনভার্ট করা হচ্ছে
+        let finalTimeDisplay = 'your scheduled time';
+        if (selectedTimeInput) {
+            finalTimeDisplay = window.formatTime12H(selectedTimeInput);
+        } else if (scheduledTime) {
+            finalTimeDisplay = scheduledTime;
+        }
+        
+        const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+        
+        // 🟢 মেসেজ বডি
+        const msgBody = `Reminder: Hello ${student.name}, you have a ${student.class || 'Music'} class ${datePhrase} at ${finalTimeDisplay}. Please be on time.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+
+        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+
+        if (type === 'wa') {
+            if (cleanPhone) window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+            else Swal.fire('Error', 'No phone number found', 'error');
+        } else if (type === 'sms') {
+            if (student.phone) window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+            else Swal.fire('Error', 'No phone number found', 'error');
+        }
+    }
 };
