@@ -3366,85 +3366,132 @@ window.updateReminderDaySwal = function() {
     }
 };
 
-window.renderReminders = function() { 
-    const listContainer = document.getElementById('reminderListContainer'); 
-    if(!listContainer) return; 
-    listContainer.innerHTML = ''; 
+window.renderReminders = function() {
+    const listContainer = document.getElementById('reminderListContainer');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
     
-    const daysSet = new Set(reminders.map(r => r.day || 'General'));
-    const days = Array.from(daysSet);
-    const weekOrder = { "Monday":1, "Tuesday":2, "Wednesday":3, "Thursday":4, "Friday":5, "Saturday":6, "Sunday":7, "General": 8 };
-    days.sort((a,b) => (weekOrder[a]||99) - (weekOrder[b]||99));
+    // 🟢 রিমাইন্ডারগুলোকে দুটো ভাগে ভাগ করা হচ্ছে: General এবং Scheduled
+    const generalReminders = [];
+    const scheduledReminders = [];
 
-    days.forEach(day => { 
-        const dayReminders = reminders.filter(r => (r.day || 'General') === day); 
+    reminders.forEach(r => {
+        // যদি Date এবং Day দুটোই ফাঁকা বা 'General' হয়, তবে সেটা General রিমাইন্ডার
+        if ((!r.date || r.date === "") && (!r.day || r.day === 'General')) {
+            generalReminders.push(r);
+        } else {
+            scheduledReminders.push(r);
+        }
+    });
+
+    // 🟢 ফাংশন: কার্ডের HTML তৈরি করার জন্য (যাতে কোড বারবার লিখতে না হয়)
+    const generateCardHtml = (r) => {
+        let dtHtml = "";
+        let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
+        let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
         
-        if(dayReminders.length > 0) { 
-            const dayHeader = document.createElement('h4'); 
-            dayHeader.style.cssText = "margin: 20px 0 10px 0; color: #9333ea; font-size:18px; font-weight:900; border-bottom:2px dashed rgba(147, 51, 234, 0.3); padding-bottom: 5px; text-transform:uppercase;"; 
-            dayHeader.textContent = day; 
-            listContainer.appendChild(dayHeader); 
-            
-            dayReminders.forEach(r => { 
-                let dtHtml = "";
-                let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
-                let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
-                
-                if (dateDisplay || timeDisplay) {
-                    dtHtml = `<div style="font-size:12.5px; color:var(--text-muted); margin-top:6px; display:flex; align-items:center; gap:8px; font-weight:600; flex-wrap: wrap;">`;
-                    if(dateDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateDisplay}</span>`;
-                    if(dateDisplay && timeDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
-                    if(timeDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-clock" style="color:#f59e0b;"></i> ${timeDisplay}</span>`;
-                    dtHtml += `</div>`;
-                }
+        if (dateDisplay || timeDisplay) {
+            dtHtml = `<div style="font-size:12.5px; color:var(--text-muted); margin-top:6px; display:flex; align-items:center; gap:8px; font-weight:600; flex-wrap: wrap;">`;
+            if(dateDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-calendar-alt" style="color:#ef4444;"></i> ${dateDisplay}</span>`;
+            if(dateDisplay && timeDisplay) dtHtml += `<span style="color:var(--border-color);">|</span>`;
+            if(timeDisplay) dtHtml += `<span style="display:flex; align-items:center; gap:4px;"><i class="far fa-clock" style="color:#f59e0b;"></i> ${timeDisplay}</span>`;
+            dtHtml += `</div>`;
+        }
 
-                let studentInfoHtml = '';
-                let contactButtonsHtml = '';
+        let studentInfoHtml = '';
+        let contactButtonsHtml = '';
+        
+        if (r.studentId) {
+            const student = students.find(s => String(s.id) === String(r.studentId));
+            if (student) {
+                const photoSrc = student.photo ? student.photo : 'https://via.placeholder.com/40?text=S';
+                studentInfoHtml = `<div style="font-size: 15px; color: #0ea5e9; font-weight: 800; margin-top: 10px; display:flex; align-items:center; gap:8px;">
+                    <img src="${photoSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;"> 
+                    ${student.name}
+                </div>`;
+                let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
                 
-                // 🟢 স্টুডেন্টের নাম, ছবি এবং কন্টাক্ট বাটন অ্যাড করা হলো
-                if (r.studentId) {
-                    const student = students.find(s => String(s.id) === String(r.studentId));
-                    if (student) {
-                        const photoSrc = student.photo ? student.photo : 'https://via.placeholder.com/40?text=S';
-                        studentInfoHtml = `<div style="font-size: 15px; color: #0ea5e9; font-weight: 800; margin-top: 10px; display:flex; align-items:center; gap:8px;">
-                            <img src="${photoSrc}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; border: 1px solid #cbd5e1;"> 
-                            ${student.name}
-                        </div>`;
-                        let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
-                        
-                        contactButtonsHtml = `
-                        <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-top: 15px; margin-bottom: 15px;"></div>
-                        <div style="display:flex; gap:15px; justify-content:center;">
-                            <button onclick="window.location.href='tel:${cleanPhone}'" style="background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="Call"><i class="fas fa-phone-alt" style="font-size:26px;"></i></button>
-                            <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="WhatsApp"><i class="fab fa-whatsapp" style="font-size:32px;"></i></button>
-                            <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="SMS"><i class="fas fa-sms" style="font-size:28px;"></i></button>
-                        </div>`;
-                    }
-                }
+                contactButtonsHtml = `
+                <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-top: 15px; margin-bottom: 15px;"></div>
+                <div style="display:flex; gap:15px; justify-content:center;">
+                    <button onclick="window.location.href='tel:${cleanPhone}'" style="background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="Call"><i class="fas fa-phone-alt" style="font-size:26px;"></i></button>
+                    <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="background:#25D366; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="WhatsApp"><i class="fab fa-whatsapp" style="font-size:32px;"></i></button>
+                    <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="SMS"><i class="fas fa-sms" style="font-size:28px;"></i></button>
+                </div>`;
+            }
+        }
 
-                // 🟢 রিমাইন্ডার ট্যাব কার্ড (চারিদিকে Orange Border)
-                const cardHtml = `
-                    <div style="position:relative; display: flex; flex-direction: column; background: var(--bg-card); border: 3px solid #f97316; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
-                        <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: var(--danger); color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); font-size:16px; transition: 0.2s;" onclick="window.deleteReminder('${r.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                        <div style="padding-right: 50px;">
-                            <div style="font-weight:900; font-size: 20px; color: var(--text-main); line-height: 1.3;">${r.text}</div>
-                            ${dtHtml}
-                            ${studentInfoHtml}
-                        </div> 
-                        ${contactButtonsHtml}
-                    </div>
-                `;
-                listContainer.insertAdjacentHTML('beforeend', cardHtml);
+        return `
+            <div style="position:relative; display: flex; flex-direction: column; background: var(--bg-card); border: 3px solid #f97316; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
+                <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: var(--danger); color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); font-size:16px; transition: 0.2s;" onclick="window.deleteReminder('${r.id}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+                <div style="padding-right: 50px;">
+                    <div style="font-weight:900; font-size: 20px; color: var(--text-main); line-height: 1.3;">${r.text}</div>
+                    ${dtHtml}
+                    ${studentInfoHtml}
+                </div> 
+                ${contactButtonsHtml}
+            </div>
+        `;
+    };
+
+    // 🟢 ধাপ ১: প্রথমে General রিমাইন্ডারগুলো প্রিন্ট করা হচ্ছে (Add Reminder বাটনের ঠিক নিচে)
+    if (generalReminders.length > 0) {
+        // ঐচ্ছিক: আপনি চাইলে এর ওপরে একটা "General" বা "Others" হেডিং দিতে পারেন। আমি দিইনি, যাতে আপনার ছবির মতো দেখতে লাগে।
+        generalReminders.forEach(r => {
+            listContainer.insertAdjacentHTML('beforeend', generateCardHtml(r));
+        });
+    }
+
+    // 🟢 Scheduled রিমাইন্ডারগুলোকে Date এবং Time অনুযায়ী সাজানো হচ্ছে
+    scheduledReminders.sort((a, b) => {
+        if (a.date && b.date) {
+            const dateA = new Date(a.date).getTime();
+            const dateB = new Date(b.date).getTime();
+            if (dateA !== dateB) return dateA - dateB;
+        }
+        const timeA = a.time || "23:59"; 
+        const timeB = b.time || "23:59";
+        return timeA.localeCompare(timeB);
+    });
+
+    // 🟢 ধাপ ২: এবার বারের নাম (Day) অনুযায়ী গ্রুপ করে Scheduled রিমাইন্ডারগুলো প্রিন্ট করা হচ্ছে
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    days.forEach(day => {
+        const dayRems = scheduledReminders.filter(r => {
+            // যদি রিমাইন্ডারের Day দেওয়া থাকে, অথবা Date থেকে পাওয়া Day বারের নামের সাথে মিলে যায়
+            if (r.day && r.day !== 'General') return r.day === day;
+            if (r.date) {
+                const d = new Date(r.date);
+                return days[d.getDay()] === day;
+            }
+            return false;
+        });
+
+        if (dayRems.length > 0) {
+            // বারের হেডিং (যেমন: THURSDAY)
+            const dayHtml = `
+                <div style="margin-top:20px; margin-bottom:15px;">
+                    <h3 style="color:var(--primary); font-size:18px; font-weight:900; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px;">${day}</h3>
+                    <div style="height:2px; background: repeating-linear-gradient(to right, var(--primary) 0, var(--primary) 4px, transparent 4px, transparent 8px); opacity:0.3; width:100%;"></div>
+                </div>
+            `;
+            listContainer.insertAdjacentHTML('beforeend', dayHtml);
+
+            // সেই বারের রিমাইন্ডারগুলো
+            dayRems.forEach(r => {
+                listContainer.insertAdjacentHTML('beforeend', generateCardHtml(r));
             });
-        } 
-    }); 
-    
-    if(reminders.length === 0) { 
-        listContainer.innerHTML = '<p style="text-align:center; color:var(--text-muted); font-size:14px; margin-top:20px; font-weight: bold;">No reminders set.</p>'; 
-    } 
+        }
+    });
 
+    // 🟢 যদি কোনো রিমাইন্ডারই না থাকে
+    if (reminders.length === 0) {
+        listContainer.innerHTML = `<div style="text-align:center; color:var(--text-muted); padding:30px 0; font-weight:600;">No Reminders Found.</div>`;
+    }
+
+// 🟢 আপডেটেড: রিমাইন্ডার থেকে সরাসরি মেসেজ পাঠানোর ফাংশন (Date, Day, Time সহ - No Popup)
 window.sendReminderSpecificMsg = function(type, studentId, reminderId) {
     const student = students.find(s => String(s.id) === String(studentId));
     const reminder = reminders.find(r => String(r.id) === String(reminderId));
@@ -3453,10 +3500,12 @@ window.sendReminderSpecificMsg = function(type, studentId, reminderId) {
     
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
     
+    // 🟢 রিমাইন্ডার থেকে ডেট, টাইম এবং বার বের করা হচ্ছে
     let dateStr = reminder.date ? new Date(reminder.date).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '';
     let timeStr = reminder.time ? window.formatTime12H(reminder.time) : '';
     let dayStr = reminder.day && reminder.day !== 'General' ? reminder.day : '';
 
+    // 🟢 যদি ডেট, টাইম বা বার কিছু থাকে, তবে সেটা মেসেজে সাজানো হবে
     let timeDetails = '';
     if (dateStr || timeStr || dayStr) {
         timeDetails = `\n\n*Class Schedule:*`;
@@ -3465,17 +3514,25 @@ window.sendReminderSpecificMsg = function(type, studentId, reminderId) {
         if(timeStr) timeDetails += `\n⏰ Time: ${timeStr}`;
     }
 
+    // 🟢 মেসেজের মূল বডি তৈরি
     const msgBody = `Hello ${student.name},\n\nThis is a reminder regarding: *${reminder.text}*${timeDetails}\n\nPlease join on time.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
     
     let cleanPhone = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
     if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
 
+    // 🟢 সরাসরি মেসেজ পাঠানো (কোনো পপআপ ছাড়া)
     if (type === 'wa') {
-        if (cleanPhone) window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
-        else Swal.fire('Error', 'No phone number found', 'error');
+        if (cleanPhone) {
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        } else {
+            Swal.fire('Error', 'No phone number found', 'error');
+        }
     } else if (type === 'sms') {
-        if (student.phone) window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
-        else Swal.fire('Error', 'No phone number found', 'error');
+        if (student.phone) {
+            window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
+        } else {
+            Swal.fire('Error', 'No phone number found', 'error');
+        }
     }
 };
 
@@ -12384,24 +12441,280 @@ window.getOldestUnpaidMonth = function(studentId, selectedMonthStr) {
     return selectedMonthStr; 
 };
 
-// ৯. 🟢 Dashboard Notification Design 
-const oldRenderDashboardReminder = window.renderDashboard;
-window.renderDashboard = function() {
-    if(typeof oldRenderDashboardReminder === 'function') oldRenderDashboardReminder();
+// 🟢 ড্যাশবোর্ড রেন্ডার করার ফাইনাল ফাংশন
+window.renderDashboard = function() { 
+    // 🟢 Open Leaderboard Modal Function
+    window.openLeaderboardModal = function() {
+        document.getElementById('leaderboardModal').style.display = 'flex';
+        window.renderPracticeLeaderboard(); // পপআপ খোলার সাথে সাথে লিস্ট লোড হবে
+    };
+    if (typeof window.renderPracticeLeaderboard === 'function') {
+        window.renderPracticeLeaderboard();
+    }
+    if (!document.getElementById('createExamBtn')) {
+        const statsSummaryParent = document.getElementById('studentStatsSummary').parentElement;
+        if(statsSummaryParent) {
+            statsSummaryParent.insertAdjacentHTML('beforeend', '<button id="createExamBtn" onclick="window.openCreateOnlineExamModal()" style="width:100%; margin-top:10px; padding:12px; border-radius:10px; background:#10b981; color:white; font-weight:bold; border:none; cursor:pointer;"><i class="fas fa-edit"></i> Create Online Exam</button>');
+        }
+    }
+    const activeStudents = students.filter(s => isStudentCurrentlyActive(s)); 
+    const statsSummary = document.getElementById('studentStatsSummary');
+    if(statsSummary) {
+        statsSummary.innerHTML = `<div class="clickable-stat" onclick="showCategoryList('active')"><h4>Active</h4><p class="summary-collected">${activeStudents.length}</p></div><div class="clickable-stat" onclick="showCategoryList('inactive')"><h4>Inactive</h4><p class="summary-due">${students.length - activeStudents.length}</p></div><div><h4>Total</h4><p class="summary-total" style="color:var(--text-main);">${students.length}</p></div>`; 
+    }
+
+    // 🟢 Add Exam Rankings Button to Dashboard
+    if (!document.getElementById('examRankBtn')) {
+        const statsSummaryDiv = document.getElementById('studentStatsSummary');
+        if(statsSummaryDiv && statsSummaryDiv.parentElement) {
+            statsSummaryDiv.parentElement.insertAdjacentHTML('beforeend', '<button id="examRankBtn" onclick="window.openExamRankingModal()" style="width:100%; margin-top:15px; padding:12px; border-radius:10px; background:linear-gradient(135deg, #8b5cf6, #6366f1); color:white; font-weight:bold; border:none; box-shadow:0 4px 6px rgba(139,92,246,0.3); cursor:pointer;"><i class="fas fa-trophy"></i> View Exam Rankings & Publish</button>');
+        }
+    }
     
-    setTimeout(() => {
-        const rBox = document.getElementById('dashboardRemindersBox'); 
-        const rList = document.getElementById('dashboardReminderList'); 
-        if(!rBox || !rList) return;
+    const birthdayBox = document.getElementById('birthdayAlertBox'); 
+    const birthdayList = document.getElementById('birthdayList'); 
+    const currentYearForCheck = new Date().getFullYear();
+    const birthdayStudents = activeStudents.filter(s => 
+        checkBirthday(s.dob) && 
+        !dismissedBirthdays.includes(`${s.id}_${currentYearForCheck}`)
+    ); 
+    if (birthdayBox && birthdayList) {
+        if (birthdayStudents.length > 0) { 
+            birthdayList.innerHTML = ''; 
+            birthdayStudents.forEach(s => { 
+                birthdayList.innerHTML += `<div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-input); padding:10px; border-radius:8px; margin-bottom:5px; border:1px solid #ffe4e6; color:var(--text-main);"><div style="display:flex; align-items:center;"><img src="${s.photo || 'https://via.placeholder.com/40?text=S'}" style="width:40px; height:40px; border-radius:50%; margin-right:10px; object-fit:cover; border: 2px solid #000 !important;"><div><strong>${s.name}</strong><br><span style="font-size:11px; color:var(--text-muted);">${s.class || 'Student'}</span></div></div><div style="display:flex; gap:5px;"><button class="btn-whatsapp btn-like" onclick="sendBirthdayWish('wa', ${s.id})"><i class="fab fa-whatsapp"></i></button><button class="btn-sms btn-like" onclick="sendBirthdayWish('sms', ${s.id})"><i class="fas fa-sms"></i></button><button class="btn-success btn-like" onclick="dismissBirthday(${s.id})" title="Dismiss"><i class="fas fa-check"></i></button></div></div>`; 
+            }); 
+            birthdayBox.style.display = 'block'; 
+        } else { 
+            birthdayBox.style.display = 'none'; 
+        }
+    }
+
+    // =========================================================
+    // 🟢 14 Days Absent Alert Logic (Themed & Scrollable)
+    // =========================================================
+    let absentBox = document.getElementById('longAbsentAlertBox');
+    if (!absentBox) {
+        absentBox = document.createElement('div');
+        absentBox.id = 'longAbsentAlertBox';
+        if (birthdayBox && birthdayBox.parentNode) {
+            birthdayBox.parentNode.insertBefore(absentBox, birthdayBox.nextSibling);
+        }
+    }
+    
+    const todayForAbs = new Date();
+    todayForAbs.setHours(0,0,0,0);
+    let longAbsentees = [];
+
+    activeStudents.forEach(s => {
+        let lastPresentTime = 0;
+        // Find last present date
+        for(const date in attendance) {
+            const entry = attendance[date][s.id];
+            const status = (typeof entry === 'object' && entry !== null) ? entry.status : entry;
+            if(status === 'present') {
+                const dTime = new Date(date).getTime();
+                if(dTime > lastPresentTime) {
+                    lastPresentTime = dTime;
+                }
+            }
+        }
+        
+        let daysAbsent = 0;
+        if (lastPresentTime > 0) {
+            daysAbsent = Math.floor((todayForAbs.getTime() - lastPresentTime) / (1000 * 3600 * 24));
+        } else {
+            // যদি একবারও ক্লাসে না এসে থাকে, তবে জয়েনিং ডেট থেকে হিসেব হবে
+            const joinTime = new Date(s.joining_date).getTime();
+            daysAbsent = Math.floor((todayForAbs.getTime() - joinTime) / (1000 * 3600 * 24));
+        }
+
+        // চেক করা হচ্ছে গত ১৪ দিনের মধ্যে তাকে কল/মেসেজ করা হয়েছে কি না
+        let recentlyContacted = false;
+        if (s.last_absent_contacted) {
+            const contactTime = new Date(s.last_absent_contacted).getTime();
+            const daysSinceContact = Math.floor((todayForAbs.getTime() - contactTime) / (1000 * 3600 * 24));
+            if (daysSinceContact < 14) recentlyContacted = true; // ১৪ দিনের মধ্যে মার্ক করা থাকলে আর দেখাবে না
+        }
+
+        // ১৪ দিন পার হলে লিস্টে যোগ হবে
+        if (daysAbsent >= 14 && !recentlyContacted) {
+            longAbsentees.push({ student: s, days: daysAbsent });
+        }
+    });
+
+    if (longAbsentees.length > 0) {
+        longAbsentees.sort((a,b) => b.days - a.days); // যারা সবচেয়ে বেশি দিন আসেনি তারা ওপরে থাকবে
+        
+        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
+        let absentHtml = `
+        <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--danger); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+            <h4 style="margin: 0 0 10px 0; color: var(--danger); font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-user-clock fa-shake"></i> 14+ Days Absent Alert
+            </h4>
+            <div class="scroller-box" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 5px;">
+        `;
+
+        longAbsentees.forEach(item => {
+            const st = item.student;
+            const photoSrc = st.photo || 'https://via.placeholder.com/40?text=S';
+            absentHtml += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background: var(--bg-input); padding:10px; border-radius:8px; border-left: 4px solid var(--danger); border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                    <div style="display:flex; align-items:center; gap: 10px; cursor: pointer; flex: 1;" onclick="showStudentDetails(${st.id})">
+                        <img src="${photoSrc}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border: 1px solid var(--border-color);">
+                        <div style="line-height: 1.2;">
+                            <strong style="color: var(--text-main); font-size:13px;">${st.name}</strong><br>
+                            <span style="font-size:10.5px; color: var(--danger); font-weight:700;">Absent for ${item.days} days</span>
+                        </div>
+                    </div>
+                    
+                    <div style="display:flex; gap: 5px; align-items:center;">
+                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; text-decoration:none; display:flex; align-items:center; justify-content:center;" title="Call">
+                            <i class="fas fa-phone-alt"></i>
+                        </a>
+                        <button onclick="window.sendAbsentAlertMsg('wa', ${st.id}, ${item.days})" style="background:#25D366; color:white; border:none; padding:8px 10px; border-radius:6px; font-size:14px; cursor:pointer;" title="WhatsApp">
+                            <i class="fab fa-whatsapp"></i>
+                        </button>
+                        <button onclick="window.sendAbsentAlertMsg('sms', ${st.id}, ${item.days})" style="background: var(--warning); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; cursor:pointer;" title="SMS">
+                            <i class="fas fa-sms"></i>
+                        </button>
+                        <button onclick="window.markAbsentContacted(${st.id})" style="background: var(--success); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; cursor:pointer; margin-left:2px;" title="Mark Complete">
+                            <i class="fas fa-check-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        absentHtml += `</div></div>`;
+        absentBox.innerHTML = absentHtml;
+        absentBox.style.display = 'block';
+    } else {
+        if(absentBox) absentBox.style.display = 'none';
+    }
+
+    // 🟢 Today's Practice Logs Logic
+    const pracBox = document.getElementById('todaysPracticeBox');
+    const pracList = document.getElementById('todaysPracticeList');
+    const pracCountEl = document.getElementById('todaysPracticeCount');
+    const todayDateStr = new Date().toLocaleDateString('en-IN');
+    let todaysLogs = [];
+
+    students.forEach(s => {
+        if(s.practice_log && s.practice_log.length > 0) {
+            s.practice_log.forEach(log => {
+                if(log.date === todayDateStr) {
+                    todaysLogs.push({
+                        studentId: s.id,
+                        studentName: s.name,
+                        studentPhoto: s.photo,
+                        topic: log.topic,
+                        minutes: log.minutes,
+                        time: log.time
+                    });
+                }
+            });
+        }
+    });
+
+    todaysLogs.sort((a, b) => {
+        const parseTime = (t) => {
+            if (!t) return 0;
+            const match = t.match(/(\d+):(\d+)\s*(AM|PM)/i);
+            if (!match) return 0;
+            let h = parseInt(match[1]);
+            let m = parseInt(match[2]);
+            let ampm = match[3].toUpperCase();
+            if (h === 12) h = 0;
+            if (ampm === 'PM') h += 12;
+            return h * 60 + m;
+        };
+        return parseTime(b.time) - parseTime(a.time); 
+    });
+
+    const uniquePracticingStudents = [...new Set(todaysLogs.map(item => item.studentId))];
+
+    if (pracBox && pracList) {
+        if(todaysLogs.length > 0) {
+            if(pracCountEl) {
+                pracCountEl.innerHTML = `( ${uniquePracticingStudents.length} )`;
+            }
+
+            pracList.innerHTML = '';
+            todaysLogs.forEach(log => {
+                const photoSrc = log.studentPhoto ? log.studentPhoto : 'https://via.placeholder.com/40?text=S';
+                pracList.innerHTML += `
+                <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg-card); padding:6px 10px; border-radius:8px; margin-bottom:6px; border:1px solid var(--border-color); border-left: 4px solid var(--primary); box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <img src="${photoSrc}" style="width:30px; height:30px; border-radius:50%; object-fit:cover; border:1px solid #cbd5e1; cursor:pointer;" onclick="showStudentDetails(${log.studentId})">
+                        <div>
+                            <div style="font-weight:800; font-size:13px; color:var(--primary); cursor:pointer; line-height: 1.1;" onclick="showStudentDetails(${log.studentId})">${log.studentName}</div>
+                            <div style="font-size:10px; color:var(--text-muted); margin-top: 3px;">
+                                <i class="fas fa-book" style="color:var(--primary);"></i> ${log.topic} &nbsp; 
+                                <i class="far fa-clock" style="color:var(--primary);"></i> ${log.time}
+                            </div>
+                        </div>
+                    </div>
+                    <div style="background:var(--primary); color:white; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:bold; white-space: nowrap;">
+                        ${log.minutes} mins
+                    </div>
+                </div>
+                `;
+            });
+            pracBox.style.display = 'block';
+        } else {
+            pracBox.style.display = 'none';
+        }
+    }
+
+    // 🟢 Class Strength Logic
+    const classCounts = activeStudents.reduce((acc, student) => { 
+        const className = student.class ? student.class.trim() : 'Unassigned'; 
+        acc[className] = (acc[className] || 0) + 1; 
+        return acc; 
+    }, {}); 
+    const classListEl = document.getElementById('classStrengthList'); 
+    if (classListEl) {
+        classListEl.innerHTML = ''; 
+        Object.entries(classCounts).sort().forEach(([className, count]) => { 
+            classListEl.innerHTML += `<li onclick="showClassStudents('${className}')" style="cursor:pointer; color:var(--text-main);"><strong>${className}:</strong> <span>${count} students</span></li>`; 
+        }); 
+    }
+    
+    let monthlyCollected = 0, monthlyDueAmount = 0, yearlyCollected = 0, yearlyDueAmount = 0; 
+    let monthlyPaidCount = 0, monthlyDueCount = 0; 
+    const currentYear = new Date().getFullYear(), currentMonthStr = `${currentYear}-${(new Date().getMonth() + 1).toString().padStart(2, '0')}`; 
+    
+    // 🟢 ড্যাশবোর্ড রিমাইন্ডার লজিক (The Final Fix)
+    const rBox = document.getElementById('dashboardRemindersBox'); 
+    const rList = document.getElementById('dashboardReminderList'); 
+
+    if (rBox && rList) {
+        rList.innerHTML = ''; // Box Clear
 
         const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]; 
         const todayName = days[new Date().getDay()]; 
-        
         const todayStr = new Date().toISOString().split('T')[0];
-        const todaysReminders = reminders.filter(r => r.day === todayName || r.date === todayStr);
+
+        const todaysReminders = reminders.filter(r => {
+            if (!r.date && (!r.day || r.day === 'General')) return false; 
+
+            if (r.date && r.day && r.day !== 'General') {
+                return r.date === todayStr && r.day === todayName; 
+            }
+            
+            if (r.date && (!r.day || r.day === 'General')) {
+                return r.date === todayStr; 
+            }
+            
+            if (!r.date && r.day && r.day !== 'General') {
+                return r.day === todayName; 
+            }
+            
+            return false;
+        });
 
         if(todaysReminders.length > 0) { 
-            rList.innerHTML = ''; 
             rBox.style.display = 'block'; 
             rBox.style.background = 'transparent'; 
             rBox.style.boxShadow = 'none';
@@ -12412,7 +12725,6 @@ window.renderDashboard = function() {
                 let contactHtml = '';
                 let studentNameHtml = '';
                 
-                // 🟢 স্টুডেন্টের নাম, ছবি এবং কন্টাক্ট বাটন অ্যাড করা হলো
                 if (r.studentId) {
                     const student = students.find(s => String(s.id) === String(r.studentId));
                     if (student) {
@@ -12434,7 +12746,6 @@ window.renderDashboard = function() {
                     }
                 }
 
-                // 🟢 ডেট এবং টাইম দেখানোর লজিক (এক লাইনে)
                 let dtHtml = "";
                 let dateDisplay = r.date ? `${new Date(r.date).toLocaleDateString('en-IN', {day:'2-digit', month:'2-digit', year:'numeric'})}` : '';
                 let timeDisplay = r.time ? window.formatTime12H(r.time) : '';
@@ -12450,7 +12761,6 @@ window.renderDashboard = function() {
                     dtHtml += `</div>`;
                 }
 
-                // 🟢 ড্যাশবোর্ড রিমাইন্ডার কার্ড (চারিদিকে Orange Border)
                 const cardHtml = `
                     <div style="position:relative; display: flex; flex-direction: column; background: var(--bg-card); border: 3px solid #f97316; padding: 18px; border-radius: 16px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05);" id="dashboard-reminder-${r.id}">
                         <button style="position:absolute; top:18px; right:18px; padding:10px 12px; border-radius: 10px; border: none; background: var(--danger); color: white; cursor: pointer; box-shadow:0 4px 6px rgba(0,0,0,0.1); font-size:16px; transition: 0.2s;" onclick="window.markReminderDone('${r.id}')">
@@ -12469,7 +12779,89 @@ window.renderDashboard = function() {
         } else { 
             rBox.style.display = 'none'; 
         }
-    }, 200);
+    }
+    
+    // 🟢 Financials Logic
+    students.forEach(student => { 
+        for (let i = 0; i < 12; i++) { 
+            const monthStr = `${currentYear}-${(i + 1).toString().padStart(2, '0')}`; 
+            if (wasStudentActiveDuringMonth(student, monthStr)) { 
+                if (fees[monthStr]?.[student.id]?.status === 'paid') { 
+                    if (monthStr === currentMonthStr) {
+                        monthlyCollected += fees[monthStr][student.id].amount; 
+                        monthlyPaidCount++; 
+                    }
+                    yearlyCollected += fees[monthStr][student.id].amount; 
+                } else if (isMonthDue(monthStr)) { 
+                    const studentFee = student.fee_amount || DEFAULT_FEE; 
+                    if (monthStr === currentMonthStr) {
+                        monthlyDueAmount += studentFee; 
+                        monthlyDueCount++; 
+                    }
+                    yearlyDueAmount += studentFee; 
+                } 
+            } 
+        } 
+    });
+
+    const yearlySum = document.getElementById('dashboardYearlySummary');
+    if (yearlySum) {
+        yearlySum.innerHTML = `<div onclick="showYearlyBreakdown('collected', '${currentYear}')" style="cursor:pointer;"><h4>Yearly Collected</h4><p class="summary-collected">₹${yearlyCollected}</p></div><div onclick="showYearlyBreakdown('due', '${currentYear}')" style="cursor:pointer;"><h4>Yearly Due (Active)</h4><p class="summary-due">₹${yearlyDueAmount}</p></div>`; 
+    }
+    
+    const finOverview = document.getElementById('financeOverviewNumbers');
+    if (finOverview) {
+        finOverview.innerHTML = `
+            <div onclick="showFeeBreakdown('collected')">
+                <h4 style="line-height: 1.4; margin-bottom: 8px;">Collected <br><span style="font-size: 10px; text-transform: none; font-weight: 500; color: var(--secondary);">(${monthlyPaidCount} Students)</span></h4>
+                <p class="summary-collected">₹${monthlyCollected}</p>
+            </div>
+            <div onclick="showFeeBreakdown('due')">
+                <h4 style="line-height: 1.4; margin-bottom: 8px;">Due <br><span style="font-size: 10px; text-transform: none; font-weight: 500; color: var(--secondary);">(${monthlyDueCount} Students)</span></h4>
+                <p class="summary-due">₹${monthlyDueAmount}</p>
+            </div>`;
+    }
+
+    const dueTableBody = document.querySelector('#dueFeeTable tbody'); 
+    const dueMessageEl = document.getElementById('dueFeeMessage'); 
+    if(dueTableBody && dueMessageEl) {
+        dueTableBody.innerHTML = ''; 
+        
+        const defaulters = students.filter(s => isStudentCurrentlyActive(s)).map(s => { return { student: s, months: getDueMonthsList(s.id) }; }).filter(item => item.months.length > 0); 
+        
+        if (defaulters.length === 0) { 
+            dueMessageEl.textContent = "No pending dues."; 
+        } else { 
+            dueMessageEl.textContent = `(${defaulters.length}) students have pending dues.`; 
+            defaulters.sort((a, b) => b.months.length - a.months.length);
+            defaulters.forEach(item => { 
+                const monthsStr = item.months.join(", "); 
+                const studentHtml = getStudentHtml(item.student); 
+                const dueDisplay = `<div style="margin-top:5px; font-size:11px; color:#dc2626; font-weight:600; line-height:1.4;">Due: ${monthsStr}</div>`; 
+                
+                const oldestDueMonthRaw = getOldestUnpaidMonth(item.student.id, currentMonthStr); 
+                
+                const payBtn = `<button class="btn-success btn-like" onclick="openFeeModal(${item.student.id}, '${oldestDueMonthRaw}')" style="padding: 4px 8px; font-size: 11px; margin: 2px;"><i class="fas fa-rupee-sign"></i> Pay</button>`;
+                
+                const contactBtns = getContactButtons(item.student.id, oldestDueMonthRaw); 
+                
+                dueTableBody.innerHTML += `<tr>
+                    <td>${studentHtml}${dueDisplay}</td>
+                    <td class="action-buttons">
+                        ${payBtn} 
+                        ${contactBtns}
+                    </td>
+                </tr>`; 
+            }); 
+        }
+    }
+    
+    const chartCanvas = document.getElementById('financeChart');
+    if (chartCanvas) {
+        const ctx = chartCanvas.getContext('2d'); 
+        if (financeChartInstance) financeChartInstance.destroy(); 
+        financeChartInstance = new Chart(ctx, { type: 'doughnut', data: { labels: ['Collected', 'Due'], datasets: [{ data: [monthlyCollected, monthlyDueAmount], backgroundColor: ['#28a745', '#dc3545'], hoverOffset: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-main') } }, title: { display: true, text: `Summary for ${formatMonthYear(currentMonthStr)}`, color: getComputedStyle(document.body).getPropertyValue('--text-main') } } } });
+    }
 };
 // ==========================================
 // DETAILED STUDENT REPORT LOGIC (PERFECT PROFILE OPEN FIX)
