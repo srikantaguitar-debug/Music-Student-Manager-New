@@ -8673,24 +8673,69 @@ window.removeAccessoryDueFromStudent = function(studentId, saleId) {
     }
 };
 
+// 🟢 আপডেটেড: সেল হিস্ট্রি ডিলিট করার ফাংশন (ডিলিট করলে স্টক ফেরত আসবে)
 window.deleteSaleRecord = function(saleId) {
     Swal.fire({
         title: 'Delete Record?',
-        text: "This will permanently remove the sales and due record.",
+        text: "This will permanently remove the sales record and RESTORE the items back to stock.",
         icon: 'warning',
         showCancelButton: true,
         confirmButtonColor: '#ef4444',
-        confirmButtonText: 'Yes, delete it!'
+        confirmButtonText: 'Yes, delete & restore stock!'
     }).then((result) => {
         if (result.isConfirmed) {
             const sale = salesDataArray.find(s => s.id === saleId);
-            if (sale) window.removeAccessoryDueFromStudent(sale.studentId, saleId); 
             
+            if (sale) {
+                window.removeAccessoryDueFromStudent(sale.studentId, saleId); 
+                
+                // 🟢 নতুন লজিক: সেল হওয়া প্রোডাক্টগুলো স্টকে ফেরত আনা হচ্ছে
+                let stockUpdated = false;
+                
+                // যদি কার্ট সিস্টেমে সেল হয়ে থাকে (একাধিক প্রোডাক্ট)
+                if (sale.cart && sale.cart.length > 0) {
+                    sale.cart.forEach(cartItem => {
+                        const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === cartItem.name.toLowerCase());
+                        if (stockItem) {
+                            stockItem.qty += cartItem.qty; // স্টক বাড়িয়ে দেওয়া হলো
+                            stockUpdated = true;
+                        }
+                    });
+                } else {
+                    // যদি পুরনো সিঙ্গেল আইটেম সেল হয়ে থাকে
+                    const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
+                    let itemName = sale.item;
+                    let itemQty = 1;
+                    
+                    if (match) {
+                        itemName = match[1].trim();
+                        itemQty = parseInt(match[2]);
+                    }
+                    
+                    const stockItem = window.stockInventory.find(i => i.name.toLowerCase() === itemName.toLowerCase());
+                    if (stockItem) {
+                        stockItem.qty += itemQty; // স্টক বাড়িয়ে দেওয়া হলো
+                        stockUpdated = true;
+                    }
+                }
+
+                // যদি স্টক আপডেট হয়, তবে ডেটাবেস এবং টেবিল রিফ্রেশ করা
+                if (stockUpdated) {
+                    dbSet('stockData', window.stockInventory).catch(e=>{}); 
+                    window.renderStockTable(); 
+                    window.renderInventoryDropdown();
+                }
+            }
+            
+            // সেল লিস্ট থেকে রেকর্ড ডিলিট করা
             salesDataArray = salesDataArray.filter(s => s.id !== saleId);
             window.renderSalesUI();
+            
+            // ফায়ারবেসে সিঙ্ক করা
             const currentYear = document.getElementById('salesYearFilter').value;
             window.syncSalesToFirebase();
-            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted!', showConfirmButton: false, timer: 1500});
+            
+            Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deleted & Stock Restored!', showConfirmButton: false, timer: 2000});
         }
     });
 };
@@ -9354,12 +9399,13 @@ window.updateSalePriceCalc = function() {
     }
 };
 
+// 🟢 আপডেটেড: কার্টে প্রোডাক্ট অ্যাড করার ফাংশন (স্টক ০ হলে অ্যাড হবে না)
 window.addToCart = function() {
     const name = document.getElementById('itemName').value.trim();
     const qty = parseInt(document.getElementById('saleQty').value) || 1;
     const totalItemPrice = parseFloat(document.getElementById('itemPrice').value);
 
-    // নাম বা দাম না থাকলে ওয়ার্নিং দেবে
+    // নাম বা দাম না থাকলে ওয়ার্নিং দেবে
     if (!name || isNaN(totalItemPrice) || qty < 1) {
         Swal.fire({toast: true, position: 'top', icon: 'error', title: 'Enter item name and price!', showConfirmButton: false, timer: 2000});
         return;
@@ -9369,8 +9415,13 @@ window.addToCart = function() {
     let buyPriceTotal = 0;
     
     if (stockItemCheck) {
-        if (stockItemCheck.qty < qty) {
-            Swal.fire('Low Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left.`, 'warning');
+        // 🟢 নতুন লজিক: স্টক ০ থাকলে বা রিকোয়েস্ট করা পরিমাণের চেয়ে স্টক কম থাকলে কার্টে অ্যাড হবে না
+        if (stockItemCheck.qty <= 0) {
+            Swal.fire('Out of Stock!', `"${stockItemCheck.name}" is currently out of stock. You cannot sell this item.`, 'error');
+            return; // এখানেই থেমে যাবে, কার্টে অ্যাড হবে না
+        } else if (stockItemCheck.qty < qty) {
+            Swal.fire('Low Stock!', `You only have ${stockItemCheck.qty} pcs of "${stockItemCheck.name}" left. Please reduce the quantity.`, 'warning');
+            return; // রিকোয়েস্ট করা পরিমাণ স্টকের চেয়ে বেশি হলেও অ্যাড হবে না
         }
         buyPriceTotal = (stockItemCheck.buyPrice || 0) * qty; 
     }
@@ -9378,7 +9429,7 @@ window.addToCart = function() {
     // কার্টে আইটেম ঢোকানো হলো
     window.saleCart.push({ name: name, qty: qty, price: totalItemPrice, buyPrice: buyPriceTotal });
     
-    // অ্যাড হওয়ার পর ইনপুট বক্সগুলো ফাঁকা করে দেওয়া হলো
+    // অ্যাড হওয়ার পর ইনপুট বক্সগুলো ফাঁকা করে দেওয়া হলো
     document.getElementById('itemName').value = '';
     document.getElementById('saleQty').value = '1';
     document.getElementById('itemPrice').value = '';
