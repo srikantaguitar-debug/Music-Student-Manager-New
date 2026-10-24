@@ -726,16 +726,31 @@
                 </div>
             </div>
             <div style="margin-bottom:15px;">
-                <div id="saleDueDisplay" style="font-weight:bold; color:var(--success); font-size:14px; background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 8px; text-align:center; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">Due: ₹0</div>
-            </div>
-            
-            <input type="hidden" id="editSaleId" value="">
-            <button id="saleProcessBtn" class="btn-primary" onclick="processSale()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; font-weight: bold;">
-                <i class="fas fa-check-circle"></i> Checkout & Send Receipt
-            </button>
-            <button id="saleCancelEditBtn" class="btn-danger" onclick="cancelSaleEdit()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; margin-top: 8px; display: none;">
-                Cancel
-            </button>
+    <div id="saleDueDisplay" style="font-weight:bold; color:var(--success); font-size:14px; background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 8px; text-align:center; box-sizing:border-box; display:flex; flex-direction:column; justify-content:center;">Due: ₹0</div>
+</div>
+
+<!-- Payment Mode & Txn ID / Note Section -->
+<div style="display: flex; gap: 10px; margin-bottom: 15px;">
+    <div style="flex: 1;">
+        <label style="font-size:11px; font-weight:bold; color: var(--text-muted); margin-bottom:5px; display:block;">Payment Mode</label>
+        <select id="salePaymentMode" style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); font-size: 14px; box-sizing:border-box; outline:none;">
+            <option value="Cash">Cash</option>
+            <option value="Online">Online / UPI</option>
+        </select>
+    </div>
+    <div style="flex: 1.5;">
+        <label style="font-size:11px; font-weight:bold; color: var(--text-muted); margin-bottom:5px; display:block;">Txn ID / Note (Optional)</label>
+        <input type="text" id="saleTxnNote" placeholder="Any note or Txn ID..." style="width:100%; padding:12px; border-radius:8px; border:1px solid var(--border-color); background:var(--bg-input); color:var(--text-main); font-size: 14px; box-sizing:border-box; outline:none;">
+    </div>
+</div>
+
+<input type="hidden" id="editSaleId" value="">
+<button id="saleProcessBtn" class="btn-primary" onclick="processSale()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; font-weight: bold;">
+    <i class="fas fa-check-circle"></i> Checkout & Send Receipt
+</button>
+<button id="saleCancelEditBtn" class="btn-danger" onclick="cancelSaleEdit()" style="width:100%; font-size: 14px; padding: 12px; border-radius:8px; border:none; margin-top: 8px; display: none;">
+    Cancel
+</button>
         </div>
     </div>
 
