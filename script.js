@@ -8995,9 +8995,14 @@ window.renderSalesUI = function() {
             historyHtml += `<div style="margin-top: 12px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background: var(--bg-input);">`;
             s.paymentHistory.forEach((hist) => {
                 const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
-                historyHtml += `<div style="margin-bottom:4px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="color: var(--text-main); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})</span>
-                    <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount}</span>
+                let modeBadge = hist.mode ? `<span style="font-size:10px; background:#e2e8f0; padding:2px 6px; border-radius:4px; margin-left:5px; color:#475569;">${hist.mode}</span>` : '';
+                let noteLine = hist.note ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">📝 ${hist.note}</div>` : '';
+                historyHtml += `<div style="margin-bottom:6px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="color: var(--text-main); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})${modeBadge}</span>
+                        <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount}</span>
+                    </div>
+                    ${noteLine}
                 </div>`;
             });
             historyHtml += `</div>`;
@@ -9486,6 +9491,8 @@ window.removeFromCart = function(index) {
 };
 
 window.processSale = function() {
+    const paymentMode = document.getElementById('salePaymentMode').value;
+const txnNote = document.getElementById('saleTxnNote').value.trim();
     const sIdInput = document.getElementById('saleStudentId');
     const sId = sIdInput ? sIdInput.value : '';
     const editId = document.getElementById('editSaleId').value;
@@ -9558,7 +9565,8 @@ window.processSale = function() {
         originalPrice: cartTotal, discount: discountAmount, price: finalPriceAfterDiscount, 
         paid: paid, due: due, date: currentDateStr,
         guestPhone: guestPhone, guestAddress: guestAddress,
-        paymentHistory: paymentHistory // 🟢 সেভ করা হলো
+        paymentHistory: paymentHistory,paymentMode: paymentMode,
+    txnNote: txnNote // 🟢 সেভ করা হলো
     };
 
     if (editId) {
@@ -9679,9 +9687,10 @@ window.generateSalePDF = async function(sale, student) {
     if (sale.cart && Array.isArray(sale.cart)) { sale.cart.forEach(item => { estLines += Math.ceil(item.name.length / 25); }); } 
     else { estLines = Math.ceil(sale.item.length / 25); }
     
-    // 🟢 Payment History থাকলে সাইজ বড় হবে
     const historyLines = (sale.paymentHistory && sale.paymentHistory.length > 0) ? sale.paymentHistory.length : 0;
-    const pageHeight = Math.max(148, 120 + (estLines * 6) + (historyLines * 6) + (sale.discount > 0 ? 15 : 0)); 
+    
+    // 🟢 Note এর জন্য PDF এর উচ্চতা (Height) একটু বড় করা হলো
+    const pageHeight = Math.max(148, 120 + (estLines * 6) + (historyLines * 6) + (sale.discount > 0 ? 15 : 0) + (sale.txnNote ? 12 : 5)); 
     
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [105, pageHeight] });
 
@@ -9731,37 +9740,52 @@ window.generateSalePDF = async function(sale, student) {
 
     doc.setFont("helvetica", "bold");
     const origP = sale.originalPrice || sale.price;
-    doc.text(`Sub Total:`, 48, y); doc.text(`Rs. ${origP}/-`, 75, y); y += 6;
+    doc.text(`Sub Total:`, 45, y); doc.text(`Rs. ${origP}/-`, 75, y); y += 6;
     
     if(sale.discount > 0) {
         doc.setTextColor(0, 102, 204); 
-        doc.text(`Discount:`, 48, y); doc.text(`- Rs. ${sale.discount}/-`, 75, y); y += 6;
+        doc.text(`Discount:`, 45, y); doc.text(`- Rs. ${sale.discount}/-`, 75, y); y += 6;
         doc.setTextColor(0);
-        doc.text(`Final Payable:`, 48, y); doc.text(`Rs. ${sale.price}/-`, 75, y); y += 6;
+        doc.text(`Final Payable:`, 45, y); doc.text(`Rs. ${sale.price}/-`, 75, y); y += 6;
     }
     
     doc.setTextColor(0, 128, 0); 
-    doc.text(`Total Paid:`, 48, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
+    doc.text(`Total Paid:`, 45, y); doc.text(`Rs. ${sale.paid}/-`, 75, y); doc.setTextColor(0); y += 6;
 
-    // 🟢 Updated Installment History (DD/MM/YYYY Format)
+    // 🟢 NEW: PDF এ Payment Mode & Note অ্যাড করা হচ্ছে
+    doc.setFontSize(8.5);
+    let payModeText = sale.paymentMode || 'Cash';
+    doc.text(`Pay Mode:`, 45, y); doc.text(payModeText, 75, y); y += 5;
+
+    if(sale.txnNote) {
+        doc.text(`Txn / Note:`, 45, y);
+        const noteLines = doc.splitTextToSize(sale.txnNote, 30);
+        doc.text(noteLines, 75, y);
+        y += (noteLines.length * 4) + 1;
+    }
+    doc.setFontSize(9);
+
+    // Updated Installment History (DD/MM/YYYY Format)
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(80, 80, 80);
         sale.paymentHistory.forEach((hist) => {
-            // ডেটকে DD/MM/YYYY ফরম্যাটে কনভার্ট করা হচ্ছে
             const pDateObj = new Date(hist.date);
             const dd = String(pDateObj.getDate()).padStart(2, '0');
             const mm = String(pDateObj.getMonth() + 1).padStart(2, '0');
             const yyyy = pDateObj.getFullYear();
             const payDate = `${dd}/${mm}/${yyyy}`;
             
-            doc.text(`Paid (${payDate}): Rs. ${hist.amount}`, 50, y);
+            let modeStr = hist.mode ? ` [${hist.mode}]` : '';
+            let noteStr = hist.note ? ` - ${hist.note}` : '';
+            
+            doc.text(`Paid (${payDate}): Rs. ${hist.amount}${modeStr}${noteStr}`, 45, y);
             y += 5;
         });
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0); y += 1;
     }
 
     if(sale.due > 0) {
-        doc.setTextColor(200, 0, 0); doc.text(`Current Due:`, 48, y); doc.text(`Rs. ${sale.due}/-`, 75, y); doc.setTextColor(0); y += 6; 
+        doc.setTextColor(200, 0, 0); doc.text(`Current Due:`, 45, y); doc.text(`Rs. ${sale.due}/-`, 75, y); doc.setTextColor(0); y += 6; 
     }
     y += 6;
 
@@ -9786,11 +9810,17 @@ window.generateSalePDF = async function(sale, student) {
         sale.paymentHistory.forEach((h) => {
             const hDateObj = new Date(h.date);
             const formattedDate = `${String(hDateObj.getDate()).padStart(2, '0')}/${String(hDateObj.getMonth() + 1).padStart(2, '0')}/${hDateObj.getFullYear()}`;
-            historyText += `Paid (${formattedDate}): ₹${h.amount}\n`;
+            let modeStr = h.mode ? ` [${h.mode}]` : '';
+            let noteStr = h.note ? ` - ${h.note}` : '';
+            historyText += `Paid (${formattedDate}): ₹${h.amount}${modeStr}${noteStr}\n`;
         });
     }
     
-    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origP}${discMsg}\n*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nThank You!`;
+    // 🟢 WA Template for PDF Popup Button Support
+    let payModeMsgWA = sale.paymentMode ? `\n*Payment Mode:* ${sale.paymentMode}` : '\n*Payment Mode:* Cash';
+    let noteMsgWA = sale.txnNote ? `\n*Txn/Note:* ${sale.txnNote}` : '';
+
+    window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origP}${discMsg}\n*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${payModeMsgWA}${noteMsgWA}${historyText}${dueMsg}\n\nThank You!`;
 
     Swal.close();
     setTimeout(() => {
@@ -9836,23 +9866,29 @@ window.sendSaleWhatsApp = async function(saleId) {
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         historyText = "\n\n*Payment History:*\n";
         sale.paymentHistory.forEach((h) => {
-            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}\n`;
+            let modeStr = h.mode ? ` [${h.mode}]` : '';
+            let noteStr = h.note ? ` - ${h.note}` : '';
+            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): ₹${h.amount}${modeStr}${noteStr}\n`;
         });
     }
     
-    // 🟢 NEW: Product List Format -> ItemName (x Qty @ Rate) = Total
+    // Product List Format
     let itemsNamesWA = '';
     if (sale.cart && sale.cart.length > 0) {
         itemsNamesWA = sale.cart.map(i => {
-            let rate = i.price / i.qty; // ১ পিসের দাম বের করা হচ্ছে
+            let rate = i.price / i.qty; 
             return `*${i.name}* (x ${i.qty} @ ₹${rate}) = ₹${i.price}`;
         }).join('\n');
     } else {
         itemsNamesWA = `*${sale.item}* = ₹${sale.originalPrice || sale.price}`;
     }
     
+    // 🟢 NEW: Payment Mode & Note 
+    let payModeMsg = sale.paymentMode ? `\n*Payment Mode:* ${sale.paymentMode}` : '\n*Payment Mode:* Cash';
+    let noteMsg = sale.txnNote ? `\n*Txn/Note:* ${sale.txnNote}` : '';
+
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origPrice}\n${discountMsg}*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${historyText}${dueMsg}\n\nRegards,\n*${instName}*`;
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origPrice}\n${discountMsg}*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${payModeMsg}${noteMsg}${historyText}${dueMsg}\n\nRegards,\n*${instName}*`;
     
     window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
 };
@@ -9875,23 +9911,29 @@ window.sendSaleSMS = async function(saleId) {
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         historyText = "\n\nPayment History:\n";
         sale.paymentHistory.forEach((h) => {
-            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): Rs.${h.amount}\n`;
+            let modeStr = h.mode ? ` [${h.mode}]` : '';
+            let noteStr = h.note ? ` - ${h.note}` : '';
+            historyText += `Paid (${new Date(h.date).toLocaleDateString('en-IN')}): Rs.${h.amount}${modeStr}${noteStr}\n`;
         });
     }
     
-    // 🟢 NEW: Product List Format -> ItemName (x Qty @ Rate) = Total
+    // Product List Format 
     let itemsNamesSMS = '';
     if (sale.cart && sale.cart.length > 0) {
         itemsNamesSMS = sale.cart.map(i => {
-            let rate = i.price / i.qty; // ১ পিসের দাম বের করা হচ্ছে
+            let rate = i.price / i.qty; 
             return `${i.name} (x ${i.qty} @ Rs.${rate}) = Rs.${i.price}`;
         }).join('\n');
     } else {
         itemsNamesSMS = `${sale.item} = Rs.${sale.originalPrice || sale.price}`;
     }
     
+    // 🟢 NEW: Payment Mode & Note
+    let payModeMsg = sale.paymentMode ? `\nPayment Mode: ${sale.paymentMode}` : '\nPayment Mode: Cash';
+    let noteMsg = sale.txnNote ? `\nTxn/Note: ${sale.txnNote}` : '';
+
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesSMS}\n\nTotal Bill: Rs.${origPrice}\n${discountMsg}Final Payable: Rs.${sale.price}\nTotal Paid: Rs.${sale.paid}${historyText}${dueMsg}\n\nRegards,\n${instName}`;
+    const msg = `Hello ${sale.studentName},\n\nThis is your Money Receipt for:\n${itemsNamesSMS}\n\nTotal Bill: Rs.${origPrice}\n${discountMsg}Final Payable: Rs.${sale.price}\nTotal Paid: Rs.${sale.paid}${payModeMsg}${noteMsg}${historyText}${dueMsg}\n\nRegards,\n${instName}`;
     
     window.location.href = `sms:${cleanPhone}?body=${encodeURIComponent(msg)}`;
 };
@@ -11682,55 +11724,116 @@ window.showProfitBreakdown = function(year, month) {
         padding: '15px'
     });
 };
+// 🟢 লাইভ ক্যালকুলেশন করার জন্য নতুন ফাংশন
+window.updateDuePopupCalc = function(totalDue) {
+    const payInput = document.getElementById('swal-due-pay');
+    const displayDiv = document.getElementById('dynamic-due-display');
+    if (!payInput || !displayDiv) return;
+    
+    let payingNow = parseFloat(payInput.value) || 0;
+    let remaining = totalDue - payingNow;
+    
+    if (remaining > 0) {
+        displayDiv.innerHTML = `Remaining Due: ₹${remaining}`;
+        displayDiv.style.color = 'var(--danger)'; // লাল রঙ (বাকি থাকলে)
+    } else if (remaining < 0) {
+        displayDiv.innerHTML = `Return Change: ₹${Math.abs(remaining)}`;
+        displayDiv.style.color = '#f59e0b'; // হলুদ/অরেঞ্জ রঙ (কাস্টমারকে ফেরত দেওয়ার জন্য)
+    } else {
+        displayDiv.innerHTML = `Remaining Due: ₹0 (Fully Paid)`;
+        displayDiv.style.color = 'var(--success)'; // সবুজ রঙ (সম্পূর্ণ পেমেন্ট হলে)
+    }
+};
+
 window.paySaleDue = async function(saleId) {
     const sale = salesDataArray.find(s => String(s.id) === String(saleId));
     if(!sale || sale.due <= 0) return;
 
     const exactDueAmount = sale.due; 
 
-    const { value: payAmount } = await Swal.fire({
+    const { value: formValues } = await Swal.fire({
         title: 'Pay Due Amount',
         html: `
             <div style="text-align:left; font-size:14px; margin-bottom:15px; background: var(--bg-input); padding: 15px; border-radius: 8px; border: 1px dashed var(--border-color);">
                 <div style="margin-bottom: 5px;"><strong>Customer:</strong> <span style="color:var(--primary); font-weight:bold;">${sale.studentName}</span></div>
                 <div style="margin-bottom: 5px;"><strong>Total Bill:</strong> ₹${sale.price}</div>
                 <div style="margin-bottom: 5px; color: var(--success);"><strong>Already Paid:</strong> ₹${sale.paid}</div>
-                <div style="color: var(--danger); font-size: 16px; font-weight: bold; margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
-                    Current Due: ₹${exactDueAmount}
+                
+                <!-- 🟢 এই অংশটি লাইভ আপডেট হবে -->
+                <div id="dynamic-due-display" style="color: var(--success); font-size: 16px; font-weight: bold; margin-top: 10px; border-top: 1px dashed var(--border-color); padding-top: 10px;">
+                    Remaining Due: ₹0 (Fully Paid)
                 </div>
             </div>
-            <label style="font-size: 12px; font-weight: bold; color: var(--text-main); display: block; margin-bottom: 5px; text-align: left; padding-left: 5%;">Amount paying now (₹):</label>
-            <input type="number" id="swal-due-pay" class="swal2-input" value="${exactDueAmount}" style="font-size: 16px; font-weight: bold; text-align: center; max-width: 90%; margin-top: 0;">
+            
+            <div style="text-align: left; margin-bottom: 15px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-main); display: block; margin-bottom: 5px;">Amount paying now (₹):</label>
+                <!-- 🟢 oninput ইভেন্ট অ্যাড করা হলো লাইভ ক্যালকুলেশনের জন্য -->
+                <input type="number" id="swal-due-pay" value="${exactDueAmount}" oninput="window.updateDuePopupCalc(${exactDueAmount})" style="width: 100%; height: 45px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 18px; font-weight: bold; text-align: center; margin: 0; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; text-align: left;">
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 5px;">Payment Mode</label>
+                    <select id="swal-due-mode" class="swal2-input" style="width: 100%; margin: 0; font-size: 14px; padding: 0 10px; height: 40px; box-sizing: border-box; outline:none;">
+                        <option value="Cash">Cash</option>
+                        <option value="Online">Online / UPI</option>
+                    </select>
+                </div>
+                <div style="flex: 1.5;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 5px;">Txn ID / Note (Optional)</label>
+                    <input type="text" id="swal-due-note" class="swal2-input" placeholder="Any note or Txn ID..." style="width: 100%; margin: 0; font-size: 14px; padding: 0 10px; height: 40px; box-sizing: border-box; outline:none;">
+                </div>
+            </div>
         `,
         focusConfirm: false,
         showCancelButton: true,
         confirmButtonText: '<i class="fas fa-plus-circle"></i> Add Payment',
         confirmButtonColor: 'var(--success)',
         cancelButtonColor: '#ef4444',
+        didOpen: () => {
+            // পপআপ খোলার সাথে সাথে একবার ক্যালকুলেট করে নেবে
+            window.updateDuePopupCalc(exactDueAmount);
+        },
         preConfirm: () => {
             const amt = parseFloat(document.getElementById('swal-due-pay').value);
+            const mode = document.getElementById('swal-due-mode').value;
+            const note = document.getElementById('swal-due-note').value.trim();
+
             if (isNaN(amt) || amt <= 0) {
                 Swal.showValidationMessage('Please enter a valid amount!');
                 return false;
             }
-            if (amt > exactDueAmount) {
-                Swal.showValidationMessage('Amount cannot be greater than the due (₹' + exactDueAmount + ')!');
-                return false;
-            }
-            return amt;
+            // (বেশি পেমেন্ট করলে আর আটকে দেবে না, যাতে চেঞ্জ (Change) হিসাব করা যায়)
+            return { amt, mode, note };
         }
     });
 
-    if (payAmount) {
+    if (formValues) {
+        let enteredAmount = formValues.amt;
+        let payAmount = enteredAmount;
+        let returnChange = 0;
+
+        // 🟢 যদি কাস্টমার ডিউ-এর থেকে বেশি টাকা দেয়, তাহলে অতিরিক্ত টাকাটা 'Change' হিসেবে ধরে নেবে
+        if (enteredAmount > exactDueAmount) {
+            returnChange = enteredAmount - exactDueAmount;
+            payAmount = exactDueAmount; // সিস্টেমে শুধুমাত্র ডিউ অংশটুকুই রিসিভ দেখাবে যাতে মাইনাস (-) ডিউ না হয়ে যায়
+        }
+
         sale.paid += payAmount;
         sale.due = sale.price - sale.paid;
         
-        // 🟢 পেমেন্ট হিস্ট্রি আপডেট করা (নতুন ডেট ও অ্যামাউন্ট)
+        // 🟢 পেমেন্ট হিস্ট্রি আপডেট করা (নতুন ডেট, অ্যামাউন্ট, মোড এবং নোট)
         if(!sale.paymentHistory) sale.paymentHistory = [];
         sale.paymentHistory.push({
             date: new Date().toISOString().split('T')[0],
-            amount: payAmount
+            amount: payAmount,
+            mode: formValues.mode,
+            note: formValues.note
         });
+
+        // লেটেস্ট পেমেন্ট মোড মেইন ডেটাতেও আপডেট করা
+        sale.paymentMode = formValues.mode;
+        if(formValues.note) sale.txnNote = formValues.note;
         
         const index = salesDataArray.findIndex(s => String(s.id) === String(saleId));
         if(index > -1) salesDataArray[index] = sale;
@@ -11742,10 +11845,16 @@ window.paySaleDue = async function(saleId) {
         window.syncSalesToFirebase();
         window.renderSalesUI();
         
+        // 🟢 সাকসেস মেসেজ (চেঞ্জ থাকলে সেটা উল্লেখ করে দেবে)
+        let toastMsg = '₹' + payAmount + ' Added! Remaining Due: ₹' + sale.due;
+        if (returnChange > 0) {
+            toastMsg = 'Fully Paid! Return Change: ₹' + returnChange;
+        }
+
         Swal.fire({
             toast: true, position: 'top-end', icon: 'success', 
-            title: '₹' + payAmount + ' Added! Remaining Due: ₹' + sale.due, 
-            showConfirmButton: false, timer: 2000
+            title: toastMsg, 
+            showConfirmButton: false, timer: 3000
         });
         
         setTimeout(() => {
