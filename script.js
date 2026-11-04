@@ -8904,13 +8904,14 @@ window.renderSalesUI = function() {
         
         totalSalesAmount += s.price;
         
-        if (s.due <= 0) {
-            let totalBuyPrice = 0;
-            if (s.cart && s.cart.length > 0) {
-                s.cart.forEach(cItem => { totalBuyPrice += (cItem.buyPrice || 0); });
-            }
-            totalProfit += (s.price - totalBuyPrice);
+        // 🟢 প্রফিট ক্যালকুলেশন আপডেট: Due থাকলেও প্রফিট হিসেব হবে
+        let totalBuyPrice = 0;
+        if (s.cart && s.cart.length > 0) {
+            s.cart.forEach(cItem => { totalBuyPrice += (cItem.buyPrice || 0); });
         }
+        
+        // লাভ = মোট প্রাপ্ত টাকা (paid) - মোট কেনা দাম (buy price)
+        totalProfit += (s.paid - totalBuyPrice);
     });
 
     let profitDash = document.getElementById('salesProfitDashboard');
@@ -8930,11 +8931,11 @@ window.renderSalesUI = function() {
         <div style="display: flex; gap: 10px; margin-bottom: 15px;">
             <div onclick="window.showSalesBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); padding: 15px; border-radius: 12px; border: 1px solid #7dd3fc; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
                 <div style="font-size: 11px; color: #0284c7; font-weight: 800; text-transform: uppercase;">${periodText} Sales</div>
-                <div style="font-size: 20px; font-weight: 900; color: #0369a1; margin-top: 5px;">₹${totalSalesAmount}</div>
+                <div style="font-size: 20px; font-weight: 900; color: #0369a1; margin-top: 5px;">₹${totalSalesAmount.toFixed(2)}</div>
             </div>
             <div onclick="window.showProfitBreakdown('${selectedYear}', '${selectedMonth}')" style="flex: 1; background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); padding: 15px; border-radius: 12px; border: 1px solid #86efac; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); cursor:pointer;">
                 <div style="font-size: 11px; color: #166534; font-weight: 800; text-transform: uppercase;">${periodText} Profit</div>
-                <div style="font-size: 20px; font-weight: 900; color: #15803d; margin-top: 5px;">₹${totalProfit}</div>
+                <div style="font-size: 20px; font-weight: 900; color: #15803d; margin-top: 5px;">₹${totalProfit.toFixed(2)}</div>
             </div>
         </div>
     `;
@@ -9757,15 +9758,16 @@ window.generateSalePDF = async function(sale, student) {
     let payModeText = sale.paymentMode || 'Cash';
     doc.text(`Pay Mode:`, 45, y); doc.text(payModeText, 75, y); y += 5;
 
+    // 🟢 Updated: Txn / Note with word wrap
     if(sale.txnNote) {
         doc.text(`Txn / Note:`, 45, y);
-        const noteLines = doc.splitTextToSize(sale.txnNote, 30);
+        const noteLines = doc.splitTextToSize(sale.txnNote, 25);
         doc.text(noteLines, 75, y);
         y += (noteLines.length * 4) + 1;
     }
     doc.setFontSize(9);
 
-    // Updated Installment History (DD/MM/YYYY Format)
+    // 🟢 Updated: Payment History with word wrap to prevent border overflow
     if(sale.paymentHistory && sale.paymentHistory.length > 0) {
         doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(80, 80, 80);
         sale.paymentHistory.forEach((hist) => {
@@ -9778,8 +9780,12 @@ window.generateSalePDF = async function(sale, student) {
             let modeStr = hist.mode ? ` [${hist.mode}]` : '';
             let noteStr = hist.note ? ` - ${hist.note}` : '';
             
-            doc.text(`Paid (${payDate}): Rs. ${hist.amount}${modeStr}${noteStr}`, 45, y);
-            y += 5;
+            const fullHistoryText = `Paid (${payDate}): Rs. ${hist.amount}${modeStr}${noteStr}`;
+            // টেক্সটকে 50mm চওড়ার মধ্যে ভেঙে দেওয়া হলো
+            const histLines = doc.splitTextToSize(fullHistoryText, 50);
+            
+            doc.text(histLines, 45, y);
+            y += (histLines.length * 4) + 1; // লাইন অনুযায়ী y এর মান বাড়বে
         });
         doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(0); y += 1;
     }
@@ -11608,15 +11614,20 @@ window.showSalesBreakdown = function(year, month) {
                     </span>
                 </div>
 
-                <!-- Action Buttons (Square design like screenshot) -->
-                <div style="display:flex; gap:8px; align-items:center; margin-top: 25px;">
-                    <button onclick="window.resendSaleReceipt(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#8b5cf6; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-file-pdf"></i></button>
-                    <button onclick="window.editSaleRecord(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#f59e0b; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-edit"></i></button>
-                    <button onclick="window.deleteSaleRecord(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#ef4444; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-trash"></i></button>
-                    <button onclick="window.sendSaleWhatsApp(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#25D366; color:#fff; font-size:22px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fab fa-whatsapp"></i></button>
-                    <button onclick="window.sendSaleSMS(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#f59e0b; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-sms"></i></button>
-                    <button onclick="window.callBuyer(${sale.id})" style="width: 42px; height: 42px; border:none; border-radius:8px; background:#059669; color:#fff; font-size:18px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"><i class="fas fa-phone-alt"></i></button>
-                </div>
+                <!-- Action Buttons (Compact & Centered inside the border) -->
+<div style="display: flex; gap: 6px; justify-content: space-evenly; align-items: center; margin-top: 15px; border-top: 1px dashed var(--border-color); padding-top: 15px; width: 100%; box-sizing: border-box;">
+    <button onclick="window.resendSaleReceipt(${sale.id})" title="Receipt" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#8b5cf6; color:#fff; border:none; border-radius:6px; font-size:14px; box-shadow: 0 2px 4px rgba(139, 92, 246, 0.3); cursor:pointer; flex: 1; max-width: 35px;"><i class="fas fa-file-pdf"></i></button>
+    
+    <button onclick="window.editSaleRecord(${sale.id})" title="Edit" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px; box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3); cursor:pointer; flex: 1; max-width: 35px;"><i class="fas fa-edit"></i></button>
+    
+    <button onclick="window.deleteSaleRecord(${sale.id})" title="Delete" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3); cursor:pointer; flex: 1; max-width: 35px;"><i class="fas fa-trash"></i></button>
+    
+    <button onclick="window.sendSaleWhatsApp(${sale.id})" title="WA" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; font-size:16px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.3); cursor:pointer; flex: 1; max-width: 35px;"><i class="fab fa-whatsapp"></i></button>
+    
+    <button onclick="window.sendSaleSMS(${sale.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:6px; font-size:14px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.3); cursor:pointer; flex: 1; max-width: 35px;"><i class="fas fa-sms"></i></button>
+    
+    <button onclick="window.callBuyer(${sale.id})" title="Call" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; background:#059669; color:#fff; border:none; border-radius:6px; font-size:14px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3); cursor:pointer; flex: 1; max-width: 35px;"><i class="fas fa-phone-alt"></i></button>
+</div>
 
             </div>
         `;
@@ -11646,7 +11657,7 @@ window.showSalesBreakdown = function(year, month) {
         background: '#fffcf8'
     });
 };
-// 🟢 NEW: Profit Breakdown Report
+// 🟢 NEW: Profit Breakdown Report (Fixed Decimals & Added Due Display)
 window.showProfitBreakdown = function(year, month) {
     let reportSales = salesDataArray.filter(s => {
         const sDate = new Date(s.date);
@@ -11656,11 +11667,12 @@ window.showProfitBreakdown = function(year, month) {
         const matchYear = (year === 'Lifetime' || sYear === year);
         const matchMonth = (month === 'All' || sMonth === month);
         
-        return matchYear && matchMonth && s.due <= 0; // শুধুমাত্র ফুল পেইড সেলগুলো প্রফিটে দেখাবে
+        // সব সেল দেখাবে (Due থাকলেও)
+        return matchYear && matchMonth; 
     });
 
     if (reportSales.length === 0) {
-        Swal.fire('No Data', 'No fully paid sales found for this period to calculate profit.', 'info');
+        Swal.fire('No Data', 'No sales found for this period to calculate profit.', 'info');
         return;
     }
 
@@ -11673,14 +11685,27 @@ window.showProfitBreakdown = function(year, month) {
         
         if (sale.cart && sale.cart.length > 0) {
             sale.cart.forEach(cItem => { 
-                totalBuyPrice += (cItem.buyPrice || 0); 
-                itemsHtml += `<div style="font-size: 11.5px; color: var(--text-muted); display:flex; justify-content:space-between;"><span>• ${cItem.name} (x${cItem.qty})</span> <span>[Buy: ₹${cItem.buyPrice || 0}]</span></div>`;
+                let bPrice = cItem.buyPrice || 0;
+                totalBuyPrice += bPrice; 
+                itemsHtml += `<div style="font-size: 11.5px; color: var(--text-muted); display:flex; justify-content:space-between;"><span>• ${cItem.name} (x${cItem.qty})</span> <span>[Buy: ₹${parseFloat(bPrice).toFixed(2)}]</span></div>`;
             });
         }
         
-        let profit = sale.price - totalBuyPrice;
+        // প্রফিট ক্যালকুলেশন
+        let profit = sale.paid - totalBuyPrice;
         totalProfit += profit;
         const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
+        
+        // পয়েন্টের পর ২টো সংখ্যার জন্য toFixed(2) ব্যবহার করা হলো
+        let displayBuyPrice = parseFloat(totalBuyPrice).toFixed(2);
+        let displayPaid = parseFloat(sale.paid).toFixed(2);
+        let displayItemProfit = parseFloat(Math.abs(profit)).toFixed(2);
+        
+        // 🟢 Due দেখানোর লজিক
+        let dueHtml = '';
+        if (sale.due > 0) {
+            dueHtml = `<div style="color:var(--warning); font-weight:700; font-size:12px; margin-top:3px;">Due: ₹${parseFloat(sale.due).toFixed(2)}</div>`;
+        }
 
         listHtml += `
             <div style="background: var(--bg-input); padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
@@ -11695,22 +11720,25 @@ window.showProfitBreakdown = function(year, month) {
                 
                 <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: 8px;">
                     <div style="font-size:12px;">
-                        <div style="color:var(--danger); font-weight:600;">Total Buy: ₹${totalBuyPrice}</div>
-                        <div style="color:var(--primary); font-weight:600;">Total Sell: ₹${sale.price}</div>
+                        <div style="color:var(--danger); font-weight:600;">Total Buy: ₹${displayBuyPrice}</div>
+                        <div style="color:var(--primary); font-weight:600;">Total Paid: ₹${displayPaid}</div>
+                        ${dueHtml}
                     </div>
                     <div style="text-align:right;">
-                        <div style="font-size:10px; font-weight:bold; color:var(--success); text-transform:uppercase;">Profit</div>
-                        <div style="font-size:16px; font-weight:900; color:#15803d;">₹${profit}</div>
+                        <div style="font-size:10px; font-weight:bold; color:${profit >= 0 ? 'var(--success)' : 'var(--danger)'}; text-transform:uppercase;">${profit >= 0 ? 'Profit' : 'Loss'}</div>
+                        <div style="font-size:16px; font-weight:900; color:${profit >= 0 ? '#15803d' : '#b91c1c'};">₹${displayItemProfit}</div>
                     </div>
                 </div>
             </div>
         `;
     });
 
+    let displayNetProfit = parseFloat(Math.abs(totalProfit)).toFixed(2);
+
     listHtml += `
-        <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; box-shadow: 0 4px 6px rgba(16,185,129,0.3);">
-            <div style="font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Net Profit</div>
-            <div style="font-size:24px; font-weight:900;">₹${totalProfit}</div>
+        <div style="background: linear-gradient(135deg, ${totalProfit >= 0 ? '#10b981 0%, #059669' : '#ef4444 0%, #b91c1c'} 100%); color: white; padding: 15px; border-radius: 10px; text-align: center; margin-top: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);">
+            <div style="font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:1px;">Net Profit (Cash Flow)</div>
+            <div style="font-size:24px; font-weight:900;">${totalProfit < 0 ? '-' : ''}₹${displayNetProfit}</div>
         </div>
     </div>`;
 
@@ -11719,7 +11747,7 @@ window.showProfitBreakdown = function(year, month) {
         html: listHtml,
         showConfirmButton: true,
         confirmButtonText: 'Close',
-        confirmButtonColor: '#10b981',
+        confirmButtonColor: totalProfit >= 0 ? '#10b981' : '#ef4444',
         width: '95%',
         padding: '15px'
     });
