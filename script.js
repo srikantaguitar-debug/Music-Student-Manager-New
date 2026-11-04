@@ -12969,24 +12969,27 @@ window.renderDashboard = function() {
         }
     }
     
-    // 🟢 Financials Logic
+    // 🟢 Financials Logic (Fixed: Due shows instantly if Present before 10th)
     students.forEach(student => { 
         for (let i = 0; i < 12; i++) { 
             const monthStr = `${currentYear}-${(i + 1).toString().padStart(2, '0')}`; 
-            if (wasStudentActiveDuringMonth(student, monthStr)) { 
+            if (window.wasStudentActiveDuringMonth(student, monthStr)) { 
                 if (fees[monthStr]?.[student.id]?.status === 'paid') { 
                     if (monthStr === currentMonthStr) {
                         monthlyCollected += fees[monthStr][student.id].amount; 
                         monthlyPaidCount++; 
                     }
                     yearlyCollected += fees[monthStr][student.id].amount; 
-                } else if (isMonthDue(monthStr)) { 
-                    const studentFee = student.fee_amount || DEFAULT_FEE; 
-                    if (monthStr === currentMonthStr) {
-                        monthlyDueAmount += studentFee; 
-                        monthlyDueCount++; 
+                } else { 
+                    // 🟢 ম্যাজিক ফিক্স: মাস্টার ডিউ ক্যালকুলেটর কল করা হলো
+                    const dueAmt = window.getCalculatedDueAmount(student, monthStr);
+                    if (dueAmt > 0) {
+                        if (monthStr === currentMonthStr) {
+                            monthlyDueAmount += dueAmt; 
+                            monthlyDueCount++; 
+                        }
+                        yearlyDueAmount += dueAmt; 
                     }
-                    yearlyDueAmount += studentFee; 
                 } 
             } 
         } 
