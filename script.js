@@ -8586,8 +8586,20 @@ window.calculateSaleDue = function() {
     const discount = discVal ? parseFloat(discVal) : 0;
     const finalPayable = cartTotal - discount;
     
-    const paidVal = document.getElementById('amountPaid').value;
-    const paid = paidVal === '' ? 0 : parseFloat(paidVal);
+    // 🟢 NEW: Check if Edit Form is open and calculate total paid from installments
+    let paid = 0;
+    const isEditing = document.getElementById('dynamicEditInstallmentContainer');
+    if (isEditing && window.tempEditInstallments) {
+        // এডিট মোডে থাকলে সব কিস্তির যোগফল নেবে
+        window.tempEditInstallments.forEach(hist => {
+            paid += parseFloat(hist.amount) || 0;
+        });
+    } else {
+        // নতুন সেলের সময় সাধারণ ইনপুট নেবে
+        const paidVal = document.getElementById('amountPaid')?.value;
+        paid = paidVal === '' ? 0 : parseFloat(paidVal);
+    }
+
     const due = finalPayable - paid;
     
     const display = document.getElementById('saleDueDisplay');
@@ -8991,16 +9003,21 @@ window.renderSalesUI = function() {
             itemsHtml = `<span onclick="window.openProductDetailsPopup('${safeName}', '${s.price}', '')" style="color:var(--text-main); font-weight:600; cursor:pointer; display:inline-block; background: var(--bg-input); padding: 5px 10px; border-radius: 8px; border: 1px solid var(--border-color); transition: 0.2s;">${s.item} - ₹${s.price}</span>`;
         }
 
+        // 🟢 Updated: Payment History UI (Added Mode and Txn/Note as per image)
         let historyHtml = '';
         if (s.paymentHistory && s.paymentHistory.length > 0) {
             historyHtml += `<div style="margin-top: 12px; border: 1px dashed var(--border-color); padding: 10px; border-radius: 8px; background: var(--bg-input);">`;
             s.paymentHistory.forEach((hist) => {
                 const pDate = new Date(hist.date).toLocaleDateString('en-IN', {day:'numeric', month:'short', year:'numeric'});
-                let modeBadge = hist.mode ? `<span style="font-size:10px; background:#e2e8f0; padding:2px 6px; border-radius:4px; margin-left:5px; color:#475569;">${hist.mode}</span>` : '';
-                let noteLine = hist.note ? `<div style="font-size:11px; color:var(--text-muted); margin-top:2px;">📝 ${hist.note}</div>` : '';
-                historyHtml += `<div style="margin-bottom:6px;">
+                // পেমেন্ট মোড না থাকলে 'Cash' দেখাবে
+                const payMode = hist.mode || 'Cash';
+                let modeBadge = `<span style="font-size:10px; background:#e2e8f0; padding:2px 6px; border-radius:4px; margin-left:8px; color:#475569;">${payMode}</span>`;
+                let noteLine = hist.note ? `<div style="font-size:11px; color:var(--text-muted); margin-top:4px; display: flex; align-items: center; gap: 4px;"><i class="fas fa-sticky-note" style="color: #f59e0b;"></i> ${hist.note}</div>` : '';
+                
+                // 🟢 Updated: Payment History UI (Without individual edit/delete buttons)
+                historyHtml += `<div style="margin-bottom:8px; position:relative;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="color: var(--text-main); font-size: 13px; font-weight: 600;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})${modeBadge}</span>
+                        <span style="color: var(--text-main); font-size: 13px; font-weight: 600; display:flex; align-items:center;"><i class="fas fa-check-circle" style="color:var(--success); margin-right:5px;"></i>Paid (${pDate})${modeBadge}</span>
                         <span style="font-weight:bold; color:var(--text-main); font-size: 14px;">₹${hist.amount}</span>
                     </div>
                     ${noteLine}
@@ -9107,72 +9124,7 @@ window.viewBuyerProfile = function(saleId) {
     }
 };
 
-window.editSaleRecord = function(saleId) {
-    const sale = salesDataArray.find(s => String(s.id) === String(saleId));
-    if(!sale) return;
-    
-    const sIdInput = document.getElementById('saleStudentId');
-    const nameEl = document.getElementById('saleSelectedName');
-    const imgEl = document.getElementById('saleSelectedPhoto');
 
-    const isGuest = (String(sale.studentId) === '0' || sale.studentId === 'guest' || !sale.studentId);
-
-    if (isGuest) {
-        if(sIdInput) sIdInput.value = 'guest';
-        
-        const gName = sale.studentName || 'Walk-in Customer';
-        if(nameEl) {
-            nameEl.dataset.guestData = JSON.stringify({name: gName, phone: sale.guestPhone || '', address: sale.guestAddress || ''});
-            nameEl.innerHTML = `<span style="color: var(--text-main); font-weight: bold;">${gName}</span> <span style="font-size:10px; background:#ef4444; color:white; padding:2px 6px; border-radius:4px; margin-left:5px; vertical-align: middle;">Guest</span>`;
-        }
-        
-        if(imgEl) {
-            imgEl.src = 'https://via.placeholder.com/40?text=G';
-            imgEl.style.display = 'block';
-        }
-    } else {
-        const student = students.find(st => String(st.id) === String(sale.studentId));
-        if(student) {
-            if(sIdInput) sIdInput.value = student.id;
-            if(nameEl) {
-                nameEl.textContent = student.name;
-                nameEl.style.color = "var(--text-main)";
-                nameEl.dataset.guestData = ''; 
-            }
-            if(imgEl) {
-                imgEl.src = student.photo || 'https://via.placeholder.com/35?text=S';
-                imgEl.style.display = 'block';
-            }
-        }
-    }
-
-    if (sale.cart && Array.isArray(sale.cart)) {
-        window.saleCart = [...sale.cart];
-    } else {
-        let extractedName = sale.item; let extractedQty = 1;
-        const match = sale.item.match(/(.*)\s+\(x(\d+)\)$/);
-        if (match) { extractedName = match[1]; extractedQty = parseInt(match[2]); }
-        window.saleCart = [{ name: extractedName, qty: extractedQty, price: sale.price }];
-    }
-    
-    window.renderCart();
-    
-    const paidInput = document.getElementById('amountPaid');
-    if(paidInput) paidInput.value = sale.paid || 0;
-    
-    const editIdInput = document.getElementById('editSaleId');
-    if(editIdInput) editIdInput.value = sale.id;
-
-    const btn = document.getElementById('saleProcessBtn');
-    if(btn) {
-        btn.innerHTML = '<i class="fas fa-save"></i> Update Sale';
-        btn.className = 'btn-warning';
-    }
-    const cancelBtn = document.getElementById('saleCancelEditBtn');
-    if(cancelBtn) cancelBtn.style.display = 'block';
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-};
 window.backupSalesData = async function() {
     if(salesDataArray.length === 0) {
         Swal.fire('Info', 'No sales data to backup for this year.', 'info');
@@ -9557,7 +9509,7 @@ const txnNote = document.getElementById('saleTxnNote').value.trim();
     // 🟢 Payment History Array (Installment Logic)
     let paymentHistory = [];
     if (paid > 0) {
-        paymentHistory.push({ date: currentDateStr, amount: paid });
+        paymentHistory.push({ date: currentDateStr, amount: paid, mode: paymentMode, note: txnNote });
     }
 
     const newSaleData = {
@@ -9570,15 +9522,45 @@ const txnNote = document.getElementById('saleTxnNote').value.trim();
     txnNote: txnNote // 🟢 সেভ করা হলো
     };
 
+    // 🟢 Final Updated: Edit Sale Logic (Saves Multiple Installments from Form)
     if (editId) {
         const index = salesDataArray.findIndex(s => String(s.id) === String(editId));
         if(index > -1) { 
-            const oldHistory = salesDataArray[index].paymentHistory || [];
-            newSaleData.paymentHistory = oldHistory.length > 0 ? oldHistory : paymentHistory;
+            let totalPaidAfterEdit = 0;
+            let combinedModes = [];
+            let combinedNotes = [];
+
+            // ফর্ম থেকে সমস্ত কিস্তি সেভ করা হচ্ছে
+            window.tempEditInstallments.forEach(hist => {
+                totalPaidAfterEdit += parseFloat(hist.amount) || 0;
+                if (hist.mode && !combinedModes.includes(hist.mode)) combinedModes.push(hist.mode);
+                if (hist.note) combinedNotes.push(hist.note);
+            });
+
+            // নতুন ডিউ ক্যালকুলেশন
+            const newDue = finalPriceAfterDiscount - totalPaidAfterEdit;
+
+            newSaleData.paid = totalPaidAfterEdit;
+            newSaleData.due = newDue;
+            newSaleData.paymentHistory = window.tempEditInstallments;
+            newSaleData.paymentMode = combinedModes.join(', ');
+            newSaleData.txnNote = combinedNotes.join(' | ');
+
             salesDataArray[index] = { ...salesDataArray[index], ...newSaleData }; 
         }
-        if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, parseInt(editId), finalItemName, due); 
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated!', showConfirmButton: false, timer: 1500});
+        if(!isGuest) window.addAccessoryDueToStudent(finalStudentId, parseInt(editId), finalItemName, newSaleData.due); 
+        
+        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Sale Updated Successfully!', showConfirmButton: false, timer: 1500});
+        
+        // 🟢 ক্লিনআপ (সবকিছু আবার আগের মতো করা হচ্ছে)
+        window.editingSaleOriginalData = null; 
+        window.tempEditInstallments = [];
+        const dynamicDiv = document.getElementById('dynamicEditInstallmentContainer');
+        if(dynamicDiv) dynamicDiv.remove();
+        document.getElementById('amountPaid').parentNode.style.display = 'flex';
+        document.getElementById('salePaymentMode').parentNode.style.display = 'block';
+        document.getElementById('saleTxnNote').parentNode.style.display = 'block';
+        
     } else {
         const newSaleId = Date.now();
         const saleRecord = { id: newSaleId, ...newSaleData };
@@ -9608,6 +9590,14 @@ if (stockUpdated) {
 };
 
 window.cancelSaleEdit = function() {
+    const dynamicDiv = document.getElementById('dynamicEditInstallmentContainer');
+    if(dynamicDiv) dynamicDiv.remove();
+    const amtParent = document.getElementById('amountPaid').parentNode;
+    if(amtParent) amtParent.style.display = 'flex';
+    const modeParent = document.getElementById('salePaymentMode')?.parentNode;
+    const noteParent = document.getElementById('saleTxnNote')?.parentNode;
+    if(modeParent) modeParent.style.display = 'block';
+    if(noteParent) noteParent.style.display = 'block';
     document.getElementById('saleStudentId').value = '';
     const nameEl = document.getElementById('saleSelectedName');
     nameEl.textContent = '🔍 Click here to search student...';
@@ -9627,6 +9617,7 @@ window.cancelSaleEdit = function() {
     document.getElementById('saleCancelEditBtn').style.display = 'none';
 };
 
+// 🟢 Updated: Edit Sale Record (With Multi-Installment Full Editing Support)
 window.editSaleRecord = function(saleId) {
     const sale = salesDataArray.find(s => String(s.id) === String(saleId));
     if(!sale) return;
@@ -9663,14 +9654,18 @@ window.editSaleRecord = function(saleId) {
     
     window.renderCart();
     
-    const paidInput = document.getElementById('amountPaid');
-    if(paidInput) paidInput.value = sale.paid || 0;
-    
     const discInput = document.getElementById('saleDiscount');
-    if(discInput) discInput.value = sale.discount || ''; // 🟢 Load Discount
+    if(discInput) discInput.value = sale.discount || '';
 
     const editIdInput = document.getElementById('editSaleId');
     if(editIdInput) editIdInput.value = sale.id;
+
+    // 🟢 পুরো এডিট ডেটা ব্যাকগ্রাউন্ডে সেভ রাখা হচ্ছে
+    window.editingSaleOriginalData = JSON.parse(JSON.stringify(sale)); 
+    window.tempEditInstallments = sale.paymentHistory ? JSON.parse(JSON.stringify(sale.paymentHistory)) : [];
+
+    // 🟢 আগের অ্যামাউন্ট বক্সগুলো সরিয়ে নতুন করে ডাইনামিক হিস্ট্রি বক্স আনা হচ্ছে
+    window.renderEditInstallmentsUI();
 
     const btn = document.getElementById('saleProcessBtn');
     if(btn) { btn.innerHTML = '<i class="fas fa-save"></i> Update Sale'; btn.className = 'btn-warning'; }
@@ -11859,9 +11854,22 @@ window.paySaleDue = async function(saleId) {
             note: formValues.note
         });
 
-        // লেটেস্ট পেমেন্ট মোড মেইন ডেটাতেও আপডেট করা
-        sale.paymentMode = formValues.mode;
-        if(formValues.note) sale.txnNote = formValues.note;
+        // 🟢 পেমেন্ট মোড এবং নোট আপডেট (আগেরগুলো না মুছে নতুনগুলো জুড়ে দেওয়া হচ্ছে)
+        if (formValues.mode) {
+            if (sale.paymentMode && !sale.paymentMode.includes(formValues.mode)) {
+                sale.paymentMode = sale.paymentMode + ", " + formValues.mode;
+            } else if (!sale.paymentMode) {
+                sale.paymentMode = formValues.mode;
+            }
+        }
+        
+        if (formValues.note) {
+            if (sale.txnNote) {
+                sale.txnNote = sale.txnNote + " | " + formValues.note; // আগের নোটের সাথে নতুন নোট যোগ হবে
+            } else {
+                sale.txnNote = formValues.note;
+            }
+        }
         
         const index = salesDataArray.findIndex(s => String(s.id) === String(saleId));
         if(index > -1) salesDataArray[index] = sale;
@@ -15522,4 +15530,232 @@ window.sendClassReminderWithDate = async function(type, studentId, targetDayName
             else Swal.fire('Error', 'No phone number found', 'error');
         }
     }
+};
+// 🟢 NEW FUNCTION: Delete Individual Payment Installment from Sales History
+window.deletePaymentInstallment = function(saleId, payDate, payAmount) {
+    Swal.fire({
+        title: 'Delete Payment?',
+        text: `Are you sure you want to delete this payment of ₹${payAmount}? This will update the total paid and due amount.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Yes, Delete'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const saleIndex = salesDataArray.findIndex(s => String(s.id) === String(saleId));
+            if (saleIndex > -1) {
+                let sale = salesDataArray[saleIndex];
+
+                // ১. পেমেন্ট হিস্ট্রি থেকে নির্দিষ্ট এন্ট্রিটা মুছে ফেলা
+                // একই তারিখে একই টাকার অংকের একাধিক এন্ট্রি থাকতে পারে, তাই প্রথম ম্যাচিংটা ডিলিট করা হচ্ছে
+                const histIndex = sale.paymentHistory.findIndex(h => h.date === payDate && h.amount === payAmount);
+                if (histIndex > -1) {
+                    sale.paymentHistory.splice(histIndex, 1);
+                }
+
+                // ২. টোটাল পেইড এবং ডিউ অ্যামাউন্ট আপডেট করা
+                sale.paid -= payAmount;
+                sale.due += payAmount;
+
+                // ৩. ডেটা সেভ করা
+                salesDataArray[saleIndex] = sale;
+                window.syncSalesToFirebase();
+                window.renderSalesUI();
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    icon: 'success',
+                    title: 'Payment installment deleted!',
+                    showConfirmButton: false,
+                    timer: 2000
+                });
+            }
+        }
+    });
+};
+// 🟢 NEW FUNCTION: Edit Individual Payment Installment
+window.editPaymentInstallment = async function(saleId, payDate, payAmount) {
+    const saleIndex = salesDataArray.findIndex(s => String(s.id) === String(saleId));
+    if (saleIndex === -1) return;
+    let sale = salesDataArray[saleIndex];
+
+    const histIndex = sale.paymentHistory.findIndex(h => h.date === payDate && h.amount === payAmount);
+    if (histIndex === -1) return;
+    
+    const hist = sale.paymentHistory[histIndex];
+
+    const { value: formValues } = await Swal.fire({
+        title: 'Edit Payment',
+        html: `
+            <div style="text-align: left; margin-bottom: 15px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-main); display: block; margin-bottom: 5px;">Amount (₹):</label>
+                <input type="number" id="edit-install-pay" value="${hist.amount}" style="width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 16px; font-weight: bold; padding: 0 10px; box-sizing: border-box; outline: none;">
+            </div>
+            
+            <div style="text-align: left; margin-bottom: 15px;">
+                <label style="font-size: 12px; font-weight: bold; color: var(--text-main); display: block; margin-bottom: 5px;">Payment Date:</label>
+                <input type="date" id="edit-install-date" value="${hist.date}" style="width: 100%; height: 40px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-input); color: var(--text-main); font-size: 14px; font-weight: bold; padding: 0 10px; box-sizing: border-box; outline: none;">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 10px; text-align: left;">
+                <div style="flex: 1;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 5px;">Payment Mode</label>
+                    <select id="edit-install-mode" class="swal2-input" style="width: 100%; margin: 0; font-size: 14px; padding: 0 10px; height: 40px; box-sizing: border-box; outline:none;">
+                        <option value="Cash" ${hist.mode === 'Cash' ? 'selected' : ''}>Cash</option>
+                        <option value="Online" ${hist.mode === 'Online' ? 'selected' : ''}>Online / UPI</option>
+                    </select>
+                </div>
+                <div style="flex: 1.5;">
+                    <label style="font-size: 11px; font-weight: bold; color: var(--text-muted); display: block; margin-bottom: 5px;">Txn ID / Note</label>
+                    <input type="text" id="edit-install-note" value="${hist.note || ''}" class="swal2-input" placeholder="Any note or Txn ID..." style="width: 100%; margin: 0; font-size: 14px; padding: 0 10px; height: 40px; box-sizing: border-box; outline:none;">
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Update Payment',
+        confirmButtonColor: 'var(--warning)',
+        cancelButtonColor: '#64748b',
+        preConfirm: () => {
+            const amt = parseFloat(document.getElementById('edit-install-pay').value);
+            const date = document.getElementById('edit-install-date').value;
+            const mode = document.getElementById('edit-install-mode').value;
+            const note = document.getElementById('edit-install-note').value.trim();
+
+            if (isNaN(amt) || amt <= 0) {
+                Swal.showValidationMessage('Please enter a valid amount!');
+                return false;
+            }
+            if (!date) {
+                Swal.showValidationMessage('Please select a date!');
+                return false;
+            }
+            return { amt, date, mode, note };
+        }
+    });
+
+    if (formValues) {
+        // ১. টোটাল পেইড এবং ডিউ থেকে পুরোনো অ্যামাউন্ট বাদ দিয়ে নতুন অ্যামাউন্ট যোগ করা
+        sale.paid = (sale.paid - hist.amount) + formValues.amt;
+        sale.due = sale.price - sale.paid;
+
+        // ২. হিস্ট্রি আপডেট করা
+        sale.paymentHistory[histIndex] = {
+            date: formValues.date,
+            amount: formValues.amt,
+            mode: formValues.mode,
+            note: formValues.note
+        };
+
+        // ৩. লেটেস্ট পেমেন্ট মোড এবং নোট মেইন রেকর্ডে আপডেট করা
+        sale.paymentMode = formValues.mode;
+        if(formValues.note) sale.txnNote = formValues.note;
+        else sale.txnNote = ""; // যদি নোট মুছে দেয়, তবে ফাঁকা করে দেবে
+
+        // ৪. ডেটা সেভ করা
+        salesDataArray[saleIndex] = sale;
+        window.syncSalesToFirebase();
+        window.renderSalesUI();
+
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: 'Payment updated!',
+            showConfirmButton: false,
+            timer: 2000
+        });
+    }
+};
+// 🟢 NEW: Render Installment Inputs inside Edit Form
+window.renderEditInstallmentsUI = function() {
+    let container = document.getElementById('dynamicEditInstallmentContainer');
+    
+    // যদি আগে থেকে কন্টেইনার না থাকে, তবে 'Amount Paid' সেকশনের জায়গায় এটা বসাবে
+    if (!container) {
+        const amountDiv = document.getElementById('amountPaid').parentNode;
+        amountDiv.style.display = 'none'; // পুরনো সিঙ্গেল অ্যামাউন্ট বক্স লুকানো হলো
+        
+        // পুরনো পেমেন্ট মোড এবং নোট বক্সও লুকানো হলো, কারণ এগুলো প্রতিটা কিস্তির সাথে থাকবে
+        const modeDiv = document.getElementById('salePaymentMode')?.parentNode;
+        const noteDiv = document.getElementById('saleTxnNote')?.parentNode;
+        if(modeDiv) modeDiv.style.display = 'none';
+        if(noteDiv) noteDiv.style.display = 'none';
+
+        container = document.createElement('div');
+        container.id = 'dynamicEditInstallmentContainer';
+        container.style.width = '100%';
+        container.style.marginTop = '15px';
+        amountDiv.parentNode.insertBefore(container, amountDiv);
+    }
+
+    let html = `<h4 style="margin:0 0 10px 0; color:var(--text-main); font-size:14px;"><i class="fas fa-history" style="color:var(--primary);"></i> Edit Payment History</h4>`;
+    let totalPaidInEdit = 0;
+
+    if (window.tempEditInstallments.length === 0) {
+        html += `<div style="color:var(--danger); font-size:12px; margin-bottom:10px;">No payments made yet.</div>`;
+    } else {
+        window.tempEditInstallments.forEach((hist, index) => {
+            totalPaidInEdit += parseFloat(hist.amount) || 0;
+            // 🟢 প্রতিটা কিস্তির জন্য আলাদা বক্স
+            html += `
+            <div style="background:var(--bg-input); padding:10px; border-radius:8px; border:1px dashed var(--border-color); margin-bottom:10px; position:relative;">
+                <div style="font-size:11px; font-weight:bold; color:var(--text-muted); margin-bottom:5px;">Installment ${index + 1}</div>
+                
+                <div style="display:flex; gap:10px; margin-bottom:8px;">
+                    <input type="number" id="edit-inst-amt-${index}" value="${hist.amount}" class="swal2-input" placeholder="Amount (₹)" style="margin:0; width:50%; font-size:14px; height:38px; box-sizing:border-box;" oninput="window.updateEditInstallmentData(${index}, 'amount', this.value)">
+                    <input type="date" id="edit-inst-date-${index}" value="${hist.date}" class="swal2-input" style="margin:0; width:50%; font-size:13px; height:38px; box-sizing:border-box;" onchange="window.updateEditInstallmentData(${index}, 'date', this.value)">
+                </div>
+                
+                <div style="display:flex; gap:10px;">
+                    <select id="edit-inst-mode-${index}" class="swal2-input" style="margin:0; width:35%; font-size:13px; height:38px; padding:0 5px;" onchange="window.updateEditInstallmentData(${index}, 'mode', this.value)">
+                        <option value="Cash" ${hist.mode === 'Cash' ? 'selected' : ''}>Cash</option>
+                        <option value="Online" ${hist.mode === 'Online' ? 'selected' : ''}>Online</option>
+                    </select>
+                    <input type="text" id="edit-inst-note-${index}" value="${hist.note || ''}" class="swal2-input" placeholder="Txn ID / Note" style="margin:0; width:65%; font-size:13px; height:38px; box-sizing:border-box;" oninput="window.updateEditInstallmentData(${index}, 'note', this.value)">
+                </div>
+                
+                <button onclick="window.removeEditInstallment(${index})" style="position:absolute; top:5px; right:5px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px;"><i class="fas fa-times-circle"></i></button>
+            </div>`;
+        });
+    }
+
+    html += `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+            <div style="font-size:14px; font-weight:bold; color:var(--success);">Total Paid: ₹${totalPaidInEdit}</div>
+            <button onclick="window.addNewEditInstallment()" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:6px; font-size:12px; cursor:pointer;"><i class="fas fa-plus"></i> Add Installment</button>
+        </div>
+    `;
+
+    container.innerHTML = html;
+};
+
+// ডাটা আপডেট করা
+window.updateEditInstallmentData = function(index, field, value) {
+    if (field === 'amount') window.tempEditInstallments[index].amount = parseFloat(value) || 0;
+    else window.tempEditInstallments[index][field] = value;
+    
+    // 🟢 ডেটা আপডেট হওয়ার সাথে সাথেই UI এবং Due রিক্যালকুলেট করবে
+    window.renderEditInstallmentsUI();
+    window.calculateSaleDue(); 
+};
+
+// কিস্তি রিমুভ করা
+window.removeEditInstallment = function(index) {
+    window.tempEditInstallments.splice(index, 1);
+    window.renderEditInstallmentsUI();
+    window.calculateSaleDue(); // 🟢 যোগ করা হলো
+};
+
+// নতুন কিস্তি যোগ করা
+window.addNewEditInstallment = function() {
+    window.tempEditInstallments.push({
+        date: new Date().toISOString().split('T')[0],
+        amount: 0,
+        mode: 'Cash',
+        note: ''
+    });
+    window.renderEditInstallmentsUI();
+    window.calculateSaleDue(); // 🟢 যোগ করা হলো
 };
