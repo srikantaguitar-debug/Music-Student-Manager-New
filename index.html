@@ -480,7 +480,10 @@
     </select>
     <input type="number" id="studentFee" placeholder="Fee (₹)" style="flex: 1;">
 </div>
-                    <div class="form-group"><input type="tel" id="phone" placeholder="Phone Number"></div>
+                    <div class="form-group" style="display:flex; flex-direction:column; gap:5px;">
+    <input type="tel" id="phone" placeholder="Primary Phone">
+    <input type="tel" id="altPhone" placeholder="Alternate Phone (Optional)">
+</div>
                     <div class="form-group"><input type="email" id="studentEmail" placeholder="Email"></div>
                     <div class="form-group"><input type="text" id="guardianName" placeholder="Guardian Name"></div>
                     <div class="form-group"><input type="text" id="address" placeholder="Address"></div>
@@ -1115,7 +1118,11 @@
         <input type="number" id="editStudentFee" placeholder="Amount" style="flex: 1;">
     </div>
 </div>
-                <div class="form-group"><label>Phone</label><input type="tel" id="editPhone"></div>
+                <div class="form-group" style="display:flex; flex-direction:column; gap:5px;">
+    <label>Phone Numbers</label>
+    <input type="tel" id="editPhone" placeholder="Primary Phone">
+    <input type="tel" id="editAltPhone" placeholder="Alternate Phone (Optional)">
+</div>
                 <div class="form-group"><label>Guardian</label><input type="text" id="editGuardianName"></div>
                 <div class="form-group"><label>Email</label><input type="email" id="editStudentEmail"></div>
                 <div class="form-group"><label>Addr</label><input type="text" id="editAddress"></div>
