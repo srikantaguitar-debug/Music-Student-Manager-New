@@ -3114,9 +3114,9 @@ window.getContactButtons = function(studentId, month) {
     let phoneStr = student.phone.replace(/[^0-9]/g, '');
     return `
         <div style="display:flex; gap:6px; align-items:center;">
-            <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none;"><i class="fas fa-phone-alt"></i></a>
-            <button onclick="sendMsg('wa', ${student.id}, '${month}')" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
-            <button onclick="sendMsg('sms', ${student.id}, '${month}')" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+            <button onclick="window.callStudent(${student.id})" title="Call" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; border:none; cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
+            <button onclick="sendMsg('wa', ${student.id}, '${month}')" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; border:none; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+            <button onclick="sendMsg('sms', ${student.id}, '${month}')" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border-radius:6px; border:none; cursor:pointer;"><i class="fas fa-sms"></i></button>
         </div>
     `;
 };
@@ -3125,9 +3125,9 @@ window.getAllContactButtons = function(student) {
     let phoneStr = student.phone.replace(/[^0-9]/g, '');
     return `
         <div style="display:flex; gap:6px; align-items:center;">
-            <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none;"><i class="fas fa-phone-alt"></i></a>
-            <button onclick="sendGeneralMsg('wa', ${student.id})" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
-            <button onclick="sendGeneralMsg('sms', ${student.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+            <button onclick="window.callStudent(${student.id})" title="Call" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; border:none; cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
+            <button onclick="sendGeneralMsg('wa', ${student.id})" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; border:none; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+            <button onclick="sendGeneralMsg('sms', ${student.id})" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border-radius:6px; border:none; cursor:pointer;"><i class="fas fa-sms"></i></button>
         </div>
     `;
 };
@@ -3421,7 +3421,7 @@ window.renderReminders = function() {
                 contactButtonsHtml = `
                 <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-top: 15px; margin-bottom: 15px;"></div>
                 <div style="display:flex; gap:15px; justify-content:center;">
-                    <button onclick="window.location.href='tel:${cleanPhone}'" style="background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="Call"><i class="fas fa-phone-alt" style="font-size:26px;"></i></button>
+                    <button onclick="window.callStudent(${student.id})" style="background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="Call"><i class="fas fa-phone-alt" style="font-size:26px;"></i></button>
                     <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="background:#25D366; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="WhatsApp"><i class="fab fa-whatsapp" style="font-size:32px;"></i></button>
                     <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3); width:65px; height:65px;" title="SMS"><i class="fas fa-sms" style="font-size:28px;"></i></button>
                 </div>`;
@@ -3617,11 +3617,11 @@ window.renderDayWiseClasses = function(dayValue = 'tomorrow') {
                 // 🟢 NEW: লিংকের বদলে বাটন ব্যবহার করা হলো, যাতে ক্লিক করলে ডেট সিলেক্ট করার পপআপ আসে
                 contactButtons = `
                     <div style="display:flex; gap:6px; align-items:center;">
-                        <a href="tel:${phoneStr}" title="Call" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
+                        <button onclick="window.callStudent(${s.id})" title="Call" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; border:none; cursor:pointer; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></button>
                         
-                        <button onclick="window.sendClassReminderWithDate('wa', ${s.id}, '${targetDayName}', '${timeDisplay}')" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+                        <button onclick="window.sendClassReminderWithDate('wa', ${s.id}, '${targetDayName}', '${timeDisplay}')" title="WhatsApp" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; border:none; cursor:pointer; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
                         
-                        <button onclick="window.sendClassReminderWithDate('sms', ${s.id}, '${targetDayName}', '${timeDisplay}')" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border:none; border-radius:6px; cursor:pointer; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></button>
+                        <button onclick="window.sendClassReminderWithDate('sms', ${s.id}, '${targetDayName}', '${timeDisplay}')" title="SMS" style="width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; border:none; cursor:pointer; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></button>
                     </div>
                 `;
             }
@@ -3765,9 +3765,9 @@ function renderDashboard() {
                     </div>
                     
                     <div style="display:flex; gap: 5px; align-items:center;">
-                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; text-decoration:none; display:flex; align-items:center; justify-content:center;" title="Call">
+                        <button onclick="window.callStudent(${st.id})" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Call">
                             <i class="fas fa-phone-alt"></i>
-                        </a>
+                        </button>
                         <button onclick="window.sendAbsentAlertMsg('wa', ${st.id}, ${item.days})" style="background:#25D366; color:white; border:none; padding:8px 10px; border-radius:6px; font-size:14px; cursor:pointer;" title="WhatsApp">
                             <i class="fab fa-whatsapp"></i>
                         </button>
@@ -3968,7 +3968,7 @@ window.showTodaysPracticingStudentsModal = function() {
                     contactHtml = `
                     <div style="width: 100%; border-top: 1px dashed rgba(255,255,255,0.2); margin-top: 15px; margin-bottom: 15px;"></div>
                     <div style="display:flex; gap:10px; justify-content:center;">
-                        <button onclick="window.location.href='tel:${cleanPhone}'" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
+                        <button onclick="window.callStudent(${student.id})" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
                         <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="flex:1; background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fab fa-whatsapp" style="font-size:26px;"></i></button>
                         <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="flex:1; background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-sms" style="font-size:22px;"></i></button>
                     </div>`;
@@ -6343,14 +6343,10 @@ function sendNoteAction(type, studentId, note, rawDate) {
                     `Srikanta Banerjee\n` +
                     `(Guitar, Bass Guitar, Piano, Keyboard, Violin, Mandolin Classes)`;
     
-    if (type === 'wa') {
-        let cleanPhone = student.phone.replace(/[^0-9]/g, '');
-        if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-        
-        window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
-    } else if (type === 'sms') {
-        window.open(`sms:${student.phone}?body=${encodeURIComponent(msgBody)}`, '_self');
-    }
+    // ... ওপরের msgBody তৈরির কোড ঠিক থাকবে ...
+
+    // 🟢 মাস্টার ফাংশন কল করা হলো (এতে দুটি নম্বর থাকলে পপআপ আসবে)
+    window.choosePhoneAndSend(student, type, msgBody);
 }
 
 function calculateAge(dob) {
@@ -10041,10 +10037,9 @@ window.showSalesDuesPopup = function() {
             // 🟢 বাটনগুলোকে কার্ডের ভেতরে এবং Pay Now এর ঠিক নিচে বসানোর ডিজাইন
             contactBtnsHtml = `
                 <div style="display:flex; gap:10px; align-items:center; margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 12px;">
-                    <a href="${callUrl}" title="Call" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:8px; text-decoration:none; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);"><i class="fas fa-phone-alt"></i></a>
-                    <a href="${waUrl}" target="_blank" title="WhatsApp" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:8px; text-decoration:none; font-size: 18px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2);"><i class="fab fa-whatsapp"></i></a>
-                    <a href="${smsUrl}" title="SMS" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:8px; text-decoration:none; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);"><i class="fas fa-sms"></i></a>
-                </div>
+                    <button onclick="window.callStudent('${sale.studentId}')" title="Call" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:8px; border:none; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
+                    <button onclick="window.sendSaleWhatsApp('${sale.id}')" title="WhatsApp" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:8px; border:none; font-size: 18px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
+                    <button onclick="window.sendSaleSMS('${sale.id}')" title="SMS" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:8px; border:none; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
             `;
         }
 
@@ -12938,7 +12933,7 @@ window.renderDashboard = function() {
                         contactHtml = `
                         <div style="width: 100%; border-top: 1px dashed var(--border-color); margin-top: 15px; margin-bottom: 15px;"></div>
                         <div style="display:flex; gap:10px; justify-content:center;">
-                            <button onclick="window.location.href='tel:${cleanPhone}'" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
+                            <button onclick="window.callStudent(${student.id})" style="flex:1; background:#10b981; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-phone-alt" style="font-size:22px;"></i></button>
                             <button onclick="window.sendReminderSpecificMsg('wa', ${student.id}, '${r.id}')" style="flex:1; background:#22c55e; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fab fa-whatsapp" style="font-size:26px;"></i></button>
                             <button onclick="window.sendReminderSpecificMsg('sms', ${student.id}, '${r.id}')" style="flex:1; background:#0ea5e9; color:#fff; border-radius:12px; padding: 10px; border:none; cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px rgba(0,0,0,0.3);"><i class="fas fa-sms" style="font-size:22px;"></i></button>
                         </div>`;
@@ -15393,9 +15388,9 @@ window.renderInquiries = function() {
                 ${inq.note ? `<div style="font-size: 12.5px; color: #b45309; background: #fef3c7; padding: 6px 10px; border-radius: 6px; margin-top: 8px; margin-bottom: 10px; border: 1px dashed #fcd34d;"><strong>Note:</strong> ${inq.note}</div>` : ''}
                 
                 <div style="display:flex; gap:8px; align-items:center; border-top: 1px dashed var(--border-color); padding-top: 10px; margin-top: 10px;">
-                    <a href="${callUrl}" title="Call" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; text-decoration:none; font-size:14px; box-shadow:0 2px 4px rgba(5,150,105,0.2);"><i class="fas fa-phone-alt"></i></a>
-                    <a href="${waUrl}" target="_blank" title="WhatsApp" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; text-decoration:none; font-size: 16px; box-shadow:0 2px 4px rgba(37,211,102,0.2);"><i class="fab fa-whatsapp"></i></a>
-                    <a href="${smsUrl}" title="SMS" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; text-decoration:none; font-size:14px; box-shadow:0 2px 4px rgba(14,165,233,0.2);"><i class="fas fa-sms"></i></a>
+                    <button onclick="window.choosePhoneAndSend({phone: '${inq.phone}'}, 'call', '')" title="Call" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; border:none; font-size:14px; box-shadow:0 2px 4px rgba(5,150,105,0.2); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
+                    <button onclick="window.choosePhoneAndSend({phone: '${inq.phone}'}, 'wa', \`${msg.replace(/`/g, "\\`")}\`)" title="WhatsApp" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; border:none; font-size: 16px; box-shadow:0 2px 4px rgba(37,211,102,0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
+                    <button onclick="window.choosePhoneAndSend({phone: '${inq.phone}'}, 'sms', \`${msg.replace(/`/g, "\\`")}\`)" title="SMS" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; border:none; font-size:14px; box-shadow:0 2px 4px rgba(14,165,233,0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
                     
                     <button onclick="window.editInquiry('${inq.id}')" title="Edit" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-edit"></i></button>
                     <button onclick="window.deleteInquiry('${inq.id}')" title="Delete" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(239,68,68,0.2);"><i class="fas fa-trash"></i></button>
@@ -15785,5 +15780,45 @@ window.choosePhoneAndSend = async function(studentObj, type, msgBody) {
         window.open(`sms:${selectedPhone}?body=${encodeURIComponent(msgBody)}`, '_self');
     } else if (type === 'call') {
         window.location.href = `tel:${selectedPhone}`;
+    }
+};
+// 🟢 NEW FUNCTION: কল করার জন্য মাস্টার ফাংশন
+window.callStudent = function(studentId) {
+    let student;
+    if (studentId === 'guest') {
+        try {
+            const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
+            const gData = gDataStr ? JSON.parse(gDataStr) : {};
+            student = { guestPhone: gData.phone || '' };
+        } catch(e) { student = { guestPhone: '' }; }
+    } else {
+        student = students.find(s => s.id === parseInt(studentId));
+    }
+    
+    if (student) {
+        // 'call' টাইপ দিয়ে মাস্টার ফাংশনকে পাঠানো হলো
+        window.choosePhoneAndSend(student, 'call', ''); 
+    } else {
+        Swal.fire('Error', 'Student not found!', 'error');
+    }
+};
+// 🟢 NEW FUNCTION: কল করার জন্য মাস্টার ফাংশন
+window.callStudent = function(studentId) {
+    let student;
+    if (studentId === 'guest') {
+        try {
+            const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
+            const gData = gDataStr ? JSON.parse(gDataStr) : {};
+            student = { guestPhone: gData.phone || '' };
+        } catch(e) { student = { guestPhone: '' }; }
+    } else {
+        student = students.find(s => s.id === parseInt(studentId));
+    }
+    
+    if (student) {
+        // 'call' টাইপ দিয়ে মাস্টার ফাংশনকে পাঠানো হলো
+        window.choosePhoneAndSend(student, 'call', ''); 
+    } else {
+        Swal.fire('Error', 'Student not found!', 'error');
     }
 };
