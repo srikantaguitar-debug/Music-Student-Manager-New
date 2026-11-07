@@ -4843,7 +4843,25 @@ window.renderFees = function() {
         
         if (isPaid) { 
             totalCollected += (feeRecord.amount || 0); collectedCount++; rowClass = 'paid'; statusText = `Paid (₹${feeRecord.amount})`; 
-            actionButtons = `<button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)">Edit</button> <button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>`;
+            
+            // 🟢 NEW: Paid স্টুডেন্টদের জন্য Receipt এর সাথে WhatsApp এবং SMS বাটন যোগ করা হলো (2 Number Support)
+            let paidContactBtns = '';
+            let phoneStr = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
+            if (phoneStr || student.altPhone) {
+                paidContactBtns = `
+                    <button onclick="sendMsg('wa', ${student.id}, '${selectedMonth}', ${feeRecord.amount}, false)" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+                    <button onclick="sendMsg('sms', ${student.id}, '${selectedMonth}', ${feeRecord.amount}, false)" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+                `;
+            }
+
+            actionButtons = `
+                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; width:100%;">
+                    <button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> 
+                    ${paidContactBtns}
+                    <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)" style="margin-left:auto;">Edit</button> 
+                    <button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>
+                </div>
+            `;
         } 
         else {
             // 🟢 NEW: WhatsApp, SMS and Call buttons as square icons next to Record Payment
