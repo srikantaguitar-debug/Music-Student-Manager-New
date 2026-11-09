@@ -4844,22 +4844,25 @@ window.renderFees = function() {
         if (isPaid) { 
             totalCollected += (feeRecord.amount || 0); collectedCount++; rowClass = 'paid'; statusText = `Paid (₹${feeRecord.amount})`; 
             
-            // 🟢 NEW: Paid স্টুডেন্টদের জন্য Receipt এর সাথে WhatsApp এবং SMS বাটন যোগ করা হলো (2 Number Support)
+            // 🟢 flex: 1 দেওয়ার ফলে বাটনগুলো সমানভাবে জায়গা নিয়ে নেবে এবং কোনো ফাঁকা জায়গা থাকবে না
+            const commonBtnStyle = "flex: 1; height: 32px !important; min-height: 32px !important; padding: 0 10px !important; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; border-radius: 6px; box-sizing: border-box; margin: 0;";
+            const iconBtnStyle = "width: 32px !important; height: 32px !important; min-height: 32px !important; flex-shrink: 0; padding: 0 !important; display: inline-flex; align-items: center; justify-content: center; border: none; border-radius: 6px; cursor: pointer; box-sizing: border-box; margin: 0;";
+
             let paidContactBtns = '';
             let phoneStr = student.phone ? student.phone.replace(/[^0-9]/g, '') : '';
             if (phoneStr || student.altPhone) {
                 paidContactBtns = `
-                    <button onclick="sendMsg('wa', ${student.id}, '${selectedMonth}', ${feeRecord.amount}, false)" title="WhatsApp" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
-                    <button onclick="sendMsg('sms', ${student.id}, '${selectedMonth}', ${feeRecord.amount}, false)" title="SMS" style="width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; cursor:pointer;"><i class="fas fa-sms"></i></button>
+                    <button onclick="sendMsg('wa', ${student.id}, '${selectedMonth}', ${feeRecord.amount}, false)" title="WhatsApp" style="${iconBtnStyle} background:#25D366; color:#fff;"><i class="fab fa-whatsapp" style="font-size:16px;"></i></button>
+                    <button onclick="sendMsg('sms', ${student.id}, '${selectedMonth}', ${feeRecord.amount}, false)" title="SMS" style="${iconBtnStyle} background:#f59e0b; color:#fff;"><i class="fas fa-sms" style="font-size:14px;"></i></button>
                 `;
             }
 
             actionButtons = `
-                <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; width:100%;">
-                    <button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')">Receipt</button> 
+                <div style="display:flex; gap:8px; flex-wrap:nowrap; align-items:center; width:100%;">
+                    <button class="btn-receipt" onclick="generatePaymentReceipt(${student.id}, '${selectedMonth}')" style="${commonBtnStyle}">Receipt</button> 
                     ${paidContactBtns}
-                    <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)" style="margin-left:auto;">Edit</button> 
-                    <button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')">Unmark</button>
+                    <button class="btn-warning" onclick="openFeeModal(${student.id}, '${selectedMonth}', true)" style="${commonBtnStyle}">Edit</button> 
+                    <button class="btn-danger" onclick="unmarkFee(${student.id}, '${selectedMonth}')" style="${commonBtnStyle}">Unmark</button>
                 </div>
             `;
         } 
@@ -15756,29 +15759,66 @@ window.addNewEditInstallment = function() {
     window.renderEditInstallmentsUI();
     window.calculateSaleDue(); // 🟢 যোগ করা হলো
 };
-// 🟢 NEW MASTER FUNCTION: Choose Phone Number before Sending WA/SMS/Call
-window.choosePhoneAndSend = async function(studentObj, type, msgBody) {
+// 🟢 NEW MASTER FUNCTION: Choose Phone Number before Sending WA/SMS/Call (Theme Adaptive)
+window.choosePhoneAndSend = async function(studentObj, type, msgBody = '') {
     let primaryPhone = studentObj.phone || studentObj.guestPhone || '';
     let alternatePhone = studentObj.altPhone || '';
     let selectedPhone = primaryPhone;
     
-    // যদি দুটো নম্বরই থাকে, তবে পপআপ দেখাবে
+    // অপশন কার্ড সিলেক্ট করার হেল্পার ফাংশন
+    window.selectPhoneOption = function(el, val) {
+        document.getElementById('swal-selected-phone').value = val;
+        document.querySelectorAll('.theme-phone-card').forEach(card => {
+            card.style.borderColor = 'var(--border-color)';
+            card.style.background = 'var(--bg-input)';
+        });
+        el.style.borderColor = 'var(--primary)';
+        el.style.background = 'var(--bg-body)';
+        el.querySelector('input[type="radio"]').checked = true;
+    };
+
+    // যদি দুটো নম্বরই থাকে, তবে থিমের কালার অনুযায়ী পপআপ দেখাবে
     if (primaryPhone && alternatePhone && alternatePhone.trim() !== '') {
-        const { value: chosenPhone } = await Swal.fire({
-            title: 'Select Number',
-            html: `<p style="font-size:13px; color:var(--text-muted); margin-top:0;">Which number do you want to use?</p>`,
-            input: 'radio',
-            inputOptions: {
-                [primaryPhone]: `Primary: ${primaryPhone}`,
-                [alternatePhone]: `Alternate: ${alternatePhone}`
-            },
-            inputValue: primaryPhone, // ডিফল্ট সিলেক্ট
+        const btnColor = type === 'wa' ? '#25D366' : (type === 'sms' ? '#0ea5e9' : '#059669');
+        
+        const { value: chosenPhone, isConfirmed } = await Swal.fire({
+            title: `<span style="color: var(--text-main); font-size: 22px; font-weight: 800;">Select Number</span>`,
+            html: `
+                <p style="font-size:13px; color:var(--text-muted); margin-top:0; margin-bottom:15px;">Which number do you want to use?</p>
+                <input type="hidden" id="swal-selected-phone" value="${primaryPhone}">
+                
+                <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+                    <!-- Primary Number -->
+                    <label class="theme-phone-card" onclick="window.selectPhoneOption(this, '${primaryPhone}')" style="display: flex; align-items: center; gap: 12px; padding: 12px 15px; border-radius: 12px; background: var(--bg-body); border: 2px solid var(--primary); cursor: pointer; transition: 0.2s;">
+                        <input type="radio" name="phoneChoice" value="${primaryPhone}" checked style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; margin: 0;">
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Primary</div>
+                            <div style="font-size: 16px; font-weight: 800; color: var(--text-main); margin-top: 2px;">${primaryPhone}</div>
+                        </div>
+                    </label>
+
+                    <!-- Alternate Number -->
+                    <label class="theme-phone-card" onclick="window.selectPhoneOption(this, '${alternatePhone}')" style="display: flex; align-items: center; gap: 12px; padding: 12px 15px; border-radius: 12px; background: var(--bg-input); border: 2px solid var(--border-color); cursor: pointer; transition: 0.2s;">
+                        <input type="radio" name="phoneChoice" value="${alternatePhone}" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; margin: 0;">
+                        <div>
+                            <div style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Alternate</div>
+                            <div style="font-size: 16px; font-weight: 800; color: var(--text-main); margin-top: 2px;">${alternatePhone}</div>
+                        </div>
+                    </label>
+                </div>
+            `,
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)',
             showCancelButton: true,
             confirmButtonText: '<i class="fas fa-paper-plane"></i> Proceed',
-            confirmButtonColor: type === 'wa' ? '#25D366' : (type === 'sms' ? '#0ea5e9' : '#059669')
+            confirmButtonColor: btnColor,
+            cancelButtonColor: '#ef4444',
+            preConfirm: () => {
+                return document.getElementById('swal-selected-phone').value;
+            }
         });
         
-        if (!chosenPhone) return; // User cancelled
+        if (!isConfirmed || !chosenPhone) return; // User cancelled
         selectedPhone = chosenPhone;
     } else if (!primaryPhone && alternatePhone) {
         selectedPhone = alternatePhone;
@@ -15800,7 +15840,8 @@ window.choosePhoneAndSend = async function(studentObj, type, msgBody) {
         window.location.href = `tel:${selectedPhone}`;
     }
 };
-// 🟢 NEW FUNCTION: কল করার জন্য মাস্টার ফাংশন
+
+// 🟢 NEW FUNCTION: কল করার জন্য মাস্টার ফাংশন (Guest সাপোর্ট সহ)
 window.callStudent = function(studentId) {
     let student;
     if (studentId === 'guest') {
@@ -15814,27 +15855,6 @@ window.callStudent = function(studentId) {
     }
     
     if (student) {
-        // 'call' টাইপ দিয়ে মাস্টার ফাংশনকে পাঠানো হলো
-        window.choosePhoneAndSend(student, 'call', ''); 
-    } else {
-        Swal.fire('Error', 'Student not found!', 'error');
-    }
-};
-// 🟢 NEW FUNCTION: কল করার জন্য মাস্টার ফাংশন
-window.callStudent = function(studentId) {
-    let student;
-    if (studentId === 'guest') {
-        try {
-            const gDataStr = document.getElementById('saleSelectedName').dataset.guestData;
-            const gData = gDataStr ? JSON.parse(gDataStr) : {};
-            student = { guestPhone: gData.phone || '' };
-        } catch(e) { student = { guestPhone: '' }; }
-    } else {
-        student = students.find(s => s.id === parseInt(studentId));
-    }
-    
-    if (student) {
-        // 'call' টাইপ দিয়ে মাস্টার ফাংশনকে পাঠানো হলো
         window.choosePhoneAndSend(student, 'call', ''); 
     } else {
         Swal.fire('Error', 'Student not found!', 'error');
