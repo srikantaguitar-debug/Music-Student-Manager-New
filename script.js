@@ -1421,10 +1421,7 @@ document.body.innerHTML = `
     </span>
 </div>
                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
-    <span style="font-weight:600;">Phone:</span> 
-    <div style="text-align: right; color:var(--text-main); font-weight: 500;">
-        ${s.phone ? s.phone.split(',').map(num => `<div>${num.trim()}</div>`).join('') : 'N/A'}
-    </div>
+    <span style="font-weight:600;">Phone:</span> <span style="color:var(--text-main); text-align: right;">${(s.phone && s.altPhone) ? s.phone + ',<br>' + s.altPhone : (s.phone || s.altPhone || 'N/A')}</span>
 </div>
                 <div style="display:flex; justify-content:space-between; padding: 10px 0; border-bottom: 1px dashed var(--border-color);">
                     <span style="font-weight:600;">DOB:</span> <span style="color:var(--text-main);">${s.dob ? new Date(s.dob).toLocaleDateString('en-IN') : 'N/A'}</span>
