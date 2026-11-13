@@ -12706,12 +12706,13 @@ window.renderDashboard = function() {
     }
 
     // =========================================================
-    // 🟢 14 Days Absent Alert Logic (Themed & Scrollable)
+    // 🟢 14 Days Absent Alert Logic (Present OR Note Check - 100% Fixed)
     // =========================================================
     let absentBox = document.getElementById('longAbsentAlertBox');
     if (!absentBox) {
         absentBox = document.createElement('div');
         absentBox.id = 'longAbsentAlertBox';
+        const birthdayBox = document.getElementById('birthdayAlertBox');
         if (birthdayBox && birthdayBox.parentNode) {
             birthdayBox.parentNode.insertBefore(absentBox, birthdayBox.nextSibling);
         }
@@ -12722,50 +12723,65 @@ window.renderDashboard = function() {
     let longAbsentees = [];
 
     activeStudents.forEach(s => {
-        let lastPresentTime = 0;
-        // Find last present date
+        let lastActivityTime = 0; 
+        
+        // 🟢 চেক করা হচ্ছে: Present আছে কিনা অথবা Note দেওয়া হয়েছে কিনা
         for(const date in attendance) {
             const entry = attendance[date][s.id];
-            const status = (typeof entry === 'object' && entry !== null) ? entry.status : entry;
-            if(status === 'present') {
-                const dTime = new Date(date).getTime();
-                if(dTime > lastPresentTime) {
-                    lastPresentTime = dTime;
+            
+            if (entry !== undefined && entry !== null) {
+                let isPresent = false;
+                let hasNote = false;
+                
+                // যদি ডেটা নতুন Object ফরম্যাটে থাকে
+                if (typeof entry === 'object') {
+                    if (entry.status === 'present') isPresent = true;
+                    if (entry.note && entry.note.trim() !== '') hasNote = true;
+                } 
+                // যদি ডেটা পুরনো String ফরম্যাটে থাকে
+                else if (typeof entry === 'string') {
+                    if (entry === 'present') isPresent = true;
+                }
+
+                // 🟢 Present অথবা Note যেকোনো একটা থাকলেই টাইম আপডেট হবে
+                if (isPresent || hasNote) {
+                    const dTime = new Date(date).getTime();
+                    if (dTime > lastActivityTime) {
+                        lastActivityTime = dTime;
+                    }
                 }
             }
         }
         
-        let daysAbsent = 0;
-        if (lastPresentTime > 0) {
-            daysAbsent = Math.floor((todayForAbs.getTime() - lastPresentTime) / (1000 * 3600 * 24));
+        let daysInactive = 0;
+        if (lastActivityTime > 0) {
+            daysInactive = Math.floor((todayForAbs.getTime() - lastActivityTime) / (1000 * 3600 * 24));
         } else {
-            // যদি একবারও ক্লাসে না এসে থাকে, তবে জয়েনিং ডেট থেকে হিসেব হবে
+            // যদি কখনো প্রেজেন্ট না থাকে বা নোট না পায়, তাহলে জয়েনিং ডেট থেকে হিসেব হবে
             const joinTime = new Date(s.joining_date).getTime();
-            daysAbsent = Math.floor((todayForAbs.getTime() - joinTime) / (1000 * 3600 * 24));
+            daysInactive = Math.floor((todayForAbs.getTime() - joinTime) / (1000 * 3600 * 24));
         }
 
-        // চেক করা হচ্ছে গত ১৪ দিনের মধ্যে তাকে কল/মেসেজ করা হয়েছে কি না
         let recentlyContacted = false;
         if (s.last_absent_contacted) {
             const contactTime = new Date(s.last_absent_contacted).getTime();
             const daysSinceContact = Math.floor((todayForAbs.getTime() - contactTime) / (1000 * 3600 * 24));
-            if (daysSinceContact < 14) recentlyContacted = true; // ১৪ দিনের মধ্যে মার্ক করা থাকলে আর দেখাবে না
+            if (daysSinceContact < 14) recentlyContacted = true; 
         }
 
         // ১৪ দিন পার হলে লিস্টে যোগ হবে
-        if (daysAbsent >= 14 && !recentlyContacted) {
-            longAbsentees.push({ student: s, days: daysAbsent });
+        if (daysInactive >= 14 && !recentlyContacted) {
+            longAbsentees.push({ student: s, days: daysInactive });
         }
     });
 
     if (longAbsentees.length > 0) {
-        longAbsentees.sort((a,b) => b.days - a.days); // যারা সবচেয়ে বেশি দিন আসেনি তারা ওপরে থাকবে
+        longAbsentees.sort((a,b) => b.days - a.days); 
         
-        // 🟢 থিম অনুযায়ী ব্যাকগ্রাউন্ড কালার এবং স্ক্রলিং ডিভ (max-height 220px)
         let absentHtml = `
         <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1px dashed var(--danger); box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
             <h4 style="margin: 0 0 10px 0; color: var(--danger); font-size: 14px; display: flex; align-items: center; gap: 6px;">
-                <i class="fas fa-user-clock fa-shake"></i> 14+ Days Absent Alert
+                <i class="fas fa-user-clock fa-shake"></i> 14+ Days Inactive Alert
             </h4>
             <div class="scroller-box" style="display: flex; flex-direction: column; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 5px;">
         `;
@@ -12779,14 +12795,14 @@ window.renderDashboard = function() {
                         <img src="${photoSrc}" style="width:35px; height:35px; border-radius:50%; object-fit:cover; border: 1px solid var(--border-color);">
                         <div style="line-height: 1.2;">
                             <strong style="color: var(--text-main); font-size:13px;">${st.name}</strong><br>
-                            <span style="font-size:10.5px; color: var(--danger); font-weight:700;">Absent for ${item.days} days</span>
+                            <span style="font-size:10.5px; color: var(--danger); font-weight:700;">No Activity for ${item.days} days</span>
                         </div>
                     </div>
                     
                     <div style="display:flex; gap: 5px; align-items:center;">
-                        <a href="tel:${st.phone}" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; text-decoration:none; display:flex; align-items:center; justify-content:center;" title="Call">
+                        <button onclick="window.callStudent(${st.id})" style="background: var(--info); color:white; border:none; padding:8px 10px; border-radius:6px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Call">
                             <i class="fas fa-phone-alt"></i>
-                        </a>
+                        </button>
                         <button onclick="window.sendAbsentAlertMsg('wa', ${st.id}, ${item.days})" style="background:#25D366; color:white; border:none; padding:8px 10px; border-radius:6px; font-size:14px; cursor:pointer;" title="WhatsApp">
                             <i class="fab fa-whatsapp"></i>
                         </button>
