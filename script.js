@@ -9462,7 +9462,8 @@ const txnNote = document.getElementById('saleTxnNote').value.trim();
         originalPrice: cartTotal, discount: discountAmount, price: finalPriceAfterDiscount, 
         paid: paid, due: due, date: currentDateStr,
         guestPhone: guestPhone, guestAddress: guestAddress,
-        paymentHistory: paymentHistory,paymentMode: paymentMode,
+        paymentHistory: paymentHistory,
+        paymentMode: paid > 0 ? paymentMode : '',
     txnNote: txnNote // 🟢 সেভ করা হলো
     };
 
@@ -9694,7 +9695,9 @@ window.generateSalePDF = async function(sale, student) {
 
     // 🟢 NEW: PDF এ Payment Mode & Note অ্যাড করা হচ্ছে
     doc.setFontSize(8.5);
-    let payModeText = sale.paymentMode || 'Cash';
+    let payModeText = (sale.paymentHistory && sale.paymentHistory.length > 0)
+        ? [...new Set(sale.paymentHistory.map(h => h.mode || 'Cash'))].join(', ')
+        : (sale.paid > 0 ? (sale.paymentMode || 'Cash') : 'Unpaid');
     doc.text(`Pay Mode:`, 45, y); doc.text(payModeText, 75, y); y += 5;
 
     // 🟢 Updated: Txn / Note with word wrap
@@ -9762,7 +9765,7 @@ window.generateSalePDF = async function(sale, student) {
     }
     
     // 🟢 WA Template for PDF Popup Button Support
-    let payModeMsgWA = sale.paymentMode ? `\n*Payment Mode:* ${sale.paymentMode}` : '\n*Payment Mode:* Cash';
+    let payModeMsgWA = `\n*Payment Mode:* ${payModeText}`;
     let noteMsgWA = sale.txnNote ? `\n*Txn/Note:* ${sale.txnNote}` : '';
 
     window.tempSaleMsg = `Hello ${student.name},\nHere is your Money Receipt for:\n${itemsNamesWA}\n\n*Total Bill:* ₹${origP}${discMsg}\n*Final Payable:* ₹${sale.price}\n*Total Paid:* ₹${sale.paid}${payModeMsgWA}${noteMsgWA}${historyText}${dueMsg}\n\nThank You!`;
@@ -9829,7 +9832,10 @@ window.sendSaleWhatsApp = async function(saleId) {
     }
     
     // 🟢 NEW: Payment Mode & Note 
-    let payModeMsg = sale.paymentMode ? `\n*Payment Mode:* ${sale.paymentMode}` : '\n*Payment Mode:* Cash';
+    let actualPayMode = (sale.paymentHistory && sale.paymentHistory.length > 0)
+        ? [...new Set(sale.paymentHistory.map(h => h.mode || 'Cash'))].join(', ')
+        : (sale.paid > 0 ? (sale.paymentMode || 'Cash') : 'Unpaid');
+    let payModeMsg = `\n*Payment Mode:* ${actualPayMode}`;
     let noteMsg = sale.txnNote ? `\n*Txn/Note:* ${sale.txnNote}` : '';
 
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
@@ -9876,7 +9882,10 @@ window.sendSaleSMS = async function(saleId) {
     }
     
     // 🟢 NEW: Payment Mode & Note
-    let payModeMsg = sale.paymentMode ? `\nPayment Mode: ${sale.paymentMode}` : '\nPayment Mode: Cash';
+    let actualPayMode = (sale.paymentHistory && sale.paymentHistory.length > 0)
+        ? [...new Set(sale.paymentHistory.map(h => h.mode || 'Cash'))].join(', ')
+        : (sale.paid > 0 ? (sale.paymentMode || 'Cash') : 'Unpaid');
+    let payModeMsg = `\nPayment Mode: ${actualPayMode}`;
     let noteMsg = sale.txnNote ? `\nTxn/Note: ${sale.txnNote}` : '';
 
     const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
@@ -11851,14 +11860,9 @@ window.paySaleDue = async function(saleId) {
             note: formValues.note
         });
 
-        // 🟢 পেমেন্ট মোড এবং নোট আপডেট (আগেরগুলো না মুছে নতুনগুলো জুড়ে দেওয়া হচ্ছে)
-        if (formValues.mode) {
-            if (sale.paymentMode && !sale.paymentMode.includes(formValues.mode)) {
-                sale.paymentMode = sale.paymentMode + ", " + formValues.mode;
-            } else if (!sale.paymentMode) {
-                sale.paymentMode = formValues.mode;
-            }
-        }
+        // 🟢 শুধুমাত্র Payment History-তে যে মোডে টাকা জমা হয়েছে, সেগুলোই সেভ হবে
+        const validModes = [...new Set((sale.paymentHistory || []).map(h => h.mode).filter(Boolean))];
+        sale.paymentMode = validModes.join(', ');
         
         if (formValues.note) {
             if (sale.txnNote) {
