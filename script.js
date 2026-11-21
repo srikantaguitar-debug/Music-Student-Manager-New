@@ -8779,90 +8779,7 @@ window.deleteSaleRecord = function(saleId) {
     });
 };
 
-// ==========================================
-// 🟢 PENDING ACCESSORY DUES POPUP (NEW FUNCTION)
-// ==========================================
-window.showSalesDuesPopup = function() {
-    // ডিউ রেকর্ডগুলো ফিল্টার করা
-    let selectedYear = document.getElementById('salesYearFilter') ? document.getElementById('salesYearFilter').value : 'Lifetime';
-    let selectedMonth = document.getElementById('salesMonthFilter') ? document.getElementById('salesMonthFilter').value : 'All';
-    const filterText = document.getElementById('searchSalesHistoryInput') ? document.getElementById('searchSalesHistoryInput').value.toLowerCase().trim() : '';
 
-    let duesList = salesDataArray.filter(s => {
-        const sDate = new Date(s.date);
-        const sYear = sDate.getFullYear().toString();
-        const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
-        
-        const matchYear = (selectedYear === 'Lifetime' || sYear === selectedYear);
-        const matchMonth = (selectedMonth === 'All' || sMonth === selectedMonth);
-        const matchSearch = (!filterText || `${s.studentName} ${s.item}`.toLowerCase().includes(filterText));
-        
-        return matchYear && matchMonth && matchSearch && s.due > 0;
-    });
-
-    if (!duesList || duesList.length === 0) return;
-
-    let duesHtml = `<div style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">`;
-
-    duesList.forEach(s => {
-        const dateStr = s.date ? new Date(s.date).toLocaleDateString('en-IN') : '';
-        const safeId = s.id ? s.id.toString() : '';
-        
-        let itemName = 'Unknown Item';
-        if (s.cart && s.cart.length > 0) {
-            itemName = s.cart.map(c => `${c.name} (x${c.qty})`).join(', ');
-        } else if (s.item) {
-            itemName = s.item;
-        }
-
-        let studentImg = 'https://via.placeholder.com/150?text=No+Photo';
-        if (typeof students !== 'undefined' && students.length > 0) {
-            const matchedStudent = students.find(st => st.name === s.studentName);
-            if (matchedStudent && matchedStudent.photo) {
-                studentImg = matchedStudent.photo;
-            }
-        }
-
-        duesHtml += `
-            <div style="background: #3b2a82; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
-                    <img src="${studentImg}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1;">
-                    <div style="text-align: left;">
-                        <div style="color: white; font-size: 16px; font-weight: 900; line-height: 1.2;">${s.studentName}</div>
-                        <div style="color: #94a3b8; font-size: 12px; margin-top: 4px;"><strong>Date:</strong> ${dateStr}</div>
-                    </div>
-                </div>
-                <div style="background: #2e1d6b; border-radius: 10px; padding: 10px; text-align: left; margin-bottom: 15px;">
-                    <span style="color: white; font-weight: bold; font-size: 14px;">Item:</span> 
-                    <span style="color: #38bdf8; font-size: 14px; font-weight: 500;">${itemName}</span>
-                </div>
-                <div style="background: #fff5f5; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="text-align: left;">
-                        <div style="color: #ef4444; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">TOTAL DUE</div>
-                        <div style="color: #ef4444; font-size: 22px; font-weight: 900;">₹${s.due}</div>
-                    </div>
-                    <button onclick="Swal.close(); setTimeout(() => window.paySaleDue(${safeId}), 300);" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.3);">
-                        Pay Now
-                    </button>
-                </div>
-            </div>
-        `;
-    });
-
-    duesHtml += `</div>`;
-
-    Swal.fire({
-        title: '<div style="color: white; font-size: 24px; font-weight: 900; line-height: 1.3;">Pending<br>Accessory<br>Dues</div>',
-        html: duesHtml,
-        showConfirmButton: false,
-        showCloseButton: false, 
-        footer: '<button onclick="Swal.close()" style="background: #ef4444; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">Close</button>',
-        background: '#1e0b58', 
-        customClass: { popup: 'rounded-3xl border-2 border-indigo-500/30' },
-        width: '95%',
-        padding: '20px 10px'
-    });
-};
 
 // ==========================================
 // 🟢 UPDATED SALES HISTORY RENDER
@@ -10019,95 +9936,156 @@ window.downloadSaleReceiptOnly = function() {
     Swal.close();
 };
 
+// ==========================================
+// 🟢 PENDING ACCESSORY DUES POPUP (FIXED)
+// ==========================================
 window.showSalesDuesPopup = function() {
-    let dueRecords = salesDataArray.filter(s => s.due > 0);
-    
-    if (dueRecords.length === 0) {
-        Swal.fire('No Dues', 'All accessory sales are fully paid!', 'success');
-        return;
-    }
+    let selectedYear = document.getElementById('salesYearFilter') ? document.getElementById('salesYearFilter').value : 'Lifetime';
+    let selectedMonth = document.getElementById('salesMonthFilter') ? document.getElementById('salesMonthFilter').value : 'All';
+    const filterText = document.getElementById('searchSalesHistoryInput') ? document.getElementById('searchSalesHistoryInput').value.toLowerCase().trim() : '';
 
-    let listHtml = '<div style="max-height: 60vh; overflow-y: auto; text-align: left; padding: 5px;">';
-    
-    dueRecords.forEach(sale => {
-        const student = students.find(st => st.id == sale.studentId);
-        const photoSrc = student && student.photo ? student.photo : (sale.studentId == 0 || sale.studentId == 'guest' ? 'https://via.placeholder.com/50?text=G' : 'https://via.placeholder.com/50?text=S');
-        const dateStr = new Date(sale.date).toLocaleDateString('en-IN');
+    let duesList = salesDataArray.filter(s => {
+        const sDate = new Date(s.date);
+        const sYear = sDate.getFullYear().toString();
+        const sMonth = (sDate.getMonth() + 1).toString().padStart(2, '0');
         
-        // 🟢 কন্টাক্ট বাটনগুলো তৈরি করা হচ্ছে
-        let contactBtnsHtml = '';
-        let phone = '';
-        if(sale.studentId !== 0 && sale.studentId !== 'guest') {
-            phone = student ? student.phone || '' : '';
-        } else {
-            phone = sale.guestPhone || ''; 
+        const matchYear = (selectedYear === 'Lifetime' || sYear === selectedYear);
+        const matchMonth = (selectedMonth === 'All' || sMonth === selectedMonth);
+        const matchSearch = (!filterText || `${s.studentName} ${s.item}`.toLowerCase().includes(filterText));
+        
+        return matchYear && matchMonth && matchSearch && s.due > 0;
+    });
+
+    if (!duesList || duesList.length === 0) return;
+
+    let duesHtml = `<div style="max-height: 60vh; overflow-y: auto; padding-right: 5px;">`;
+
+    duesList.forEach(s => {
+        const dateStr = s.date ? new Date(s.date).toLocaleDateString('en-IN') : '';
+        const safeId = s.id ? s.id.toString() : '';
+        
+        let itemName = 'Unknown Item';
+        if (s.cart && s.cart.length > 0) {
+            itemName = s.cart.map(c => `${c.name} (x${c.qty})`).join(', ');
+        } else if (s.item) {
+            itemName = s.item;
         }
 
-        if (phone) {
-            let cleanPhone = phone.replace(/[^0-9]/g, '');
-            if(cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
-            
-            // ডিউ মেসেজ টেমপ্লেট
-            const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-            const dueMsg = `Hello ${sale.studentName},\n\nThis is a gentle reminder that an amount of Rs. ${sale.due} is pending for the purchase of ${sale.item}.\n\nPlease clear the due amount as soon as possible.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
-            
-            const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(dueMsg)}`;
-            const smsUrl = `sms:${phone}?body=${encodeURIComponent(dueMsg)}`;
-            const callUrl = `tel:${phone}`;
-
-            // 🟢 বাটনগুলোকে কার্ডের ভেতরে এবং Pay Now এর ঠিক নিচে বসানোর ডিজাইন
-            contactBtnsHtml = `
-                <div style="display:flex; gap:10px; align-items:center; margin-top: 12px; border-top: 1px dashed var(--border-color); padding-top: 12px;">
-                    <button onclick="window.callStudent('${sale.studentId}')" title="Call" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:8px; border:none; font-size:16px; box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
-                    <button onclick="window.sendSaleWhatsApp('${sale.id}')" title="WhatsApp" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:8px; border:none; font-size: 18px; box-shadow: 0 2px 4px rgba(37, 211, 102, 0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
-                    <button onclick="window.sendSaleSMS('${sale.id}')" title="SMS" style="flex:1; padding: 10px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:8px; border:none; font-size:16px; box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
-            `;
+        let studentImg = 'https://via.placeholder.com/150?text=No+Photo';
+        if (typeof students !== 'undefined' && students.length > 0) {
+            const matchedStudent = students.find(st => (s.studentId && String(st.id) === String(s.studentId)) || st.name === s.studentName);
+            if (matchedStudent && matchedStudent.photo) {
+                studentImg = matchedStudent.photo;
+            }
         }
 
-        listHtml += `
-            <div style="background: var(--bg-input); padding: 15px; border-radius: 12px; margin-bottom: 15px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <img src="${photoSrc}" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1; flex-shrink: 0;">
-                    <div style="word-break: break-word; flex: 1;">
-                        <div style="font-weight: 800; font-size: 15px; color: var(--text-main);">${sale.studentName}</div>
-                        <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-top: 2px;">
-                            Date: <span style="color:var(--text-main);">${dateStr}</span>
-                        </div>
+        duesHtml += `
+            <div style="background: #3b2a82; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+                    <img src="${studentImg}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; border: 2px solid #cbd5e1;">
+                    <div style="text-align: left;">
+                        <div style="color: white; font-size: 16px; font-weight: 900; line-height: 1.2;">${s.studentName}</div>
+                        <div style="color: #94a3b8; font-size: 12px; margin-top: 4px;"><strong>Date:</strong> ${dateStr}</div>
                     </div>
                 </div>
-
-                <div style="font-size: 13px; color: var(--text-main); line-height: 1.4; background: var(--bg-body); padding: 8px 10px; border-radius: 8px; border: 1px dashed var(--border-color);">
-                    <strong>Item:</strong> <span style="color:#0284c7; font-weight: 600;">${sale.item}</span>
+                <div style="background: #2e1d6b; border-radius: 10px; padding: 10px; text-align: left; margin-bottom: 15px;">
+                    <span style="color: white; font-weight: bold; font-size: 14px;">Item:</span> 
+                    <span style="color: #38bdf8; font-size: 14px; font-weight: 500;">${itemName}</span>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; align-items: center; background: #fff1f2; padding: 12px; border-radius: 8px; border: 1px solid #fecaca; box-shadow: inset 0 2px 4px rgba(225,29,72,0.05);">
-                    <div>
-                        <div style="font-size: 10px; color: #be123c; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;">Total Due</div>
-                        <div style="font-weight: 900; font-size: 20px; color: #e11d48; margin-top: 2px;">₹${sale.due}</div>
+                <div style="background: #fff5f5; border-radius: 12px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="text-align: left;">
+                        <div style="color: #ef4444; font-size: 10px; font-weight: 900; letter-spacing: 0.5px;">TOTAL DUE</div>
+                        <div style="color: #ef4444; font-size: 22px; font-weight: 900;">₹${s.due}</div>
                     </div>
-                    <button onclick="Swal.close(); setTimeout(() => { window.paySaleDue(${sale.id}); }, 300);" style="background: #10b981; color: white; border: none; padding: 10px 18px; border-radius: 8px; font-size: 14px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 6px rgba(16,185,129,0.25); display:flex; align-items:center; gap:6px;">
-                        Pay Now <i class="fas fa-chevron-right" style="font-size:11px;"></i>
+                    <button onclick="Swal.close(); setTimeout(() => window.paySaleDue(${safeId}), 300);" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 900; font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(16,185,129,0.3);">
+                        Pay Now <i class="fas fa-chevron-right" style="font-size:11px; margin-left:4px;"></i>
                     </button>
                 </div>
-                
-                <!-- 🟢 বাটনগুলো ঠিক এখানে, পে-নাউ সেকশনের নিচে বসানো হলো -->
-                ${contactBtnsHtml}
 
+                <!-- 🟢 Working Call, WhatsApp & SMS Buttons -->
+                <div style="display: flex; gap: 10px; justify-content: space-between;">
+                    <button onclick="window.handleAccessoryDueContact('call', '${safeId}')" style="flex: 1; background: #059669; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-phone-alt"></i>
+                    </button>
+                    <button onclick="window.handleAccessoryDueContact('wa', '${safeId}')" style="flex: 1; background: #25D366; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                    <button onclick="window.handleAccessoryDueContact('sms', '${safeId}')" style="flex: 1; background: #0ea5e9; color: white; border: none; padding: 12px; border-radius: 10px; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center;">
+                        <i class="fas fa-sms"></i>
+                    </button>
+                </div>
             </div>
         `;
     });
-    listHtml += '</div>';
+
+    duesHtml += `</div>`;
 
     Swal.fire({
-        title: '<div style="color: var(--danger); font-size: 20px; font-weight: 900;"><i class="fas fa-exclamation-circle"></i> Pending Accessory Dues</div>',
-        html: listHtml,
-        showConfirmButton: true,
-        confirmButtonText: 'Close',
-        confirmButtonColor: '#ef4444', 
+        title: '<div style="color: #ef4444; font-size: 22px; font-weight: 900; line-height: 1.3;"><i class="fas fa-exclamation-circle"></i> Pending Accessory Dues</div>',
+        html: duesHtml,
+        showConfirmButton: false,
+        showCloseButton: false, 
+        footer: '<button onclick="Swal.close()" style="background: #ef4444; color: white; border: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">Close</button>',
+        background: '#1e0b58', 
+        customClass: { popup: 'rounded-3xl border-2 border-indigo-500/30' },
         width: '95%',
-        padding: '15px'
+        padding: '20px 10px'
     });
+};
+
+// 🟢 Helper Function: Call, WhatsApp & SMS পাঠানোর জন্য (কোনো কোটেশন/এরর সমস্যা হবে না)
+window.handleAccessoryDueContact = function(type, saleId) {
+    const sale = (salesDataArray || []).find(x => String(x.id) === String(saleId));
+    if (!sale) return;
+
+    // স্টুডেন্ট লিস্ট থেকে স্টুডেন্টকে খোঁজা
+    let matchedStudent = null;
+    if (typeof students !== 'undefined' && students.length > 0) {
+        matchedStudent = students.find(st => (sale.studentId && String(st.id) === String(sale.studentId)) || st.name === sale.studentName);
+    }
+
+    const target = matchedStudent || { name: sale.studentName, phone: sale.guestPhone || sale.phone || '' };
+
+    if (!target.phone && !target.altPhone) {
+        Swal.fire('Error', 'Phone number not found for this student!', 'error');
+        return;
+    }
+
+    // ১. কল করার লজিক
+    if (type === 'call') {
+        if (matchedStudent && typeof window.callStudent === 'function') {
+            window.callStudent(matchedStudent.id);
+        } else {
+            const cleanPh = (target.phone || target.altPhone).replace(/[^0-9]/g, '');
+            window.open(`tel:${cleanPh}`, '_self');
+        }
+        return;
+    }
+
+    // ২. WhatsApp ও SMS-এর মেসেজ তৈরি
+    let itemName = 'Accessories';
+    if (sale.cart && sale.cart.length > 0) {
+        itemName = sale.cart.map(c => `${c.name} (x${c.qty})`).join(', ');
+    } else if (sale.item) {
+        itemName = sale.item;
+    }
+
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const myName = typeof MY_NAME !== 'undefined' ? MY_NAME : 'Srikanta Banerjee';
+    const msgBody = `Dear ${sale.studentName},\n\nThis is a gentle reminder that your accessory due of ₹${sale.due} for ${itemName} is pending.\n\nPlease clear the due amount at your earliest convenience. Thank you.\n\nRegards,\n${myName}\n(${instName})`;
+
+    // ৩. আপনার মাস্টার ফাংশন (choosePhoneAndSend) থাকলে সেটা দিয়ে পাঠানো, না থাকলে ডাইরেক্ট পাঠানো
+    if (typeof window.choosePhoneAndSend === 'function') {
+        window.choosePhoneAndSend(target, type, msgBody);
+    } else {
+        let cleanPhone = (target.phone || target.altPhone).replace(/[^0-9]/g, '');
+        if (type === 'wa') {
+            if (cleanPhone.length === 10) cleanPhone = '91' + cleanPhone;
+            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msgBody)}`, '_blank');
+        } else if (type === 'sms') {
+            window.open(`sms:${cleanPhone}?body=${encodeURIComponent(msgBody)}`, '_self');
+        }
+    }
 };
 window.processSale = processSale;
 // 🟢 NEW: Smart Autocomplete for Cart Item Input
