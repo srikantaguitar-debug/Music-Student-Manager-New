@@ -12645,6 +12645,9 @@ window.renderDashboard = function() {
         document.getElementById('leaderboardModal').style.display = 'flex';
         window.renderPracticeLeaderboard(); // পপআপ খোলার সাথে সাথে লিস্ট লোড হবে
     };
+    if (typeof window.renderDashboardInquiryAlert === 'function') {
+        window.renderDashboardInquiryAlert();
+    }
     if (typeof window.renderPracticeLeaderboard === 'function') {
         window.renderPracticeLeaderboard();
     }
@@ -15179,6 +15182,39 @@ window.saveInquiriesToFB = async function() {
     }
 };
 
+// 🟢 Inquiry Add (Thank You) এবং History (Follow-up) মেসেজ পাঠানোর ফাংশন
+window.sendInquiryMsg = function(id, type, mode = 'followup') {
+    const inq = (window.inquiries || []).find(i => String(i.id) === String(id));
+    if (!inq || !inq.phone) {
+        Swal.fire('Error', 'Phone number not found!', 'error');
+        return;
+    }
+
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const myName = typeof MY_NAME !== 'undefined' ? MY_NAME : 'Srikanta Banerjee';
+    const greetingName = (inq.name && inq.name !== 'Unknown') ? ` ${inq.name}` : '';
+    const isWA = (type === 'wa');
+
+    const classText = inq.className
+        ? ` for the ${isWA ? '*' + inq.className + '*' : inq.className} class`
+        : '';
+
+    const joinDateText = inq.joiningDate
+        ? ` Your expected joining date is ${new Date(inq.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}.`
+        : '';
+
+    let msgBody = '';
+
+    if (mode === 'initial') {
+        // 🟢 নতুন Inquiry Add করার সময়কার মেসেজ
+        msgBody = `Hello${greetingName},\n\nThank you for showing interest in our Music Classes${classText}.${joinDateText} Let me know when you are ready to join or if you have any questions.\n\nRegards,\n${myName}\n(${instName})`;
+    } else {
+        // 🟢 Inquiry History থেকে পাঠানোর Follow-up মেসেজ
+        msgBody = `Hello${greetingName},\n\nThis is a gentle follow-up regarding your recent inquiry${classText} at our Music Classes.${joinDateText} Please let us know when you would like to start your classes or if you need any further details.\n\nRegards,\n${myName}\n(${instName})`;
+    }
+
+    window.choosePhoneAndSend({ phone: inq.phone }, type, msgBody);
+};
 // 🟢 ৪. নতুন ইনকোয়ারি অ্যাড বা আপডেট করা (SUPER FAST)
 window.addInquiry = function() {
     const editId = document.getElementById('editInqId').value;
@@ -15220,7 +15256,26 @@ window.addInquiry = function() {
     } else {
         inqData.id = Date.now().toString();
         window.inquiries.unshift(inqData);
-        Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Saved Successfully!', showConfirmButton: false, timer: 1500});
+
+        Swal.fire({
+            title: 'Inquiry Saved!',
+            html: `
+                <p style="font-size:14px; color:var(--text-muted); margin-bottom:15px;">Send Inquiry message to <b>${inqData.name}</b> via:</p>
+                <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+                    <button onclick="window.sendInquiryMsg('${inqData.id}', 'wa', 'initial')" style="flex:1; background:#25D366; color:white; border:none; padding:12px 15px; border-radius:8px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <i class="fab fa-whatsapp" style="font-size:16px;"></i> WhatsApp
+                    </button>
+                    <button onclick="window.sendInquiryMsg('${inqData.id}', 'sms', 'initial')" style="flex:1; background:#0ea5e9; color:white; border:none; padding:12px 15px; border-radius:8px; font-weight:bold; font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;">
+                        <i class="fas fa-sms"></i> SMS
+                    </button>
+                </div>
+            `,
+            icon: 'success',
+            showConfirmButton: true,
+            confirmButtonText: 'Close',
+            confirmButtonColor: '#ef4444',
+            allowOutsideClick: false
+        });
     }
 
     // ⚡ চোখের পলকে স্ক্রিন আপডেট
@@ -15314,51 +15369,13 @@ window.renderInquiries = function() {
     const container = document.getElementById('inquiryListContainer');
     const notifArea = document.getElementById('inquiryNotificationArea');
     if(!container) return;
-    
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-    let upcomingInquiries = Array.isArray(window.inquiries) ? window.inquiries.filter(inq => inq.joiningDate === tomorrowStr && !inq.followUpCompleted) : [];
-    
-    if(upcomingInquiries.length > 0 && notifArea) {
-        let notifHtml = `<div style="background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border-left: 5px solid #f59e0b; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #fde68a;">
-            <h4 style="margin: 0 0 8px 0; color: #b45309; display: flex; align-items: center; gap: 8px;"><i class="fas fa-bell fa-shake" style="color: #f59e0b;"></i> Follow-up Reminder!</h4>
-            <p style="margin: 0 0 10px 0; font-size: 13px; color: #92400e;">The following people planned to join tomorrow:</p>
-            <div style="display: flex; flex-direction: column; gap: 10px;">`;
-        
-        upcomingInquiries.forEach(inq => {
-            let clPhone = inq.phone.replace(/[^0-9]/g, '');
-            if(clPhone.length === 10) clPhone = '91' + clPhone;
-            
-            const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
-            const classText = inq.className ? ` for the *${inq.className}* class` : '';
-            const msg = `Hello ${inq.name !== 'Unknown' ? inq.name : ''},\n\nThis is a gentle reminder regarding your joining date tomorrow${classText}. Let me know if you have any questions.\n\nRegards,\nSrikanta Banerjee\n(${instName})`;
+    // 🟢 Inquiry ট্যাবের পুরোনো Follow-up বক্স ফাঁকা রাখা হলো (এখন শুধু Dashboard-এ দেখাবে)
+    if (notifArea) notifArea.innerHTML = '';
 
-            const waUrl = `https://wa.me/${clPhone}?text=${encodeURIComponent(msg)}`;
-            const smsUrl = `sms:${inq.phone}?body=${encodeURIComponent(msg)}`;
-            const callUrl = `tel:${inq.phone}`;
-            
-            notifHtml += `
-            <div style="background: rgba(255,255,255,0.7); padding: 12px; border-radius: 8px; border: 1px dashed #f59e0b; display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <strong style="color: #92400e; font-size: 15px;"><i class="fas fa-user-circle"></i> ${inq.name !== 'Unknown' ? inq.name : 'Unknown Caller'}</strong>
-                    <span style="font-size: 11px; font-weight: bold; background: #fef08a; color: #854d0e; padding: 3px 8px; border-radius: 4px;">Tomorrow</span>
-                </div>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                    <a href="${callUrl}" title="Call" style="flex:1; background: #059669; color: white; padding: 8px 0; border-radius: 6px; text-align: center; text-decoration: none; font-size: 14px; box-shadow: 0 2px 4px rgba(5,150,105,0.2);"><i class="fas fa-phone-alt"></i></a>
-                    <a href="${waUrl}" target="_blank" title="WhatsApp" style="flex:1; background: #25D366; color: white; padding: 8px 0; border-radius: 6px; text-align: center; text-decoration: none; font-size: 16px; box-shadow: 0 2px 4px rgba(37,211,102,0.2);"><i class="fab fa-whatsapp"></i></a>
-                    <a href="${smsUrl}" title="SMS" style="flex:1; background: #0ea5e9; color: white; padding: 8px 0; border-radius: 6px; text-align: center; text-decoration: none; font-size: 14px; box-shadow: 0 2px 4px rgba(14,165,233,0.2);"><i class="fas fa-sms"></i></a>
-                    
-                    <button onclick="window.markInquiryFollowUpComplete('${inq.id}')" title="Mark Complete" style="flex:1.2; background: #f59e0b; border: none; color: white; padding: 8px 0; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: bold; box-shadow: 0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-check-double"></i> Done</button>
-                </div>
-            </div>`;
-        });
-        notifHtml += `</div></div>`;
-        notifArea.innerHTML = notifHtml;
-    } else if(notifArea) {
-        notifArea.innerHTML = '';
+    // 🟢 Dashboard-এর অ্যালার্ট আপডেট করা হচ্ছে
+    if (typeof window.renderDashboardInquiryAlert === 'function') {
+        window.renderDashboardInquiryAlert();
     }
 
     if (!Array.isArray(window.inquiries) || window.inquiries.length === 0) {
@@ -15408,8 +15425,8 @@ window.renderInquiries = function() {
                 
                 <div style="display:flex; gap:8px; align-items:center; border-top: 1px dashed var(--border-color); padding-top: 10px; margin-top: 10px;">
                     <button onclick="window.choosePhoneAndSend({phone: '${inq.phone}'}, 'call', '')" title="Call" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#059669; color:#fff; border-radius:6px; border:none; font-size:14px; box-shadow:0 2px 4px rgba(5,150,105,0.2); cursor:pointer;"><i class="fas fa-phone-alt"></i></button>
-                    <button onclick="window.choosePhoneAndSend({phone: '${inq.phone}'}, 'wa', \`${msg.replace(/`/g, "\\`")}\`)" title="WhatsApp" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; border:none; font-size: 16px; box-shadow:0 2px 4px rgba(37,211,102,0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
-                    <button onclick="window.choosePhoneAndSend({phone: '${inq.phone}'}, 'sms', \`${msg.replace(/`/g, "\\`")}\`)" title="SMS" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; border:none; font-size:14px; box-shadow:0 2px 4px rgba(14,165,233,0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
+                    <button onclick="window.sendInquiryMsg('${inq.id}', 'wa', 'followup')" title="WhatsApp Follow-up" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#25D366; color:#fff; border-radius:6px; border:none; font-size: 16px; box-shadow:0 2px 4px rgba(37,211,102,0.2); cursor:pointer;"><i class="fab fa-whatsapp"></i></button>
+                    <button onclick="window.sendInquiryMsg('${inq.id}', 'sms', 'followup')" title="SMS Follow-up" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#0ea5e9; color:#fff; border-radius:6px; border:none; font-size:14px; box-shadow:0 2px 4px rgba(14,165,233,0.2); cursor:pointer;"><i class="fas fa-sms"></i></button>
                     
                     <button onclick="window.editInquiry('${inq.id}')" title="Edit" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#f59e0b; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(245,158,11,0.2);"><i class="fas fa-edit"></i></button>
                     <button onclick="window.deleteInquiry('${inq.id}')" title="Delete" style="flex:1; padding: 8px 0; display: inline-flex; align-items: center; justify-content: center; background:#ef4444; color:#fff; border:none; border-radius:6px; font-size:14px; cursor:pointer; box-shadow:0 2px 4px rgba(239,68,68,0.2);"><i class="fas fa-trash"></i></button>
@@ -15934,4 +15951,143 @@ window.showTodaysPracticingStudentsModal = function() {
         width: '95%',
         padding: '10px'
     });
+};
+// =========================================================
+// 🟢 DASHBOARD: EXPECTED JOINING DATE ALERT (TODAY & TOMORROW)
+// =========================================================
+window.renderDashboardInquiryAlert = function() {
+    const birthdayBox = document.getElementById('birthdayAlertBox');
+    if (!birthdayBox || !birthdayBox.parentNode) return;
+
+    let inqAlertBox = document.getElementById('dashboardInquiryAlertBox');
+    if (!inqAlertBox) {
+        inqAlertBox = document.createElement('div');
+        inqAlertBox.id = 'dashboardInquiryAlertBox';
+        birthdayBox.parentNode.insertBefore(inqAlertBox, birthdayBox.nextSibling);
+    }
+
+    if (!Array.isArray(window.inquiries) || window.inquiries.length === 0) {
+        inqAlertBox.style.display = 'none';
+        return;
+    }
+
+    // লোকাল ডেট (YYYY-MM-DD) বের করার ফাংশন যাতে রাত ১২টার পর ডেট ভুল না হয়
+    const getLocalDateStr = (dateObj) => {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    };
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const todayStr = getLocalDateStr(today);
+    const tomorrowStr = getLocalDateStr(tomorrow);
+
+    // যাদের Expected Joining Date আজ অথবা আগামীকাল (আগের দিন) এবং Done করা হয়নি
+    let dueInquiries = window.inquiries.filter(inq =>
+        inq.joiningDate &&
+        !inq.followUpCompleted &&
+        (inq.joiningDate === todayStr || inq.joiningDate === tomorrowStr)
+    );
+
+    if (dueInquiries.length === 0) {
+        inqAlertBox.style.display = 'none';
+        return;
+    }
+
+    // আজকের জয়েনিংগুলো উপরে, তারপর আগামীকালেরগুলো সাজানো
+    dueInquiries.sort((a, b) => a.joiningDate.localeCompare(b.joiningDate));
+
+    let html = `
+    <div style="background: var(--bg-card); padding: 15px; border-radius: 12px; margin-top: 15px; border: 1.5px dashed #f59e0b; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+        <h4 style="margin: 0 0 10px 0; color: #f59e0b; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+            <i class="fas fa-user-plus fa-shake"></i> Expected Joining Alert (${dueInquiries.length})
+        </h4>
+        <div class="scroller-box" style="display: flex; flex-direction: column; gap: 8px; max-height: 240px; overflow-y: auto; padding-right: 5px;">
+    `;
+
+    dueInquiries.forEach(inq => {
+        const isToday = (inq.joiningDate === todayStr);
+        const dayBadge = isToday
+            ? `<span style="background: #ef4444; color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 10px; white-space: nowrap;">JOINING TODAY</span>`
+            : `<span style="background: #f59e0b; color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 10px; white-space: nowrap;">TOMORROW</span>`;
+
+        const borderClr = isToday ? '#ef4444' : '#f59e0b';
+        const displayName = (inq.name && inq.name !== 'Unknown') ? inq.name : 'Unknown Caller';
+        const classInfo = inq.className ? ` • ${inq.className}` : '';
+        const formattedJoinDate = new Date(inq.joiningDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        html += `
+            <div style="display:flex; flex-direction:column; gap:10px; background: var(--bg-input); padding:12px; border-radius:10px; border-left: 4px solid ${borderClr}; border-top: 1px solid var(--border-color); border-right: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color);">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                    <div style="line-height: 1.35;">
+                        <strong style="color: var(--text-main); font-size: 14px;">${displayName}</strong>
+                        <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
+                            <i class="fas fa-phone-alt" style="color: #10b981;"></i> ${inq.phone}${classInfo}
+                        </div>
+                        <div style="font-size: 11px; color: ${borderClr}; font-weight: 700; margin-top: 2px;">
+                            <i class="far fa-calendar-check"></i> Joining Date: ${formattedJoinDate}
+                        </div>
+                        ${inq.note ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 3px;">📝 ${inq.note}</div>` : ''}
+                    </div>
+                    ${dayBadge}
+                </div>
+
+                <div style="display:flex; gap: 6px; align-items:center;">
+                    <button onclick="window.sendDashboardInquiryMsg('${inq.id}', 'call', ${isToday})" style="flex:1; background: var(--info); color:white; border:none; padding:8px; border-radius:6px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Call">
+                        <i class="fas fa-phone-alt"></i>
+                    </button>
+                    <button onclick="window.sendDashboardInquiryMsg('${inq.id}', 'wa', ${isToday})" style="flex:1; background:#25D366; color:white; border:none; padding:8px; border-radius:6px; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="WhatsApp">
+                        <i class="fab fa-whatsapp"></i>
+                    </button>
+                    <button onclick="window.sendDashboardInquiryMsg('${inq.id}', 'sms', ${isToday})" style="flex:1; background: var(--warning); color:white; border:none; padding:8px; border-radius:6px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="SMS">
+                        <i class="fas fa-sms"></i>
+                    </button>
+                    <button onclick="window.markInquiryFollowUpComplete('${inq.id}')" style="flex:1; background: var(--success); color:white; border:none; padding:8px; border-radius:6px; font-size:13px; cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Mark Done">
+                        <i class="fas fa-check-circle"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+
+    html += `</div></div>`;
+    inqAlertBox.innerHTML = html;
+    inqAlertBox.style.display = 'block';
+};
+
+// 🟢 Dashboard অ্যালার্ট থেকে Call / WhatsApp / SMS পাঠানোর ফাংশন (With Joining Date)
+window.sendDashboardInquiryMsg = function(id, type, isToday) {
+    const inq = (window.inquiries || []).find(i => String(i.id) === String(id));
+    if (!inq || !inq.phone) {
+        Swal.fire('Error', 'Phone number not found!', 'error');
+        return;
+    }
+
+    if (type === 'call') {
+        window.choosePhoneAndSend({ phone: inq.phone }, 'call', '');
+        return;
+    }
+
+    const instName = typeof INSTITUTE_NAME !== 'undefined' ? INSTITUTE_NAME : 'Music Classes';
+    const myName = typeof MY_NAME !== 'undefined' ? MY_NAME : 'Srikanta Banerjee';
+    const greetingName = (inq.name && inq.name !== 'Unknown') ? ` ${inq.name}` : '';
+    const isWA = (type === 'wa');
+
+    const classText = inq.className
+        ? ` for the ${isWA ? '*' + inq.className + '*' : inq.className} class`
+        : '';
+
+    const dayWord = isToday ? 'today' : 'tomorrow';
+    const formattedJoinDate = inq.joiningDate
+        ? new Date(inq.joiningDate + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        : '';
+    const datePhrase = formattedJoinDate ? `${dayWord} (${formattedJoinDate})` : dayWord;
+
+    const msgBody = `Hello${greetingName},\n\nThis is a gentle reminder regarding your joining date ${datePhrase}${classText}. Let me know if you have any questions.\n\nRegards,\n${myName}\n(${instName})`;
+
+    window.choosePhoneAndSend({ phone: inq.phone }, type, msgBody);
 };
