@@ -4296,16 +4296,75 @@ addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE} ${feeTypePdf}`);
     if (!hasFees) doc.text("No recent records.", leftMargin + 5, y);
     y += 10;
 
-    if (y > 220) { addPageFooter(doc, currentDate); doc.addPage(); y = 20; }
+    if (y > 205) { addPageFooter(doc, currentDate); doc.addPage(); y = 20; }
 
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
+    doc.setTextColor(0);
     doc.text("Attendance & Class Notes", leftMargin, y);
-    y += 8;
+    y += 6;
+
+    // 🟢 Total Present, Total Absent ও Total Activity কাউন্ট করা হচ্ছে
+    const sortedDates = Object.keys(attendance).sort().reverse();
+    let totalPresent = 0;
+    let totalAbsent = 0;
+    let totalActivity = 0;
+
+    sortedDates.forEach(date => {
+        const entry = attendance[date]?.[student.id];
+        if (entry !== undefined && entry !== null) {
+            let isPresent = false;
+            let isAbsent = false;
+            let hasNote = false;
+
+            if (typeof entry === 'object') {
+                if (entry.status === 'present') isPresent = true;
+                if (entry.status === 'absent') isAbsent = true;
+                if (entry.note && entry.note.trim() !== '') hasNote = true;
+            } else if (typeof entry === 'string') {
+                if (entry === 'present') isPresent = true;
+                if (entry === 'absent') isAbsent = true;
+            }
+
+            if (isPresent) totalPresent++;
+            if (isAbsent) totalAbsent++;
+            if (isPresent || hasNote) totalActivity++;
+        }
+    });
+
+    // 🟢 ৩টি Summary Box (Total Present, Total Absent, Total Activity)
+    const attBoxW = 56;
+    const attBoxH = 15;
+    const attGap = 6;
+    const attSummaryBoxes = [
+        { label: "TOTAL PRESENT", val: `${totalPresent}`, color: [16, 185, 129] },
+        { label: "TOTAL ABSENT", val: `${totalAbsent}`, color: [220, 38, 38] },
+        { label: "TOTAL ACTIVITY", val: `${totalActivity}`, color: [37, 99, 235] }
+    ];
+
+    attSummaryBoxes.forEach((box, i) => {
+        const bx = leftMargin + (i * (attBoxW + attGap));
+        doc.setFillColor(245, 247, 250);
+        doc.setDrawColor(220, 220, 220);
+        doc.rect(bx, y, attBoxW, attBoxH, 'FD');
+
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.setFont("helvetica", "bold");
+        doc.text(box.label, bx + (attBoxW / 2), y + 5, { align: 'center' });
+
+        doc.setFontSize(12);
+        doc.setTextColor(box.color[0], box.color[1], box.color[2]);
+        doc.text(box.val, bx + (attBoxW / 2), y + 12, { align: 'center' });
+    });
+
+    y += attBoxH + 6;
 
     doc.setFillColor(230);
     doc.rect(leftMargin, y, pageWidth - (leftMargin*2), 8, 'F');
     doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(0);
     doc.text("Date & Time", leftMargin + 5, y + 5);
     doc.text("Status", leftMargin + 50, y + 5);
     doc.text("Topic / Note", leftMargin + 80, y + 5);
@@ -4313,8 +4372,6 @@ addInfo("Fees:", `Rs. ${student.fee_amount || DEFAULT_FEE} ${feeTypePdf}`);
 
     doc.setFont("helvetica", "normal");
     let hasAttendance = false;
-    
-    const sortedDates = Object.keys(attendance).sort().reverse();
 
     sortedDates.forEach(date => {
         const entry = attendance[date]?.[student.id];
